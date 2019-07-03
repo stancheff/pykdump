@@ -295,6 +295,16 @@ re_rmvia = re.compile(r'\s*\(via\s+([^)]+)\)')
 #     [exception RIP: sysrq_handle_crash+22]
 re_exception_rip = re.compile(r'\[exception RIP: ([^+]+)\+([\da-f]+)')
 
+# A foreground version can raise crash.error and in this case does not
+# return a string. But we still can get contents as exception value
+def __exec_crash_command_e(cmd):
+    try:
+        s = exec_crash_command(cmd)
+    except crash.error as v:
+        pylog.warning("Crash error executing '{}'".format(cmd))
+        s = str(v)
+    return s
+
 @memoize_cond(CU_LIVE | CU_PYMOD | CU_TIMEOUT)
 def exec_bt(crashcmd = None, text = None, bg = False):
     #print "Doing exec_bt('%s')" % crashcmd
@@ -309,11 +319,13 @@ def exec_bt(crashcmd = None, text = None, bg = False):
         if (bg or 'foreach' in crashcmd or ' -a' in crashcmd):
             _exec_cmd = exec_crash_command_bg
         else:
-            _exec_cmd = exec_crash_command
+            # Use a 'fixed' foreground subroutine. Needed when
+            # stack is corrupted - crash returns error in this case
+            _exec_cmd = __exec_crash_command_e
         # If exec_bt() was called with MEMOIZE=False, we need to do the same here
         text = memoize_cond(CU_LIVE | CU_TIMEOUT)(_exec_cmd)\
             (crashcmd, MEMOIZE=exec_bt.__memoize)
-        #print "Got results from crash", crashcmd
+        #text = _exec_cmd(crashcmd)
         if (not text):
             # Got timeout
             return btslist
