@@ -73,7 +73,11 @@ class Task:
     Last_ran = property(__get_last_ran)
 
     def __get_ran_ago(self):
-        return self.Rq.Timestamp//1000000 - self.Last_ran
+        try:
+            return self.Rq.Timestamp//1000000 - self.Last_ran
+        except IndexError:
+            pylog.error("Error in getting Rq of task \n\t{}".format(self))
+            return 0
     Ran_ago = property(__get_ran_ago)
 
     # -- Get CPU --
@@ -83,6 +87,10 @@ class Task:
             return ts.cpu
         elif (ts.hasField("stack")):
               thread_info = readSU("struct thread_info", self.ts.stack)
+              cpu = thread_info.cpu
+              if (cpu < 0 or cpu > sys_info.CPUS):
+                  s = "thread_info.cpu={}".format(cpu)
+                  pylog.error("{} \n\t{}".format(self, s))
               return thread_info.cpu
         else:
             return  self.ts.Deref.thread_info.cpu
