@@ -342,12 +342,15 @@ def print_request_queue():
             if ((name in 'Direct-Access    ') or
                 (name in 'CD-ROM           ')):
                sdev_q = StructResult("struct request_queue", sdev.request_queue)
-               if (member_size("struct elevator_queue", "elevator_type") != -1):
-                   elevator_name = sdev_q.elevator.elevator_type.elevator_name
-               elif(member_size("struct elevator_queue", "type") != -1):
-                   elevator_name = sdev_q.elevator.type.elevator_name
+               if (sdev_q.elevator):
+                   if (member_size("struct elevator_queue", "elevator_type") != -1):
+                       elevator_name = sdev_q.elevator.elevator_type.elevator_name
+                   elif(member_size("struct elevator_queue", "type") != -1):
+                       elevator_name = sdev_q.elevator.type.elevator_name
+                   else:
+                       elevator_name = "<Unknown>"
                else:
-                   elevator_name = "<Unknown>"
+                   elevator_name = "<none>"
                sdev_q = format(sdev_q, 'x')
                try:
                    gendev = gendev_dict[sdev_q]
