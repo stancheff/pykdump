@@ -634,7 +634,9 @@ def run_scsi_checks():
                     gendev_q_sdev_q_mismatch += 1
 
         # Checks for qla2xxx bug for retry_delay RH BZ#1588133
-        if (sdev.host.hostt.name in "qla2xxx" and (member_size("struct fc_port", "retry_delay_timestamp") != -1)):
+        if (sdev.host.hostt.name in "qla2xxx" and 
+            struct_exists("struct fc_port") and 
+            (member_size("struct fc_port", "retry_delay_timestamp") != -1)):
             fc_port = readSU("struct fc_port", long(sdev.hostdata))
             retry_delay_timestamp = readSU("struct fc_port", long(fc_port.retry_delay_timestamp))
             if (retry_delay_timestamp != 0):
