@@ -149,3 +149,13 @@ def decode_rwsemaphore(semaddr):
     out.sort()
     for pid, comm in out:
         print ("\t%8d  %s" % (pid, comm))
+
+    # Check whether we can find an owner
+    if (not s.hasField("owner") or not s.owner):
+        return
+
+    try:
+        ownertask = s.owner
+        print("    Write owner of this rw_semaphore: pid={0.pid} cmd={0.comm}".format(ownertask))
+    except:
+        pass
