@@ -154,6 +154,10 @@ def decode_rwsemaphore(semaddr):
     if (not s.hasField("owner") or not s.owner):
         return
 
+    if s.owner == 1:
+        print("   Reader is the owner")
+        return
+
     try:
         ownertask = s.owner
         print("    Write owner of this rw_semaphore: pid={0.pid} cmd={0.comm}".format(ownertask))
