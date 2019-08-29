@@ -1122,7 +1122,7 @@ def find_stacks(pattern):
 def parse_ps():
     out = []
     for l in exec_crash_command_bg('ps').splitlines()[1:]:
-        spl = re.split("\s+", l[1:].strip())
+        spl = re.split(r"\s+", l[1:].strip())
         try:
             # Convert integers
             for i in (0, 1, 2, 6, 7):
@@ -1277,7 +1277,7 @@ def longChainOfPids(tt, nmin):
                     " pid={}".format(pid))
                 break
             # Do not follow until 0, just until pid=1 is good enough
-            if (pid is 0):
+            if (pid == 0):
                 break
             chain.insert(0, pid)
             knownpids.add(pid)

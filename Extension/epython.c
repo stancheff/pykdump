@@ -38,7 +38,7 @@
 int debug = 0;
 
 /* This is C-module version */
-static char crashmod_version_s[] = "@(#)pycrash 3.1.0";
+static char crashmod_version_s[] = "@(#)pycrash 3.2.0";
 const char * crashmod_version = crashmod_version_s + 12;
 
 extern const char *build_crash_version;
@@ -191,6 +191,152 @@ const char *extrapath;
 
 char stdpath[BUFLEN];
 wchar_t wstdpath[BUFLEN];
+wchar_t _wtmp[BUFLEN];
+char _ctmp[BUFLEN];
+char pystdlib[BUFLEN];
+
+// Computer and store paths to be used.
+// We need two strings:
+// I. Where Python Standard Library is located.
+// II. What is to be used for sys.path, i.e. where to search for modules/programs
+//
+
+
+void _compute_paths() {
+    // STDLIB - as we rely on parts of STDLIB copied to module,
+    // normally this something like <path>/mpykdump64.so/pylib
+    strncpy(pystdlib, ext_filename, BUFLEN-1);
+    strncat(pystdlib, "/", BUFLEN-1);
+    strncat(pystdlib, PYSTDLIBDIR, BUFLEN-1);
+    
+    // STDPATH 
+    // '.' : PYSTDLIB : PYKDUMPPATH : ext_filename: ext_filename/dist-packages
+    strcpy(stdpath, ".:");
+    strncat(stdpath, pystdlib, BUFLEN-1);
+    extrapath = getenv("PYKDUMPPATH");
+    if (extrapath) {
+        strncat(stdpath, ":", BUFLEN-1);
+        strncat(stdpath, extrapath, BUFLEN-1);
+    }
+    strncat(stdpath, ":", BUFLEN-1);
+    strncat(stdpath, ext_filename, BUFLEN-1);
+
+    strncat(stdpath, ":", BUFLEN-1);
+    strncat(stdpath, ext_filename, BUFLEN-1);
+    strncat(stdpath, "/", BUFLEN-1);
+    strncat(stdpath, PYEXTRADIR, BUFLEN-1);
+
+    // We need wchar_t for PySys_SetPath
+    mbstowcs(wstdpath, stdpath, BUFLEN-1);
+
+    if (debug)
+        printf("pystdlib=%s\nstdpath=%ls\n", pystdlib, wstdpath);
+}
+
+
+void save_GDB_sighandlers() {
+    // Get crash/gdb SIGINT handler and store it.
+    sigaction(SIGINT, NULL, &crashgdb_sa);
+    // Set SIG_DFL - we need this to get Python handler initialized
+    py_sa.sa_handler = SIG_DFL;
+    sigemptyset (&py_sa.sa_mask);
+    py_sa.sa_flags = 0;
+    sigaction(SIGINT, &py_sa, NULL);
+}
+
+void save_Python_sighandlers() {
+    // Get Python SIGINT handler and store it
+    sigaction(SIGINT, NULL, &py_sa);
+    //checksignals();
+}
+    
+
+// Convert char * -> wchar_t *
+// We use a static buffer so the result should be copied
+wchar_t * _towchar(const char * str) {
+    mbstowcs(_wtmp, str, BUFLEN-1);
+    return &_wtmp[0];
+}
+
+
+# if PY_VERSION_HEX >= 0x03080000
+// Initialization specific to Python-3.8
+void _init_python() {
+    PyConfig config;
+    PyStatus status;
+    
+    status = PyConfig_InitIsolatedConfig(&config);
+    //status = PyConfig_InitPythonConfig(&config);
+    if (PyStatus_Exception(status)) {
+        goto fail;
+    }
+    
+    config.install_signal_handlers = 1;
+    // For initialisation, we need PYLIB directory only.
+    // We will mdify sys.path later
+    PyConfig_SetString(&config, &config.pythonpath_env, _towchar(pystdlib));
+    if (PyStatus_Exception(status)) {
+        goto fail;
+    }
+
+    status = PyConfig_Read(&config);
+    if (PyStatus_Exception(status)) {
+        goto fail;
+    }
+
+    PyImport_AppendInittab("crash", PyInit_crash);
+
+    // Save GDB/crash signal handlers
+    save_GDB_sighandlers();
+    
+    status = Py_InitializeFromConfig(&config);
+    if (PyStatus_Exception(status)) {
+        goto fail;
+    }
+    PyConfig_Clear(&config);
+    // --------- Initialization succeeded
+    save_Python_sighandlers();
+    if (debug)
+        checksignals();
+    
+    // ------- Update sys.path
+    PySys_SetPath(wstdpath);
+
+    return;
+
+fail:
+    PyConfig_Clear(&config);
+    Py_ExitStatusException(status);
+}
+
+// Print some pyconfig fields
+void _print_pyconfig(PyConfig *config) {
+    int i;
+    PyWideStringList wlist = config->module_search_paths;
+    for (i=0; i < wlist.length; i++) {
+        printf("i=%d <%ls>\n", i, wlist.items[i]);
+    }
+}
+#else
+// Initialization specific to Python-3.7
+void _init_python() {
+    Py_NoSiteFlag = 1;
+    Py_FrozenFlag = 1;
+    Py_IgnoreEnvironmentFlag = 1;
+    Py_SetPythonHome(EMPTYS);
+
+    PyImport_AppendInittab("crash", PyInit_crash);
+    Py_SetPath(_towchar(pystdlib));
+
+    save_GDB_sighandlers();
+    Py_Initialize();
+    save_Python_sighandlers();
+
+    // ------- Update sys.path
+    PySys_SetPath(wstdpath);
+}
+
+#endif
 
 /* Old-style constructrs/destructors for dlopen. */
 void _init(void)  {
@@ -239,50 +385,13 @@ void _init(void)  {
     epython_curext = pc->curext;
 
     if (!Py_IsInitialized()) {
-        Py_NoSiteFlag = 1;
-        Py_FrozenFlag = 1;
-        Py_IgnoreEnvironmentFlag = 1;
-        Py_SetPythonHome(EMPTYS);
+        _compute_paths();
         if (debug)
-            fprintf(fp, "     *** Initializing Embedded Python %s ***\n",
-                    crashmod_version);
+            fprintf(fp, "     *** Initializing Embedded Python 0x%x\n"
+                    "C-mod version %s from %s\n",
+                    PY_VERSION_HEX, crashmod_version, ext_filename);
 
-        extrapath = getenv("PYKDUMPPATH");
-        // To be able debug sources, we need real FS to be searched
-        // before ZIP. So if PYKDUMPPATH is set, we insert it _before_ our
-        // ZIP-archive
-        //strcpy(stdpath, ".:");
-        strcpy(stdpath, "");
-        if (extrapath) {
-            strncat(stdpath, extrapath, BUFLEN-1);
-            strncat(stdpath, ":", BUFLEN-1);
-        }
-        strncat(stdpath, ext_filename, BUFLEN-1);
-        strncat(stdpath, ":", BUFLEN-1);
-        strncat(stdpath, ext_filename, BUFLEN-1);
-        strncat(stdpath, "/", BUFLEN-1);
-        strncat(stdpath, PYSTDLIBDIR, BUFLEN-1);
-        strncat(stdpath, ":", BUFLEN);
-        strncat(stdpath, ext_filename, BUFLEN-1);
-        strncat(stdpath, "/", BUFLEN-1);
-        strncat(stdpath, PYEXTRADIR, BUFLEN-1);
-        mbstowcs(wstdpath, stdpath, BUFLEN-1);
-
-        PyImport_AppendInittab("crash", PyInit_crash);
-        Py_SetPath(wstdpath);
-
-        // Get crash/gdb SIGINT handler and store it.
-        sigaction(SIGINT, NULL, &crashgdb_sa);
-        // Set SIG_DFL - we need this to get Python handler initialized
-        py_sa.sa_handler = SIG_DFL;
-        sigemptyset (&py_sa.sa_mask);
-        py_sa.sa_flags = 0;
-        sigaction(SIGINT, &py_sa, NULL);
-        Py_Initialize();
-        // Get Python SIGINT handler and store it
-        sigaction(SIGINT, NULL, &py_sa);
-        //checksignals();
-        PyEval_InitThreads();
+        _init_python();
     } else {
         if (debug)
             printf("Trying to Py_Initialize() twice\n");
@@ -758,8 +867,8 @@ epython_execute_prog(int argc, char *argv[], int quiet) {
         if (!quiet)
             call_sys_exitepython();
         fflush(fp);
-        // Reset sys.path every time after running a program as we do not destory the intepreter
-        Py_SetPath(wstdpath);
+        // Reset sys.path every time after running a program as we do not destroy the intepreter
+        PySys_SetPath(wstdpath);
 
         // Free memory allocated for wchar copies
         for (i = 0; i < argc; i++) {

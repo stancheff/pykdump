@@ -203,7 +203,7 @@ def stack_categorize(e, descr):
 _d_socket = ['sys_socketcall', 'accept|recv', 'tcp|udp|unix']
 _d_fswrite = ['sys_write', '^[^_]*_write']
 _d_fsopen = ['sys_open', 'vfs_create', '^[^_]+_create']
-_d_pipe = ['pipe_\w+']
+_d_pipe = [r'pipe_\w+']
 _d_exit = ['do_exit', 'wait_for_completion']
 _d_selpoll = ['sys_poll|sys_select']
 _d_futex = ['sys_futex', 'futex_wait|get_futex_key|do_futex']
@@ -264,7 +264,7 @@ def bt_summarize(btlist):
 # A parser using regular expressions only - no pyparsing
 # PID: 0      TASK: c55c10b0  CPU: 1   COMMAND: "swapper"
 re_pid = re.compile(r'^PID:\s+(\d+)\s+TASK:\s+([\da-f]+)\s+' +
-                    'CPU:\s(\d+)\s+COMMAND:\s+"([^"]+)".*$')
+                    r'CPU:\s(\d+)\s+COMMAND:\s+"([^"]+)".*$')
 
 # Frame start can have one of four forms:
 # #0 [c038ffa4] smp_call_function_interrupt at c0116c4a

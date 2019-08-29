@@ -52,7 +52,7 @@ buildarch () {
   fi
   cd $bdir
   CONFIGURE="$PYDIR/configure"
-  $CONFIGURE CFLAGS=-fPIC
+  $CONFIGURE CFLAGS=-fPIC --disable-shared
   getslocal 
   make
   # For some reason, we need this in older RHEL

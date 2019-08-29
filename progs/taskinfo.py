@@ -484,7 +484,7 @@ if ( __name__ == '__main__'):
 
 
     if (o.Taskfilter):
-        taskstates_filter = re.split("\s*,\s*", o.Taskfilter)
+        taskstates_filter = re.split(r"\s*,\s*", o.Taskfilter)
     
     if (o.Cmd):
         runcmd = o.Cmd

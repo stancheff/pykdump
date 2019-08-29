@@ -125,7 +125,7 @@ $(EXT_C): $(OBJS) $(PYTHON)
 # A minimal Python library
 PYLIB = pylib.zip
 
-PYPA = $(SRCDIR)/pyparsing_py$(PYMAJOR)
+PYPA = $(SRCDIR)/pyparsing
 PYPA_C = pyparsing.pyc
 $(PYPA_C): $(PYPA).py $(MK)
 	$(PYTHON) -O -c 'import py_compile;py_compile.compile("$(PYPA).py", "./$@")'

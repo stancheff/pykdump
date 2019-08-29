@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2017 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2019 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -35,7 +35,7 @@ def c_vers(fn):
             # Cannot find ID
             c_id = None
             break
-        m = re.search(b"(@\(#\)pycrash [0-9.]+)\0", l+nl)
+        m = re.search(rb"(@\(#\)pycrash [0-9.]+)\0", l+nl)
         if (m):
             c_id = m.group(1)[12:]
             break
