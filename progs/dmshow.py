@@ -458,21 +458,23 @@ def run_check_on_multipath():
     kworker_md_blocked = 0  # Counter for hung worker threads which are waiting for
                             # IO requests on mdraid devices
 
-    print("\nChecking for device-mapper issues...\n")
+    print("\n\nChecking for device-mapper issues...\n")
 
     for t in tt.allThreads():
-        print("Getting a list of processes in UN state..."
-              "(Count: {:d})".format(task_cnt), end="\r")
         if ('multipathd' in t.comm):
             multipathd_daemon = 1
         if (t.ts.state & TASK_STATE.TASK_UNINTERRUPTIBLE):
             task_cnt += 1
+            errors += 1
             # crash can miss some threads when there are pages missing
             # and it will not do 'bt' in that case.
             try:
                 bts.append(exec_bt("bt %d" % t.pid)[0])
             except:
                 pass
+        print("Getting a list of processes in UN state..."
+              "(Count: {:d})".format(task_cnt), end="\r")
+
     print("Getting a list of processes in UN state...\t\t\t[Done]")
 
     if (task_cnt):
@@ -525,9 +527,8 @@ def run_check_on_multipath():
         print("\n    Run 'hanginfo' for more information on processes in UN state.")
         errors += 1
 
-    if (errors == 0 and task_cnt != 0):
-        print("\n    No device-mapper, multipath issues detected by utility,"
-              "\n    but found {} processes in UN state.".format(task_cnt))
+    if (errors > 0 and task_cnt != 0):
+        print("\n    Found {} processes in UN state.".format(task_cnt))
         print("\n    Run 'hanginfo' for more information on processes in UN state.")
     elif (errors == 0 and task_cnt == 0):
        print ("No issues detected by utility.")
@@ -615,7 +616,7 @@ if ( __name__ == '__main__'):
     elif (args.table):
         pass
     else:
-        print("\n{:6}  {:42} {:20}  {}".format("NUMBER", "NAME", "MAPPED_DEVICE",
+        print("{:6}  {:42} {:20}  {}".format("NUMBER", "NAME", "MAPPED_DEVICE",
               "FLAGS"), end='')
 
     mpathfound = 0
