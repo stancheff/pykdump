@@ -85,12 +85,29 @@ def display_fields(display, fieldstr, usehex=0):
         if (usehex or isinstance(field, StructResult) or
                       isinstance(field, tPtr)):
             try:
-                print(" {}: {:<#10x}".format(fieldname, field), end='')
+                print("   {}: {:<#10x}".format(fieldname, field), end='')
             except ValueError:
-                print(" {}: {:<10}".format(fieldname, field), end='')
+                print("   {}: {:<10}".format(fieldname, field), end='')
         else:
-            print(" {}: {:<10}".format(fieldname, field), end='')
-    print("")
+            print("   {}: {:<10}".format(fieldname, field), end='')
+
+        if (fieldname == "flags"):
+            if ((display.flags & (1 << 0)) or (display.flags & (1 << 1))
+                or (display.flags & (1 << 5))):
+                print("[Device suspended]", end='')
+
+            if (display.flags & (1 << 2)):
+                print("[Device frozen]", end='')
+
+            if (display.flags & (1 << 4)):
+                print("[Device is being deleted]", end='')
+
+            if (symbol_exists("dm_queue_merge_is_compulsory")
+                and (display.flags & (1 << 8))):
+                print("[Device suspended internally]", end='')
+            elif (not symbol_exists("dm_queue_merge_is_compulsory")
+                and (display.flags & (1 << 7))):
+                print("[Device suspended internally]", end='')
 
 def get_size(gendisk):
     try:
@@ -598,7 +615,8 @@ if ( __name__ == '__main__'):
     elif (args.table):
         pass
     else:
-        print("NUMBER  NAME                   MAPPED_DEVICE       FIELDS")
+        print("\n{:6}  {:42} {:20}  {}".format("NUMBER", "NAME", "MAPPED_DEVICE",
+              "FLAGS"), end='')
 
     mpathfound = 0
 
@@ -645,7 +663,7 @@ if ( __name__ == '__main__'):
             show_dmsetup_table(dev)
 
         else:
-            print("dm-{:<4d} {:<22} {:#x} ".format(md.disk.first_minor, name, md), end="")
+            print("\ndm-{:<4d} {:<42} {:#x} ".format(md.disk.first_minor, name, md), end='')
             if (args.mapdev):
                 display_fields(md, args.mapdev, usehex=args.usehex)
             else:
