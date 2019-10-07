@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Time-stamp: <2019-07-02 11:10:25 alexs>
+# Time-stamp: <2018-05-18 14:18:19 alexs>
 
 # --------------------------------------------------------------------
 # (C) Copyright 2006-2018 Hewlett-Packard Development Company, L.P.
@@ -31,9 +31,8 @@ loadModule("testmod", "testmod.ko")
 
 addr = sym2addr("asid")
 asid = readSU("struct ASID", addr)
-asid = readSymbol("asid")
-print("{} {:#x}".format(asid,  Addr(asid, "sarr")))
-sys.exit(0)
+
+
 
 nfailed = 0
 ntests = 0
