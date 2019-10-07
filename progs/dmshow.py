@@ -85,12 +85,29 @@ def display_fields(display, fieldstr, usehex=0):
         if (usehex or isinstance(field, StructResult) or
                       isinstance(field, tPtr)):
             try:
-                print(" {}: {:<#10x}".format(fieldname, field), end='')
+                print("   {}: {:<#10x}".format(fieldname, field), end='')
             except ValueError:
-                print(" {}: {:<10}".format(fieldname, field), end='')
+                print("   {}: {:<10}".format(fieldname, field), end='')
         else:
-            print(" {}: {:<10}".format(fieldname, field), end='')
-    print("")
+            print("   {}: {:<10}".format(fieldname, field), end='')
+
+        if (fieldname == "flags"):
+            if ((display.flags & (1 << 0)) or (display.flags & (1 << 1))
+                or (display.flags & (1 << 5))):
+                print("[Device suspended]", end='')
+
+            if (display.flags & (1 << 2)):
+                print("[Device frozen]", end='')
+
+            if (display.flags & (1 << 4)):
+                print("[Device is being deleted]", end='')
+
+            if (symbol_exists("dm_queue_merge_is_compulsory")
+                and (display.flags & (1 << 8))):
+                print("[Device suspended internally]", end='')
+            elif (not symbol_exists("dm_queue_merge_is_compulsory")
+                and (display.flags & (1 << 7))):
+                print("[Device suspended internally]", end='')
 
 def get_size(gendisk):
     try:
@@ -441,21 +458,23 @@ def run_check_on_multipath():
     kworker_md_blocked = 0  # Counter for hung worker threads which are waiting for
                             # IO requests on mdraid devices
 
-    print("\nChecking for device-mapper issues...\n")
+    print("\n\nChecking for device-mapper issues...\n")
 
     for t in tt.allThreads():
-        print("Getting a list of processes in UN state..."
-              "(Count: {:d})".format(task_cnt), end="\r")
         if ('multipathd' in t.comm):
             multipathd_daemon = 1
         if (t.ts.state & TASK_STATE.TASK_UNINTERRUPTIBLE):
             task_cnt += 1
+            errors += 1
             # crash can miss some threads when there are pages missing
             # and it will not do 'bt' in that case.
             try:
                 bts.append(exec_bt("bt %d" % t.pid)[0])
             except:
                 pass
+        print("Getting a list of processes in UN state..."
+              "(Count: {:d})".format(task_cnt), end="\r")
+
     print("Getting a list of processes in UN state...\t\t\t[Done]")
 
     if (task_cnt):
@@ -508,9 +527,8 @@ def run_check_on_multipath():
         print("\n    Run 'hanginfo' for more information on processes in UN state.")
         errors += 1
 
-    if (errors == 0 and task_cnt != 0):
-        print("\n    No device-mapper, multipath issues detected by utility,"
-              "\n    but found {} processes in UN state.".format(task_cnt))
+    if (errors > 0 and task_cnt != 0):
+        print("\n    Found {} processes in UN state.".format(task_cnt))
         print("\n    Run 'hanginfo' for more information on processes in UN state.")
     elif (errors == 0 and task_cnt == 0):
        print ("No issues detected by utility.")
@@ -598,7 +616,8 @@ if ( __name__ == '__main__'):
     elif (args.table):
         pass
     else:
-        print("NUMBER  NAME                   MAPPED_DEVICE       FIELDS")
+        print("{:6}  {:42} {:20}  {}".format("NUMBER", "NAME", "MAPPED_DEVICE",
+              "FLAGS"), end='')
 
     mpathfound = 0
 
@@ -645,7 +664,7 @@ if ( __name__ == '__main__'):
             show_dmsetup_table(dev)
 
         else:
-            print("dm-{:<4d} {:<22} {:#x} ".format(md.disk.first_minor, name, md), end="")
+            print("\ndm-{:<4d} {:<42} {:#x} ".format(md.disk.first_minor, name, md), end='')
             if (args.mapdev):
                 display_fields(md, args.mapdev, usehex=args.usehex)
             else:
