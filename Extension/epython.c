@@ -265,16 +265,13 @@ void _init_python() {
     PyConfig config;
     PyStatus status;
     
-    status = PyConfig_InitIsolatedConfig(&config);
-    //status = PyConfig_InitPythonConfig(&config);
-    if (PyStatus_Exception(status)) {
-        goto fail;
-    }
+    PyConfig_InitIsolatedConfig(&config);
+    // PyConfig_InitPythonConfig(&config);
     
     config.install_signal_handlers = 1;
     // For initialisation, we need PYLIB directory only.
-    // We will mdify sys.path later
-    PyConfig_SetString(&config, &config.pythonpath_env, _towchar(pystdlib));
+    // We will modify sys.path later
+    status = PyConfig_SetString(&config, &config.pythonpath_env, _towchar(pystdlib));
     if (PyStatus_Exception(status)) {
         goto fail;
     }
