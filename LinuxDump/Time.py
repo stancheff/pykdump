@@ -25,7 +25,7 @@ Many subroutines are still experimental as time keeping is very
 different on different kernels
 '''
 
-__all__ = ['j_delay', 'seconds_since_boot',
+__all__ = ['j_delay', 'seconds_since_boot', 'get_ktime_j',
            'get_uptime_fromcrash', 'sched_clock']
 
 # Some of this code used to be in Tasks.py, but it makes sense
