@@ -621,17 +621,21 @@ def print_xprt(xprt, v = 0):
         print ("      ...", xprt.shortStr(), "...", sock_xprt.shortStr())
         print("        state={}".format(dbits2str(xprt.state, XPRT_BITS)))
         jiffies = readSymbol("jiffies")
-        print ("        last_used %s s ago" % __j_delay(xprt.last_used, jiffies))
+        print ("        last_used %s s ago" % __j_delay(xprt.last_used,
+                                                        jiffies))
         if (v < 1):
             return
 
         socket = sock_xprt.sock     # struct socket
-        sk = socket.sk              # struct sock
-        # IP
-        ip_sock = IP_sock(sk)
-        # Compact str(ip_sock)
-        s = ' '.join(str(ip_sock).split())
-        print("       ", s)
+        if (socket):
+            sk = socket.sk              # struct sock
+            # IP
+            ip_sock = IP_sock(sk)
+            # Compact str(ip_sock)
+            s = ' '.join(str(ip_sock).split())
+            print("       ", s)
+        else:
+            print("         !!! no xport socket yet")
 
         for qn in ("binding", "sending","resend", "pending", "backlog"):
             try:
