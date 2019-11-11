@@ -504,6 +504,7 @@ def bt_mergestacks(btlist, precise = False,
 def __get_bt_t():
     return exec_crash_command("foreach bt -t")
 
+@memoize_cond(CU_LIVE | CU_TIMEOUT)
 def _get_threads_subroutines():
     all = __get_bt_t()
     funcpids = defaultdict(set)
