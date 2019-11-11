@@ -637,7 +637,7 @@ if ( __name__ == '__main__'):
 
     if (o.Saphana):
         try:
-            from LinuxDump.SapHana import doSapHana
+            from LinuxDump.adHoc import doSapHana
         except ImportError:
             def doSapHana():
                 print("See https://www.suse.com/documentation/sles_for_sap_11/book_s4s/data/s4s_configuration.html")

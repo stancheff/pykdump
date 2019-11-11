@@ -13,7 +13,7 @@
 
 
 # 1st-pass dumpanalysis
-__version__ = "1.3.6"
+__version__ = "1.3.7"
 
 from pykdump.API import *
 
@@ -43,6 +43,7 @@ from LinuxDump.fs import *
 
 # DLKM info
 from LinuxDump.dlkm import lsmod
+
 
 
 import sys
@@ -1750,3 +1751,13 @@ if (verbose):
     stackSummary()
 
 check_SG()
+
+# ad hoc tests, not of general interest but rather related to specific cases
+# you can put your own tests there as needed, if this file is not present
+# if will not have any negative impact
+try:
+    from LinuxDump.adHoc import do_AdHoc
+    do_AdHoc(verbose)
+except:
+    pass
+    
