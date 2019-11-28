@@ -9,7 +9,7 @@
 
 # Print info about NFS/RPC
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 from collections import (Counter, OrderedDict, defaultdict)
 import itertools
@@ -1441,6 +1441,57 @@ def print_sunrpc_net(v):
         except KeyError:
             pass
 
+# Print info starting from nfs_client - useful when mount has
+# not been completed yet
+def print_nfs_client(nfs_cl, v):
+        # At this moment, only IPv4
+        addr_in = nfs_cl.cl_addr.castTo("struct sockaddr_in")
+        ip = ntodots(addr_in.sin_addr.s_addr)
+        # Version
+        nfs_major_vers = nfs_cl.rpc_ops.version
+        nfsvers = "{}.{}".format(nfs_major_vers, nfs_cl.cl_minorversion)
+        print("       NFS version: {}".format(nfsvers))
+
+        print ("    ---", nfs_cl, nfs_cl.cl_hostname, ip)
+
+        if (v):
+            # Print owner_id if available
+            try:
+                cl_owner_id = nfs_cl.cl_owner_id
+                if (cl_owner_id):
+                    print("     ", cl_owner_id)
+            except:
+                pass
+        # Check idmap queues
+        try:
+            idmap = nfs_cl.cl_idmap
+        except (TypeError,KeyError):
+            # On newer kernels we need to load debuginfo for nfsv4.ko
+            # But it does not make sense to try it until we modify the code
+            # for waitqueue - on these kernels there is no 'idmap_wq' field
+            idmap = None
+        if (idmap and idmap.hasField('idmap_wq')):
+            wq = idmap.idmap_wq
+            if (wq):
+                if (idmap not in idmap_busy):
+                    tasks = decode_waitq(wq)
+                    if (tasks):
+                        idmap_busy[idmap] = tasks
+
+        rpc_clnt = nfs_cl.cl_rpcclient
+        if (v > 1):
+            print('        ...', rpc_clnt)
+        # Print/decode the transport
+        xprt = rpc_clnt.cl_xprt
+        print_xprt(xprt, detail)
+        #print rpc_clnt, rpc_clnt.cl_metrics
+
+        # NFSv4 specific
+        if (nfs_major_vers == 4 and v > 1):
+            nfsv4_client = Nfs4.nfs_client(nfs_cl)
+            nfsv4_client.print_verbose()
+
+
 
 detail = 0
 
@@ -1479,7 +1530,9 @@ if ( __name__ == '__main__'):
     parser.add_argument("--decoderpctask", dest="Decoderpctask", default = -1,
                   action=hexact,
                   help="Decode RPC task at address")
-
+    parser.add_argument("--nfsclient", dest="Nfsclient", default = -1,
+                  action=hexact,
+                  help="Print info about nfs_client at address")
     parser.add_argument("--maxrpctasks", dest="Maxrpctasks", default = 20,
                   type=int, action="store",
                   help="Maximum number of RPC tasks tp print")
@@ -1531,6 +1584,12 @@ if ( __name__ == '__main__'):
         s = readSU("struct rpc_task", o.Decoderpctask)
         print_rpc_task(s, detail)
         sys.exit(0)
+
+    if (o.Nfsclient != -1):
+        s = readSU("struct nfs_client", o.Nfsclient)
+        print_nfs_client(s, detail)
+        sys.exit(0)
+
 
     if (o.Pid):
         if (o.Pid == -1):
