@@ -637,8 +637,16 @@ def run_scsi_checks():
         if (sdev.host.hostt.name in "qla2xxx" and 
             struct_exists("struct fc_port") and 
             (member_size("struct fc_port", "retry_delay_timestamp") != -1)):
+
             fc_port = readSU("struct fc_port", long(sdev.hostdata))
-            retry_delay_timestamp = readSU("struct fc_port", long(fc_port.retry_delay_timestamp))
+
+            if (fc_port):
+                retry_delay_timestamp = readSU("struct fc_port", long(fc_port.retry_delay_timestamp))
+            else:
+                # If fc_port is NULL, then fetching the retry_delay_timestamp would result in crash,
+                # so just mark retry_delay_timestamp to 0 and process next sdev and fc_port
+                retry_delay_timestamp = 0
+
             if (retry_delay_timestamp != 0):
                 retry_delay = (retry_delay_timestamp - jiffies)/1000/60
                 if (retry_delay > 2):
