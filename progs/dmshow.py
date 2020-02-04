@@ -472,10 +472,9 @@ def run_check_on_multipath():
                 bts.append(exec_bt("bt %d" % t.pid)[0])
             except:
                 pass
-        print("Getting a list of processes in UN state..."
-              "(Count: {:d})".format(task_cnt), end="\r")
 
-    print("Getting a list of processes in UN state...\t\t\t[Done]")
+    print("Getting a list of processes in UN state...\t\t\t[Done] "
+          "(Count: {:d})".format(task_cnt))
 
     if (task_cnt):
         print("\nProcessing the back trace of hung tasks...\t\t\t", end='')
