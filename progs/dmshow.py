@@ -504,7 +504,6 @@ def run_check_on_multipath():
               "\n    requests on mdraid devices. This could be a result of thundering"
               "\n    herd problem. See reference: "
               "\n    https://marc.info/?l=linux-raid&m=155364683109115&w=2".format(kworker_md_blocked))
-        print("\n    Run 'hanginfo' for more information on processes in UN state.")
         errors += 1
 
     # multipath devices are present but multipathd is not running
@@ -517,13 +516,11 @@ def run_check_on_multipath():
     if (multipath_blocked == 1 and wq_blocked == 1):
         print("\n ** multipathd and scsi/fc work_queue processes are stuck in UN state,"
               "\n    this could block IO failover on multipath devices")
-        print("\n    Run 'hanginfo' for more information on processes in UN state.")
         errors += 1
     # only multipathd process is stuck in UN state
     elif (multipath_blocked == 1):
         print("\n ** multipathd processes stuck in UN state,"
               "\n    this could block IO failover on multipath devices")
-        print("\n    Run 'hanginfo' for more information on processes in UN state.")
         errors += 1
 
     if (errors > 0 and task_cnt != 0):
