@@ -1,11 +1,11 @@
 /* Python extension to interact with CRASH
 
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2017 Hewlett-Packard Enterprise Development LP
+# (C) Copyright 2006-2020 Hewlett-Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
-# --------------------------------------------------------------------  
+# --------------------------------------------------------------------
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -177,7 +177,7 @@ py_get_GDB_output(PyObject *self, PyObject *args) {
   char *cmd;
   char buf[BUFSIZE];
 
-  PyObject *out = PyString_FromString("");
+  PyObject *out = PyUnicode_FromString("");
   PyObject *newpart;
 
   if (!PyArg_ParseTuple(args, "s", &cmd)) {
@@ -200,7 +200,7 @@ py_get_GDB_output(PyObject *self, PyObject *args) {
   // Now read and print from fp
   rewind(pc->tmpfile);
   while (fgets(buf, BUFSIZE, pc->tmpfile)) {
-    newpart = PyString_FromString(buf);
+    newpart = PyUnicode_FromString(buf);
     // On Python3: PyObject* PyUnicode_Concat(PyObject *left, PyObject *right)
     // and returns a new reference
     out = PyUnicode_Concat(out, newpart);
@@ -246,10 +246,10 @@ py_exec_crash_command(PyObject *self, PyObject *pyargs) {
     printf("exec_crash_command <%s>\n", cmd);
   // Send command to crash and get its text output
 
-  // ***** Enable CRASH SIGINT handler. If we press ^C in this state, 
+  // ***** Enable CRASH SIGINT handler. If we press ^C in this state,
   // we will get crash.error exception
   use_crash_sigint();
-  
+
   strcpy(pc->command_line, cmd);
   clean_line(pc->command_line);
   strcpy(pc->orig_line, pc->command_line);
@@ -292,7 +292,7 @@ py_exec_crash_command(PyObject *self, PyObject *pyargs) {
   fseek(fp, 0,0);
   tmpbuf = malloc(flength);
   rlength =  fread(tmpbuf, 1, flength, fp);
-  obj = PyString_FromStringAndSize(tmpbuf, flength);
+  obj = PyUnicode_FromStringAndSize(tmpbuf, flength);
   free(tmpbuf);
 
   fclose(fp);
@@ -497,11 +497,16 @@ py_exec_epython_command(PyObject *self, PyObject *pyargs) {
   int argc = PyTuple_Size(pyargs);
   int i;
 
-  char **argv = (char **) malloc(sizeof(char *) * argc);
+  const char **argv = (const char **) malloc(sizeof(char *) * (argc+1));
 
-  for (i=0; i < argc; i++)
-    argv[i] = PyString_AsString(PyTuple_GetItem(pyargs, i));
-  epython_execute_prog(argc, argv, 0);
+  // A epython expects plain char *argv[], we need to decode
+  // Python Unicode strings
+  argv[0] = "epython_subcommand";
+  for (i=0; i < argc; i++) {
+    argv[i+1] = PyUnicode_AsUTF8(PyTuple_GetItem(pyargs, i));
+    // fprintf(stderr, "i=%d arg=%s\n", i+1, argv[i+1]);
+  }
+  epython_execute_prog(argc+1, (char **) argv, 0);
   free(argv);
 
   Py_INCREF(Py_None);
@@ -513,7 +518,7 @@ py_sym2addr(PyObject *self, PyObject *args) {
   char *symbol;
   unsigned long long addr;
   struct syment *se;
- 
+
   if (!PyArg_ParseTuple(args, "s", &symbol)) {
     PyErr_SetString(crashError, "invalid parameter type"); \
     return NULL;
@@ -610,7 +615,7 @@ py_addr2mod(PyObject *self, PyObject *args) {
     PyErr_SetString(crashError, "invalid parameter type"); \
     return NULL;
   }
-  
+
   if (module_symbol(addr, NULL, &lm, NULL, 0))
     return Py_BuildValue("s", lm->mod_name);
   else {
@@ -634,20 +639,20 @@ static conversion_func functable_usigned[16];
 static PyObject *
 nu_char(const char *p)
 {
-        return PyString_FromStringAndSize(p, 1);
+        return PyUnicode_FromStringAndSize(p, 1);
 }
 #endif
 
 static PyObject *
 nu_byte(const char *p)
 {
-        return PyInt_FromLong((long) *(signed char *)p);
+        return PyLong_FromLong((long) *(signed char *)p);
 }
 
 static PyObject *
 nu_ubyte(const char *p)
 {
-        return PyInt_FromLong((long) *(unsigned char *)p);
+        return PyLong_FromLong((long) *(unsigned char *)p);
 }
 
 static PyObject *
@@ -655,7 +660,7 @@ nu_short(const char *p)
 {
         short x;
         memcpy((char *)&x, p, sizeof x);
-        return PyInt_FromLong((long)x);
+        return PyLong_FromLong((long)x);
 }
 
 static PyObject *
@@ -663,7 +668,7 @@ nu_ushort(const char *p)
 {
         unsigned short x;
         memcpy((char *)&x, p, sizeof x);
-        return PyInt_FromLong((long)x);
+        return PyLong_FromLong((long)x);
 }
 
 static PyObject *
@@ -671,7 +676,7 @@ nu_int(const char *p)
 {
         int x;
         memcpy((char *)&x, p, sizeof x);
-        return PyInt_FromLong((long)x);
+        return PyLong_FromLong((long)x);
 }
 
 static PyObject *
@@ -687,7 +692,7 @@ nu_long(const char *p)
 {
         long x;
         memcpy((char *)&x, p, sizeof x);
-        return PyInt_FromLong(x);
+        return PyLong_FromLong(x);
 }
 
 static PyObject *
@@ -820,7 +825,7 @@ py_readPtr(PyObject *self, PyObject *args) {
   PyObject *arg1 = PyTuple_GetItem(args, 0);
   int mtype = default_mtype;
   if (PyTuple_Size(args) > 1)
-    mtype = PyInt_AsLong(PyTuple_GetItem(args, 1));
+    mtype = PyLong_AsLong(PyTuple_GetItem(args, 1));
 
   addr = PyLong_AsUnsignedLongLong(arg1);
   /* When we see a NULL pointer we raise not a crash-specific
@@ -864,7 +869,7 @@ py_readmem(PyObject *self, PyObject *args) {
   PyObject *arg2 = PyTuple_GetItem(args, 1);
   int mtype = default_mtype;
   if (PyTuple_Size(args) > 2)
-    mtype = PyInt_AsLong(PyTuple_GetItem(args, 2));
+    mtype = PyLong_AsLong(PyTuple_GetItem(args, 2));
 
   /* This is buggy on 64-bit - sign is incorrect
   if (!PyArg_ParseTuple(args, "kl", &addr, &size)) {
@@ -922,7 +927,7 @@ py_readInt(PyObject *self, PyObject *args) {
   PyObject *arg2 = PyTuple_GetItem(args, 1);
 
   if (PyTuple_Size(args) > 2)
-    signedvar = PyInt_AsLong(PyTuple_GetItem(args, 2));
+    signedvar = PyLong_AsLong(PyTuple_GetItem(args, 2));
 
   addr = PyLong_AsUnsignedLongLong(arg1);
   size = PyLong_AsLong(arg2);
@@ -1017,7 +1022,7 @@ get_NR_syscalls(void)
 
 static PyObject *
 py_get_NR_syscalls(PyObject *self, PyObject *args) {
-    return PyInt_FromLong(get_NR_syscalls());
+    return PyLong_FromLong(get_NR_syscalls());
 }
 
 /*
@@ -1048,7 +1053,7 @@ py_uvtop(PyObject *self, PyObject *args) {
 
   return PyLong_FromUnsignedLongLong((ulonglong)physaddr);
 }
- 
+
 /*
   page = phys_to_page(physaddr_t phys)
 */
@@ -1225,7 +1230,7 @@ py_getlistsize(PyObject *self, PyObject *args) {
     ptr = next;
     count++;
   }
-  return PyInt_FromLong(count);
+  return PyLong_FromLong(count);
 }
 
 static PyObject *
@@ -1425,7 +1430,7 @@ py_get_epython_cmds(PyObject *self, PyObject *args) {
   PyObject *list, *val;
   list = PyList_New(0);
   for (ce = epython_curext->command_table; ce->name; ce++) {
-    val = PyString_FromString(ce->name);
+    val = PyUnicode_FromString(ce->name);
     if (PyList_Append(list, val) == -1)
       return NULL;
   }
@@ -1441,7 +1446,7 @@ py_set_default_timeout(PyObject *self, PyObject *args) {
     __default_timeout = old_value;
     return NULL;
   }
-  return PyInt_FromLong((long) old_value);
+  return PyLong_FromLong((long) old_value);
 }
 
 static PyObject *
@@ -1455,7 +1460,7 @@ py_get_pathname(PyObject *self, PyObject *args) {
   }
 
   get_pathname(dentry, pathname, sizeof(pathname), 1, vfsmnt);
-  return PyString_FromString(pathname);
+  return PyUnicode_FromString(pathname);
 }
 
 // Check whether task is active by calling crash internal subroutine
@@ -1526,7 +1531,7 @@ py_get_task_mem_usage(PyObject *self, PyObject *args) {
   ulong task;
   struct task_mem_usage tm;
   unsigned long rss, total_vm;
-  
+
   if (!PyArg_ParseTuple(args, "k", &task)) {
     PyErr_SetString(crashError, "invalid parameter type"); \
     return NULL;
@@ -1658,25 +1663,25 @@ PyMODINIT_FUNC PyInit_crash(void) {
   Py_INCREF(crashError);
   PyModule_AddObject(m, "error", crashError);
 
-  PyModule_AddObject(m, "version", PyString_FromString(crashmod_version));
+  PyModule_AddObject(m, "version", PyUnicode_FromString(crashmod_version));
 
-  PyModule_AddObject(m, "KVADDR", PyInt_FromLong(KVADDR));
-  PyModule_AddObject(m, "UVADDR", PyInt_FromLong(UVADDR));
-  PyModule_AddObject(m, "PHYSADDR", PyInt_FromLong(PHYSADDR));
-  PyModule_AddObject(m, "XENMACHADDR", PyInt_FromLong(XENMACHADDR));
-  //PyModule_AddObject(m, "FILEADDR", PyInt_FromLong(FILEADDR));
-  PyModule_AddObject(m, "AMBIGUOUS", PyInt_FromLong(AMBIGUOUS));
+  PyModule_AddObject(m, "KVADDR", PyLong_FromLong(KVADDR));
+  PyModule_AddObject(m, "UVADDR", PyLong_FromLong(UVADDR));
+  PyModule_AddObject(m, "PHYSADDR", PyLong_FromLong(PHYSADDR));
+  PyModule_AddObject(m, "XENMACHADDR", PyLong_FromLong(XENMACHADDR));
+  //PyModule_AddObject(m, "FILEADDR", PyLong_FromLong(FILEADDR));
+  PyModule_AddObject(m, "AMBIGUOUS", PyLong_FromLong(AMBIGUOUS));
 
-  PyModule_AddObject(m, "PAGESIZE", PyInt_FromLong(PAGESIZE()));
-  PyModule_AddObject(m, "PAGE_CACHE_SHIFT", 
-                     PyInt_FromLong(machdep->pageshift));
-  PyModule_AddObject(m, "HZ", PyInt_FromLong(machdep->hz));
+  PyModule_AddObject(m, "PAGESIZE", PyLong_FromLong(PAGESIZE()));
+  PyModule_AddObject(m, "PAGE_CACHE_SHIFT",
+                     PyLong_FromLong(machdep->pageshift));
+  PyModule_AddObject(m, "HZ", PyLong_FromLong(machdep->hz));
 
-  PyModule_AddObject(m, "WARNING", PyString_FromString("++WARNING+++"));
+  PyModule_AddObject(m, "WARNING", PyUnicode_FromString("++WARNING+++"));
 
-  PyModule_AddObject(m, "Crash_run", PyString_FromString(build_version));
+  PyModule_AddObject(m, "Crash_run", PyUnicode_FromString(build_version));
   PyModule_AddObject(m,
-		     "Crash_build",PyString_FromString(build_crash_version));
+		     "Crash_build",PyUnicode_FromString(build_crash_version));
 
   // Register GDB-internal enums
   py_gdb_register_enums(m);
@@ -1703,4 +1708,3 @@ PyMODINIT_FUNC PyInit_crash(void) {
 
   return m;
 }
-

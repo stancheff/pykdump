@@ -95,7 +95,7 @@ int
 myDict_SetCharChar(PyObject *v, const char *key, const char *item) {
 	PyObject *iv;
 	int err;
-	iv = PyString_FromString(item);
+	iv = PyUnicode_FromString(item);
 	if (iv == NULL)
 		return -1;
 	err = PyDict_SetItemString(v, key, iv);
@@ -194,11 +194,11 @@ do_ftype(struct type *ftype, PyObject *item) {
   switch (codetype) {
   case TYPE_CODE_STRUCT:
   case TYPE_CODE_UNION:
-    v = PyString_FromString("fname");
+    v = PyUnicode_FromString("fname");
     fname = PyDict_GetItem(item, v);
     Py_DECREF(v);
 
-    v = PyString_FromString("stars");
+    v = PyUnicode_FromString("stars");
     ptr = PyDict_GetItem(item, v);
     Py_DECREF(v);
     /* Expand only if we don't have tagname or fname */
@@ -243,11 +243,11 @@ do_ftype(struct type *ftype, PyObject *item) {
       CHECK_TYPEDEF(tmptype);
     }
 
-    v =  PyInt_FromLong(stars);
+    v =  PyLong_FromLong(stars);
     PyDict_SetItemString(item, "stars", v);
     Py_DECREF(v);
 
-    v = PyInt_FromLong(TYPE_CODE(tmptype));
+    v = PyLong_FromLong(TYPE_CODE(tmptype));
     PyDict_SetItemString(item, "ptrbasetype", v);
     Py_DECREF(v);
 
@@ -266,7 +266,7 @@ do_ftype(struct type *ftype, PyObject *item) {
     do_ftype(ftype, item);
     break;
   case TYPE_CODE_INT:
-    v= PyInt_FromLong(TYPE_UNSIGNED(ftype));
+    v= PyLong_FromLong(TYPE_UNSIGNED(ftype));
     PyDict_SetItemString(item, "uint", v);
     Py_DECREF(v);
     myDict_SetCharChar(item, "basetype", TYPE_NAME(ftype));
@@ -304,7 +304,7 @@ do_ftype(struct type *ftype, PyObject *item) {
     do_ftype(ftype, item);
     PyObject *pdims = PyList_New(0);
     for (i=0; i < ndim; i++) {
-      v = PyInt_FromLong(dims[i]);
+      v = PyLong_FromLong(dims[i]);
       PyList_Append(pdims, v);
       Py_DECREF(v);
     }
@@ -322,11 +322,11 @@ do_ftype(struct type *ftype, PyObject *item) {
      original CODE_TYPE (pointer) and target type (when all
      stars are removed)
   */
-  v = PyInt_FromLong(TYPE_CODE(ftype));
+  v = PyLong_FromLong(TYPE_CODE(ftype));
   PyDict_SetItemString(item, "codetype", v);
   Py_DECREF(v);
 
-  v = PyInt_FromLong(TYPE_LENGTH(ftype));
+  v = PyLong_FromLong(TYPE_LENGTH(ftype));
   PyDict_SetItemString(item, "typelength", v);
   Py_DECREF(v);
 
@@ -381,12 +381,12 @@ do_SU(struct type *type, PyObject *pitem) {
 
     myDict_SetCharChar(item, "fname", fname);
     if (bsize) {
-      v = PyInt_FromLong(bsize);
+      v = PyLong_FromLong(bsize);
       PyDict_SetItemString(item, "bitsize", v);
       Py_DECREF(v);
     }
 
-    v = PyInt_FromLong(boffset);
+    v = PyLong_FromLong(boffset);
     PyDict_SetItemString(item, "bitoffset", v);
     Py_DECREF(v);
 
@@ -413,8 +413,8 @@ do_enum(struct type *type, PyObject *pitem) {
     //struct type *ftype = TYPE_FIELD_TYPE(type, i);
     const char *fname = TYPE_FIELD_NAME(type, i);
     long bp = TYPE_FIELD_BITPOS (type, i);
-    n = PyString_FromString(fname);
-    v = PyInt_FromLong(bp);
+    n = PyUnicode_FromString(fname);
+    v = PyLong_FromLong(bp);
     PyList_Append(item, n);
     PyList_Append(item, v);
     Py_DECREF(n);
@@ -504,7 +504,7 @@ PyObject * py_gdb_whatis(PyObject *self, PyObject *args) {
 
 
 // Register enums needed to be used for type-analysis
-#define REGISTER_ENUM(name) PyModule_AddObject(m, #name, PyInt_FromLong(name))
+#define REGISTER_ENUM(name) PyModule_AddObject(m, #name, PyLong_FromLong(name))
 
 void py_gdb_register_enums(PyObject *m) {
   REGISTER_ENUM(TYPE_CODE_PTR);
