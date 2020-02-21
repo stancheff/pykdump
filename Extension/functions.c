@@ -608,10 +608,9 @@ static PyObject *
 py_addr2mod(PyObject *self, PyObject *args) {
   // char *symbol;
   unsigned long addr;
-  int loose_match = 0;
 
   struct load_module *lm;
-  if (!PyArg_ParseTuple(args, "k|i", &addr,&loose_match)) {
+  if (!PyArg_ParseTuple(args, "k", &addr)) {
     PyErr_SetString(crashError, "invalid parameter type"); \
     return NULL;
   }
@@ -769,7 +768,7 @@ py_mem2long(PyObject *self, PyObject *args, PyObject *kwds) {
   int size;
   // unsigned long addr;
 
-  static char *kwlist[] = {"source", "signed", "array", NULL};
+  static char *kwlist[] = {"bytestr", "signed", "array", NULL};
   int array = 0;
   int signedvar = 0;
 
@@ -851,8 +850,6 @@ py_readPtr(PyObject *self, PyObject *args) {
 
 //int readmem(ulonglong addr, int memtype, void *buffer, long size,
 //	char *type, ulong error_handle)
-
-// With Python2, we return a 'str' object
 // With Python3, we return a 'bytes' object
 
 static PyObject *
