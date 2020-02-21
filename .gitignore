@@ -10,6 +10,7 @@
 *.pdf
 *~
 \#*
+.#*
 .emacs.desktop*
 .make3rd
 __pycache__
@@ -26,3 +27,4 @@ Extension/testmod/.tmp_versions
 Extension/testmod/Module.symvers
 Extension/testmod/modules.order
 Extension/testmod/testmod.mod.c
+Doc/build
