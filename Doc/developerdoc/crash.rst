@@ -1,4 +1,4 @@
-:mod:`crash` C-module 
+:mod:`crash` C-module
 =======================================
 
 .. module:: crash
@@ -9,7 +9,7 @@
 --------------
 
 This module implements Python bindings to ``crash`` and ``GDB``
-internal commanda and structures
+internal commands and structures
 
 .. function:: symbol_exits(symname)
 
@@ -54,36 +54,6 @@ internal commanda and structures
 
    Example: ``WORK_CPU_NONE = enumerator_value("WORK_CPU_NONE")``
 
-.. function:: get_GDB_output(cmd)
-
-   Execute ``GDB`` command and return it soutput as a string
-
-.. function:: exec_crash_command(cmd, no_stdout = 0)
-
-   Executes a vuilt-in ``crash`` command and returns output as a
-   string. There is no timeout mechanism for this subroutine
-
-.. function:: exec_crash_command_bg2(cmd, no_stdout = 0)
-
-   This command opens and writes to FIFO so we expect someone to read
-   it. Execution is done in the background - we fork() a child process
-   that does executing with output redirected to a pipe.
-
-   This function is used in high-level subroutine
-   ``exec_crash_command_bg(cmd,  timeout = None)``
-
-   :return: a tuple of (fileno, pid) where *fileno* is OS filedescriptor and
-            *pid* is PID of the child process
-
-.. function:: exec_epython_command
-
-.. function:: get_epython_cmds()
-
-   Get a list of registered ``epython`` commands. Used internally in
-   higher-level PyKdump API
-
-   :return: a list of strings
-
 .. function:: sym2addr(symbolname)
 
    :param symbolname: a string with symbol name
@@ -121,6 +91,13 @@ internal commanda and structures
    :param addr: address as an integer
    :return: a string with module name where this address belongs, or *None*
 
+Reading Memory
+--------------
+
+There are different types of memory, e.g. `KVADDR`. Some of the
+following subroutines let you specify the memory type as an extra
+argument and some rely on default
+
 .. function:: mem2long(bytestr, signed, array)
 
    This is a swiss-army knife subroutine to convert a byte string into
@@ -139,26 +116,6 @@ internal commanda and structures
    :param array: if specified, we will return a list of *array*
                  integers instead of one value
 
-.. function:: uvtop(taskaddr, vaddr)
-
-   Interface to ``crash`` builtin ``uvtop(tskaddr, vaddr)`` - converts
-   a virtual address to physicall address in the context of specified
-   task
-
-   :param taskaddr: address of ``struct task_struct``
-   :param vaddr: virtual address
-   :return: physical address as an integer
-
-.. function:: phys_to_page(physaddr)
-
-   Interface to ``crash`` bulitin ``phys_to_page(physaddr_t phys``
-
-   :param physaddr: physical address
-   :return: page as an integer
-
-.. function:: PAGEOFFSET(vaddr)
-
-   Interface to ``crash`` bulitin ``PAGEOFFSET(vaddr)``
 
 .. function:: readmem(addr, size [, mtype])
 
@@ -189,41 +146,42 @@ internal commanda and structures
                      not specified, we assume ``unsigned``
    :param mtype:  memory type, by default :data:`KVADDR`
 
-.. function:: sLong(i)
+.. function:: set_readmem_task(taskaddr)
 
-   In C, the same bits sequnce can represent either *signed* or
-   *unsigned* integer. In Python, there is no native *unsigned*
-   integer. This subroutine lets you convert a Python integer to
-   *unsigned* assuming that integer size is that for *long* type of
-   this architecture.
+   :param taskaddr: task address or zero
 
-   :param i: Python integer of any size/value
-   :return: interpret ``sizeof(long)`` lower bits of provide integer
-            as C ``unsigned long`` and return this value
+   * if taskaddr=0, reset readmem operations to use KVADDR
+   * if taskaddr is a valid task address, set readmem operations to UVADDR
+     and set the current context to this task
 
-   An example::
+   :return: nothing
 
-     l = 0xffffffffffffffff
-     print(l, sLong(l))
+Conversion between Memory Types
+-------------------------------
 
-     # Prints 18446744073709551615 -1
+.. function:: uvtop(taskaddr, vaddr)
 
+   Interface to ``crash`` builtin ``uvtop(tskaddr, vaddr)`` - converts
+   a virtual address to physicall address in the context of specified
+   task
 
-.. function:: le32_to_cpu(ulong)
+   :param taskaddr: address of ``struct task_struct``
+   :param vaddr: virtual address
+   :return: physical address as an integer
 
-   Interface to ``__le32_to_cpu`` C macro
+.. function:: phys_to_page(physaddr)
 
-   :param ulong: unsigned integer
-   :return: converts Python integer to C ``ulong`` val, applies
-            ``__le32_to_cpu(val)`` and returns a Python integer
+   Interface to ``crash`` bulitin ``phys_to_page(physaddr_t phys``
 
-.. function:: le16_to_cpu(uint)
+   :param physaddr: physical address
+   :return: page as an integer
 
-   Similar to :func:`le32_to_cpu` but invoked C macro ``__le16_to_cpu``
+.. function:: PAGEOFFSET(vaddr)
 
-.. function:: cpu_to_le32(uint)
+   Interface to ``crash`` bulitin ``PAGEOFFSET(vaddr)``
 
-   Similar to :func:`le32_to_cpu` but invoked C macro ``__cpu_to_le32``
+Miscellaneous
+-------------
 
 .. function:: getListSize(addr, offset[, maxel = 1000])
 
@@ -266,41 +224,11 @@ internal commanda and structures
    :param fileparray: address of ``struct fdtable *fdt`` in ``struct
                       files_struct``
 
-.. function:: gdb_whatis(varname)
-
-   Interface to ``gdb_whatis`` GDB internal subroutine
-
-   :param varname: a string that will be passed to ``gdb_whatis``
-
-   :return: a dictionary describing this object
-
-.. function:: gdb_typeinfo(typename)
-
-   :param typename: a strin with data type, e.g. ``struct task_struct``
-   :return: a dictionary describing this type
-
-.. function:: set_readmem_task(taskaddr)
-
-   :param taskaddr: task address or zero
-
-   * if taskaddr=0, reset readmem operations to use KVADDR
-   * if taskaddr is a valid task address, set readmem operations to UVADDR
-     and set the current context to this task
-
-   :return: nothing
 
 .. function:: get_NR_syscalls(void)
 
-   :return: number of sysstem calls registered in *sys_call_table*
+   :return: number of system calls registered in *sys_call_table*
 
-.. function:: register_epython_prog
-
-.. function:: set_default_timeout(timeout)
-
-   Set default timeout for execution of ``crash`` built-in commands as
-   done via :func:`exec_crash_command_bg2`
-
-   :param timeout: default timeout in seconds
 
 .. function:: get_pathname(dentry, vfsmnt)
 
@@ -344,34 +272,214 @@ internal commanda and structures
 
 .. function:: get_task_mem_usage
 
-Module-level Variables and Constants
-------------------------------------
+Conversion of Integers
+----------------------
+
+Python integers are always signed and have arbitrary precision. As a
+result, they do not behave in the same way - e.g. they do not
+overflow. So to emulate C behavior we need to use special functions
+
+.. function:: sLong(i)
+
+   In C, the same bits sequnce can represent either *signed* or
+   *unsigned* integer. In Python, there is no native *unsigned*
+   integer. This subroutine lets you convert a Python integer to
+   *signed* assuming that integer size is that for *long* type of
+   this architecture.
+
+   :param i: Python integer of any size/value
+   :return: process ``sizeof(long)`` lower bits of provided integer
+            as C ``unsigned long`` and return this value as ``signed long``
+
+   An example::
+
+     l = 0xffffffffffffffff
+     print(l, sLong(l))
+
+     # Prints 18446744073709551615 -1
+
+
+.. function:: le32_to_cpu(ulong)
+
+   Interface to ``__le32_to_cpu`` C macro
+
+   :param ulong: unsigned integer
+   :return: converts Python integer to C ``ulong`` val, applies
+            ``__le32_to_cpu(val)`` and returns a Python integer
+
+.. function:: le16_to_cpu(uint)
+
+   Similar to :func:`le32_to_cpu` but invoked C macro ``__le16_to_cpu``
+
+.. function:: cpu_to_le32(uint)
+
+   Similar to :func:`le32_to_cpu` but invoked C macro ``__cpu_to_le32``
+
+
+Executing Commands
+------------------
+
+.. function:: exec_crash_command(cmd, no_stdout = 0)
+
+   Executes a vuilt-in ``crash`` command and returns output as a
+   string. There is no timeout mechanism for this subroutine
+
+.. function:: exec_crash_command_bg2(cmd, no_stdout = 0)
+
+   This command opens and writes to FIFO so we expect someone to read
+   it. Execution is done in the background - we fork() a child process
+   that does executing with output redirected to a pipe.
+
+   This function is used in high-level subroutine
+   ``exec_crash_command_bg(cmd,  timeout = None)``
+
+   :return: a tuple of (fileno, pid) where *fileno* is OS filedescriptor and
+            *pid* is PID of the child process
+
+.. function:: exec_epython_command
+
+.. function:: set_default_timeout(timeout)
+
+   Set default timeout for execution of ``crash`` built-in commands as
+   done via :func:`exec_crash_command_bg2`
+
+   :param timeout: default timeout in seconds
+
+Registering Commands
+--------------------
+
+Normally you execute your own programs doing ``epython progname``. But
+if you develop a program to be included in PyKdump for general
+consumption, it makes sense to register it so that you can execute it
+in ``crash`` without specifying ``epython`` every time, so that you
+would be able to execute it just as ``progname``. For example,
+``xportshow`` is implemented in Python but is registered.
+
+.. function:: register_epython_prog(progname, description, shorthelp, longhelp)
+
+   :param progname: a string with program name
+
+   :param description: a string with description
+
+   :param shorthelp: a string with short help
+
+   :param longhelp: a string with detaiels help
+
+An example::
+
+  help = '''
+  Print information about tasks in more details as the built-in 'ps'
+  command
+  '''
+
+  register_epython_prog("taskinfo", "Detailed info about tasks",
+        "-h   - list available options",
+        help)
+
+
+.. function:: get_epython_cmds()
+
+   Get a list of registered ``epython`` commands. Used internally in
+   higher-level PyKdump API
+
+   :return: a list of strings
+
+
+GDB Interface
+-------------
+
+This section describes GDB-specific subroutines, intended primarily
+to be used for framework developers, not end-users.
+
+.. function:: get_GDB_output(cmd)
+
+   Execute ``GDB`` command and return it soutput as a string
+
+.. function:: gdb_whatis(varname)
+
+   Interface to ``gdb_whatis`` GDB internal subroutine
+
+   :param varname: a string that will be passed to ``gdb_whatis``
+
+   :return: a dictionary describing this object
+
+.. function:: gdb_typeinfo(typename)
+
+   :param typename: a strin with data type, e.g. ``struct task_struct``
+   :return: a dictionary describing this type
+
+``gdb/gdbtypes.h`` from GDB sources defines
+
+.. code-block:: c
+
+   enum type_code
+     {
+       TYPE_CODE_BITSTRING = -1,   /* Deprecated  */
+       TYPE_CODE_UNDEF = 0,        /* Not used; catches errors */
+       TYPE_CODE_PTR,              /* Pointer type */
+       ...
+
+Some of these values are accessible as module constants, namely:
+
+.. data:: TYPE_CODE_PTR
+.. data:: TYPE_CODE_ARRAY
+.. data:: TYPE_CODE_STRUCT
+.. data:: TYPE_CODE_UNION
+.. data:: TYPE_CODE_ENUM
+.. data:: TYPE_CODE_FUNC
+.. data:: TYPE_CODE_INT
+.. data:: TYPE_CODE_FLT
+.. data:: TYPE_CODE_VOID
+.. data:: TYPE_CODE_BOOL
+
+
+
+Other Module-level Constants
+----------------------------
 
 .. data:: error
 
+   Exception raised when we have a problem when executing ``crash``
+   internal subroutine, e.g. bad address
+
 .. data:: version
 
-.. data:: KVADDR
+   A string with ``crash`` module version, e.g. "3.2.0"
 
-.. data:: UVADDR
+The following constants are copied from ``crash`` sources, namely from
+``defs.h``
 
-.. data:: PHYSADDR
-
-.. data:: XENMACHADDR
-
-.. data:: FILEADDR
-
-.. data:: AMBIGUOUS
-
-.. data:: PAGESIZE
-
-.. data:: PAGE_CACHE_SHIFT
+  .. data:: KVADDR
+  .. data:: UVADDR
+  .. data:: PHYSADDR
+  .. data:: XENMACHADDR
+  .. data:: FILEADDR
+  .. data:: AMBIGUOUS
+  .. data:: PAGESIZE
+  .. data:: PAGE_CACHE_SHIFT
 
 .. data:: HZ
 
+   An integer with the value of HZ for this vmcore
+
 .. data:: WARNING
+
+   A string to be used while printing warnings, at this moment set to
+   "++WARNING+++"
+
+When we build PyKdump, we use headers from a specific ``crash``
+sources. We do not necessarily need to load the extension using
+exectly the same version of `crash``, typically extensions are
+comoatible with any ``crash`` binary as long as its major version is
+the same. So it is OK to build extensions using e.g. crash-7.2.3 and
+use them with the binary of crash-7.2.8. But when major vwersion of
+``crash`` changes, extensions built with previous major version might
+not work.
 
 .. data:: Crash_run
 
+   Version of ``crash`` utility that we are using at this moment
+
 .. data:: Crash_build
 
+   version of ``crash`` used for building the extension
