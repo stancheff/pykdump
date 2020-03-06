@@ -9,15 +9,17 @@
 --------------
 
 This module implements Python bindings to ``crash`` and ``GDB``
-internal commands and structures
+internal commands and structures. Some of these subrotuines are
+intended for framework itself. Those of general interest are available
+after ``import pydkump.API``, there is no need to ``import crash`` to
+use them.
 
-.. function:: symbol_exits(symname)
+That is - in most cases, you do not need to import this module in your
+own programs.
 
-   Tests whether symbol *symname* exists in this kernel (as listed by
-   ``crash`` builtin ``sym`` command)
 
-   Returns value that evaluates to `True` if it does and `False` if it
-   does not
+Basic Info about struct/union/enum
+----------------------------------
 
 .. function:: struct_size(structname)
 
@@ -53,6 +55,18 @@ internal commands and structures
    :return: an int with numeric value
 
    Example: ``WORK_CPU_NONE = enumerator_value("WORK_CPU_NONE")``
+
+
+Symbol/Address Subroutines
+--------------------------
+
+.. function:: symbol_exits(symname)
+
+   Tests whether symbol *symname* exists in this kernel (as listed by
+   ``crash`` builtin ``sym`` command)
+
+   Returns value that evaluates to `True` if it does and `False` if it
+   does not
 
 .. function:: sym2addr(symbolname)
 
@@ -321,8 +335,10 @@ Executing Commands
 
 .. function:: exec_crash_command(cmd, no_stdout = 0)
 
-   Executes a vuilt-in ``crash`` command and returns output as a
+   Execute a built-in ``crash`` command and return output as a
    string. There is no timeout mechanism for this subroutine
+
+   :param cmd: a string with command name and arguments
 
 .. function:: exec_crash_command_bg2(cmd, no_stdout = 0)
 
@@ -333,10 +349,15 @@ Executing Commands
    This function is used in high-level subroutine
    ``exec_crash_command_bg(cmd,  timeout = None)``
 
+   :param cmd: a string with command name and arguments
    :return: a tuple of (fileno, pid) where *fileno* is OS filedescriptor and
             *pid* is PID of the child process
 
-.. function:: exec_epython_command
+.. function:: exec_epython_command(cmd)
+
+   :param cmd: a string with command name and arguments
+   :return: nothing - at this moment we just execute the command and
+            output goes to stdout
 
 .. function:: set_default_timeout(timeout)
 
@@ -389,11 +410,118 @@ GDB Interface
 -------------
 
 This section describes GDB-specific subroutines, intended primarily
-to be used for framework developers, not end-users.
+to be used by framework developers, not end-users.
+
+When we use ``whatis`` or ``struct`` command in ``crash``, we really
+execute internal ``gdb`` commands *whatis* and *ptype* and they print
+information in C-syntax. Programmatically in ``GDB`` we rely on
+``struct symbol`` obtained by calling different internal ``GDB``
+functions.
+
+Python bindings to ``GDB`` internals return type info as a dictionary
+with the following keys:
+
+* basetype - type name, e.g. 'int' or 'struct net_protocol'
+
+* codetype - GDB type, e.g. :data:`TYPE_CODE_INT`
+
+* fname - field or variable name
+
+* typelength - an integer, sizeof() for this type
+
+* dims - for array, a list of integers with dimensions
+
+* stars - for pointers, how many starts in C-syntax
+
+* ptrbasetype - for pointers, base type of object
+
+* uint - 0 for signed, 1 for unsigned
+
+* bitsize - for bitfields, the size in bits. For normal fields, this
+  key is not present in dictionary
+
+* bitoffset - for bitfields, offset from the workd boundary, in bits
+
+* edef - for enumeration types, a list of pairs (name, value)
+
+For *struct*, we have an extra key - *body* - which is a list of
+dictionaries for all fields. These entries have *bitoffset* keys with
+values showing what is the offset (in bits) from the beginning of this
+*struct*. This is true even for normal fields (when there is no
+*bitsize* key).
+
+To make this clearer, here are some examples.
+
+In crash::
+
+  crash64> whatis int
+  SIZE: 4
+
+  crash64> whatis struct task_struct
+  struct task_struct {
+      volatile long state;
+      void *stack;
+  ...
+
+  crash64> whatis inet_protos
+  const struct net_protocol *inet_protos[256];
+
+  crash64> struct list_head
+  struct list_head {
+      struct list_head *next;
+      struct list_head *prev;
+  }
+  SIZE: 16
+
+
+Now the same in PyKdump program::
+
+  pp.pprint(crash.gdb_whatis("int"))
+  pp.pprint(crash.gdb_whatis("struct task_struct"))
+  pp.pprint(crash.gdb_whatis("inet_protos"))
+  pp.pprint(crash.gdb_typeinfo("struct list_head"))
+
+
+This results in output:
+
+.. code-block:: text
+
+   {'basetype': 'int', 'codetype': 8, 'fname': 'int', 'typelength': 4, 'uint': 0}
+
+   {   'basetype': 'struct task_struct',
+       'codetype': 3,
+       'fname': 'struct task_struct',
+       'typelength': 2648}
+
+   {   'basetype': 'struct net_protocol',
+       'codetype': 1,
+       'dims': [256],
+       'fname': 'inet_protos',
+       'ptrbasetype': 3,
+       'stars': 1,
+       'typelength': 8}
+
+   {   'basetype': 'struct list_head',
+       'body': [   {   'basetype': 'struct list_head',
+                       'bitoffset': 0,
+                       'codetype': 1,
+                       'fname': 'next',
+                       'ptrbasetype': 3,
+                       'stars': 1,
+                       'typelength': 8},
+                   {   'basetype': 'struct list_head',
+                       'bitoffset': 64,
+                       'codetype': 1,
+                       'fname': 'prev',
+                       'ptrbasetype': 3,
+                       'stars': 1,
+                       'typelength': 8}],
+       'codetype': 3,
+       'typelength': 16}
 
 .. function:: get_GDB_output(cmd)
 
-   Execute ``GDB`` command and return it soutput as a string
+   Execute ``GDB`` command and return its output as a string
 
 .. function:: gdb_whatis(varname)
 
@@ -405,7 +533,7 @@ to be used for framework developers, not end-users.
 
 .. function:: gdb_typeinfo(typename)
 
-   :param typename: a strin with data type, e.g. ``struct task_struct``
+   :param typename: a string with data type, e.g. ``struct task_struct``
    :return: a dictionary describing this type
 
 ``gdb/gdbtypes.h`` from GDB sources defines
