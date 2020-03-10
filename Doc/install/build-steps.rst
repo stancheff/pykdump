@@ -190,7 +190,7 @@ Build the extension
 
     crash> extend /test/mpykdump.so
     Setting scroll off while initializing PyKdump
-    /test/doc_test/mpykdump.so: shared object loaded
+    /test/mpykdump.so: shared object loaded
 
     crash> extend
     SHARED OBJECT        COMMANDS
