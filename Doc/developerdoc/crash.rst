@@ -105,10 +105,12 @@ Symbol/Address Subroutines
    :param addr: address as an integer
    :return: a string with module name where this address belongs, or *None*
 
+.. _reading_memory:
+
 Reading Memory
 --------------
 
-There are different types of memory, e.g. `KVADDR`. Some of the
+There are different types of memory, e.g. :data:`KVADDR`. Some of the
 following subroutines let you specify the memory type as an extra
 argument and some rely on default
 
