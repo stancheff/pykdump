@@ -1,5 +1,5 @@
-pstree
-======
+Graphical representation of parent/child processes (pstree)
+===========================================================
 
 The pstree program provides graphical representation of parent/child
 processes and their states.

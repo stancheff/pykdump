@@ -1,2 +1,2 @@
-modinfo
-=======
+Getting module specific information (modinfo)
+=============================================

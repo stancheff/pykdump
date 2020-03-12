@@ -32,7 +32,7 @@ programs written using this framework, without a need to rebuild the whole
 extension.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Use below links to view the documentation for individual programs:
 
    epython.rst

@@ -1,5 +1,5 @@
-scsishow
-========
+Processing SCSI subsystem details (scsishow)
+============================================
 
 The scsishow program available in mpykdump extension allows users to quickly
 fetch detailed information about SCSI HBAs, SCSI targets, devices assigned
