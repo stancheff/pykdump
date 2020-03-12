@@ -663,7 +663,7 @@ def print_CFS_runqueue(rq):
         se = container_of(node, "struct sched_entity", "run_node")
         task = container_of(se, "struct task_struct", "se")
         print ("    {} {} {:6.5f} ".format(task.pid, task.comm,
-                                         se.sum_exec_runtime*1.e-9))
+                                            se.sum_exec_runtime*1.e-9))
 
 # Print RT-queue (new style)
 def print_RT_runqueue(rq):
@@ -732,8 +732,8 @@ def check_runqueues():
         if (CFS):
             try:
                 print_CFS_runqueue(rq)
-            except RecursionError:
-                pylog.error("CFQ runqueue on CPU #{} is corrupted".format(cpu))
+            except (RecursionError, crash.error):
+                pylog.error("CFQ runqueue on CPU #{} is corrupted (or this kernel is unsupported yet)".format(cpu))
             RT_count = print_RT_runqueue(rq)
         else:
             # Old scheduler
