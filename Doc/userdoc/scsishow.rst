@@ -4,14 +4,10 @@ scsishow
 The scsishow program available in mpykdump extension allows users to quickly
 fetch detailed information about SCSI HBAs, SCSI targets, devices assigned
 from different targets and the in-flight SCSI commands. It also provides
-'--check' option which can detect stalled error handling process, stuck
+'-\\-check' option which can detect stalled error handling process, stuck
 IO requests, SCSI commands and other potential isuses in SCSI error handling.
 
 Use '-h' to view the options provided by this program::
-
-    crash> extend /test/mpykdump.so
-    Setting scroll off while initializing PyKdump
-    /test/mpykdump.so: shared object loaded
 
     crash> scsishow -h
     usage: scsishow [-h] [-p] [-d [FIELDS]] [-s [FIELDS]] [-T [FIELDS]] [-c [FIELDS]] [-q [FIELDS]] [-r [FIELDS]] [-x] [--check] [--time] [--relative [RELATIVE]]
@@ -374,7 +370,7 @@ This option is similar to '-c' and '-q', but also provides an address for
 Check for common SCSI issues (-\\-check)
 ----------------------------------------
 
-The '--check' option uses in-built heuristics to automatically review status
+The '-\\-check' option uses in-built heuristics to automatically review status
 of SCSI adapters, devices, targets, and the error handling process
 to verify if there are any issues that could contribute to the stalled IO
 requests.
@@ -412,7 +408,7 @@ operations::
 Display time and state information for SCSI commands (-\\-time)
 ---------------------------------------------------------------
 
-The '--time' option provides even more information about the in-flight IO
+The '-\\-time' option provides even more information about the in-flight IO
 reqests and SCSI commands. Along with the SCSI command age it also provides
 details about when the corresponding 'request' structure  was allocated
 (rq-alloc)::
