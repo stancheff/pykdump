@@ -32,8 +32,8 @@ programs written using this framework, without a need to rebuild the whole
 extension.
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
+   :caption: Use below links to view the documentation for individual programs:
 
    epython.rst
    xportshow.rst
