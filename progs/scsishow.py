@@ -284,6 +284,9 @@ def print_shost_info():
     enum_shost_state = EnumInfo("enum scsi_host_state")
 
     hosts = get_scsi_hosts()
+    mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic"]
+    verbose_info_logged = 0
+    verbose_info_available = 0
 
     try:
         use_atomic_counters = readSU("struct Scsi_Host", long(hosts[0].host_busy.counter))
@@ -332,6 +335,26 @@ def print_shost_info():
         print("   max_lun             : {}".format(shost.max_lun))
         print("   cmd_per_lun         : {}".format(shost.cmd_per_lun))
         print("   work_q_name         : {}".format(shost.work_q_name))
+
+        if (struct_exists("struct fc_host_attrs") and verbose == 1):
+            fc_host_attrs = readSU("struct fc_host_attrs", shost.shost_data)
+            if (fc_host_attrs and ('fc_wq_' in fc_host_attrs.work_q_name[:8])):
+                try:
+                    print("\n\n   FC/FCoE HBA attributes")
+                    print("   ----------------------")
+                    print("   fc_host_attrs       : {:x}".format(fc_host_attrs))
+                    print("   node_name (wwnn)    : {:x}".format(fc_host_attrs.node_name))
+                    print("   port_name (wwpn)    : {:x}".format(fc_host_attrs.port_name))
+                    verbose_info_logged += 1
+                except KeyError:
+                    pylog.warning("Error in processing fc_host_attrs {:x}".format(fc_host_attrs))
+
+        if (shost.hostt.module.name in mod_with_verbose_info):
+            verbose_info_available += 1
+
+    if (verbose_info_available !=0 and verbose_info_logged == 0):
+        print("\n\n   *** NOTE: More detailed HBA information available, use '-v'"
+              " or '--verbose' to view.")
 
 def print_request_queue():
     counter = 0
@@ -761,10 +784,16 @@ def run_scsi_checks():
     if (not (warnings or errors or gendev_q_sdev_q_mismatch)):
         print("Nothing found")
 
+verbose = 0
+
 if ( __name__ == '__main__'):
 
     import argparse
     parser =  argparse.ArgumentParser()
+
+    parser.add_argument("-v", "--verbose", dest="Verbose", default = 0,
+        action="count",
+        help="verbose output")
 
     parser.add_argument("-p", "--proc", dest="proc_info", default = 0,
         action="store_true",
@@ -810,8 +839,9 @@ if ( __name__ == '__main__'):
         const="jiffies", default=0,
         help="show fields relative to the given value/symbol.  Uses jiffies without argument")
 
-
     args = parser.parse_args()
+
+    verbose = args.Verbose
 
     if (args.runcheck):
         run_scsi_checks()
