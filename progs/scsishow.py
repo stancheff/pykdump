@@ -319,6 +319,16 @@ def print_shost_info():
         print("   host_failed         : {}".format(shost.host_failed))
         print("   host_self_blocked   : {}".format(shost.host_self_blocked))
         print("   shost_state         : {}".format(enum_shost_state.getnam(shost.shost_state)))
+
+        if (member_size("struct Scsi_Host", "eh_deadline") != -1):
+            if (shost.eh_deadline == -1 and shost.hostt.eh_host_reset_handler != 0):
+                print("   eh_deadline         : {} (off)".format(shost.eh_deadline))
+            elif (shost.eh_deadline == -1 and shost.hostt.eh_host_reset_handler == 0):
+                print("   eh_deadline         : {} (off, not supported by driver)".format(
+                      shost.eh_deadline))
+            elif (shost.eh_deadline != -1 and shost.hostt.eh_host_reset_handler != 0):
+                print("   eh_deadline         : {}".format(shost.eh_deadline))
+
         print("   max_lun             : {}".format(shost.max_lun))
         print("   cmd_per_lun         : {}".format(shost.cmd_per_lun))
         print("   work_q_name         : {}".format(shost.work_q_name))
