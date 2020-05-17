@@ -120,7 +120,7 @@ def print_sdev_header(sdev):
 
 def print_shost_header(shost):
         print("{:8s}  {:32s}   {:12x} {:24x} {:24x}\n".format(shost.shost_gendev.kobj.name,
-            shost.hostt.name, shost, shost.shost_data,
+            shost.hostt.module.name, shost, shost.shost_data,
             shost.hostdata))
 
 def get_gendev():
@@ -300,7 +300,7 @@ def print_shost_info():
               "------------------------------------------------------------")
 
         print("{:8s}  {:32s}   {:12x} {:24x} {:24x}\n".format(shost.shost_gendev.kobj.name,
-            shost.hostt.name, shost, shost.shost_data,
+            shost.hostt.module.name, shost, shost.shost_data,
             shost.hostdata))
 
         try:
