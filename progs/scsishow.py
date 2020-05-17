@@ -278,6 +278,24 @@ def print_starget_shost():
                         pylog.warning("Error in processing scsi_target {:x},"
                                       "please check manually".format(int(starget)))
 
+def print_lpfc_shost_info(shost):
+    lpfc_vport = readSU("struct lpfc_vport", shost.hostdata)
+    lpfc_hba = readSU("struct lpfc_hba", lpfc_vport.phba)
+    print("\n\n   Emulex HBA specific details")
+    print("   ---------------------------")
+    print("   lpfc_vport          : {:x}".format(lpfc_vport))
+    print("   lpfc_hba            : {:x}".format(lpfc_hba))
+    print("   pci_dev             : {:x}".format(lpfc_hba.pcidev))
+    print("   pci_dev slot        : {}".format(lpfc_hba.pcidev.dev.kobj.name))
+    print("   brd_no              : {}".format(lpfc_hba.brd_no))
+    print("   SerialNumber        : {}".format(lpfc_hba.SerialNumber))
+    print("   OptionROMVersion    : {}".format(lpfc_hba.OptionROMVersion))
+    print("   ModelDesc           : {}".format(lpfc_hba.ModelDesc))
+    print("   ModelName           : {}".format(lpfc_hba.ModelName))
+    print("   cfg_hba_queue_depth : {}".format(lpfc_hba.cfg_hba_queue_depth))
+    print("   cfg_lun_queue_depth : {}".format(lpfc_vport.cfg_lun_queue_depth))
+    print("   cfg_tgt_queue_depth : {}".format(lpfc_vport.cfg_tgt_queue_depth))
+
 def print_shost_info():
     use_atomic_counters = -1
 
@@ -348,6 +366,11 @@ def print_shost_info():
                     verbose_info_logged += 1
                 except KeyError:
                     pylog.warning("Error in processing fc_host_attrs {:x}".format(fc_host_attrs))
+
+        if (verbose):
+            if (('lpfc' in shost.hostt.module.name) and struct_exists("struct lpfc_hba")):
+                print_lpfc_shost_info(shost)
+                verbose_info_logged += 1
 
         if (shost.hostt.module.name in mod_with_verbose_info):
             verbose_info_available += 1
