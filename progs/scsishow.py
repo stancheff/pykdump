@@ -304,24 +304,24 @@ def print_shost_info():
             shost.hostdata))
 
         try:
-            print("   DRIVER VERSION      : {}".format(shost.hostt.module.version))
+            print("   Driver version      : {}".format(shost.hostt.module.version))
         except:
-            print("   DRIVER VERSION      : {}".format("Error in checking "
+            print("   Driver version      : {}".format("Error in checking "
                                                              "'Scsi_Host->hostt->module->version'"))
 
         if (use_atomic_counters != -1):
-            print("   HOST BUSY           : {}".format(shost.host_busy.counter))
-            print("   HOST BLOCKED        : {}".format(shost.host_blocked.counter))
+            print("   host_busy           : {}".format(shost.host_busy.counter))
+            print("   host_blocked        : {}".format(shost.host_blocked.counter))
         else:
-            print("   HOST BUSY           : {}".format(shost.host_busy))
-            print("   HOST BLOCKED        : {}".format(shost.host_blocked))
+            print("   host_busy           : {}".format(shost.host_busy))
+            print("   host_blocked        : {}".format(shost.host_blocked))
 
-        print("   HOST FAILED         : {}".format(shost.host_failed))
-        print("   SELF BLOCKED        : {}".format(shost.host_self_blocked))
-        print("   SHOST STATE         : {}".format(enum_shost_state.getnam(shost.shost_state)))
-        print("   MAX LUN             : {}".format(shost.max_lun))
-        print("   CMD/LUN             : {}".format(shost.cmd_per_lun))
-        print("   WORK Q NAME         : {}".format(shost.work_q_name))
+        print("   host_failed         : {}".format(shost.host_failed))
+        print("   host_self_blocked   : {}".format(shost.host_self_blocked))
+        print("   shost_state         : {}".format(enum_shost_state.getnam(shost.shost_state)))
+        print("   max_lun             : {}".format(shost.max_lun))
+        print("   cmd_per_lun         : {}".format(shost.cmd_per_lun))
+        print("   work_q_name         : {}".format(shost.work_q_name))
 
 def print_request_queue():
     counter = 0
