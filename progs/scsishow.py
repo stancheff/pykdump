@@ -278,6 +278,24 @@ def print_starget_shost():
                         pylog.warning("Error in processing scsi_target {:x},"
                                       "please check manually".format(int(starget)))
 
+def print_qla2xxx_shost_info(shost):
+    scsi_qla_host = readSU("struct scsi_qla_host", shost.hostdata)
+    qla_hw_data = readSU("struct qla_hw_data", scsi_qla_host.hw)
+    print("\n\n   Qlogic HBA specific details")
+    print("   ---------------------------")
+    print("   scsi_qla_host       : {:x}".format(scsi_qla_host))
+    print("   qla_hw_data         : {:x}".format(qla_hw_data))
+    print("   pci_dev             : {:x}".format(qla_hw_data.pdev))
+    print("   pci_dev slot        : {}".format(qla_hw_data.pdev.dev.kobj.name))
+    print("   operating_mode      : {}".format(qla_hw_data.operating_mode))
+    print("   model_desc          : {}".format(qla_hw_data.model_desc))
+    print("   optrom_state        : {}".format(qla_hw_data.optrom_state))
+    print("   fw_major_version    : {}".format(qla_hw_data.fw_major_version))
+    print("   fw_minor_version    : {}".format(qla_hw_data.fw_minor_version))
+    print("   fw_subminor_version : {}".format(qla_hw_data.fw_subminor_version))
+    print("   fw_dumped           : {}".format(qla_hw_data.fw_dumped))
+    print("   ql2xmaxqdepth       : {}".format(readSymbol("ql2xmaxqdepth")))
+
 def print_lpfc_shost_info(shost):
     lpfc_vport = readSU("struct lpfc_vport", shost.hostdata)
     lpfc_hba = readSU("struct lpfc_hba", lpfc_vport.phba)
@@ -370,6 +388,9 @@ def print_shost_info():
         if (verbose):
             if (('lpfc' in shost.hostt.module.name) and struct_exists("struct lpfc_hba")):
                 print_lpfc_shost_info(shost)
+                verbose_info_logged += 1
+            elif (('qla2xxx' in shost.hostt.module.name) and struct_exists("struct qla_hw_data")):
+                print_qla2xxx_shost_info(shost)
                 verbose_info_logged += 1
 
         if (shost.hostt.module.name in mod_with_verbose_info):
