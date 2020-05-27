@@ -309,6 +309,31 @@ py_exec_crash_command(PyObject *self, PyObject *pyargs) {
   return obj;
 }
 
+// Python bindings to crash internal subroutine set_error()
+// You provide a single argument - a string with target name, and
+// subroutine returns old target name
+
+static PyObject *
+py_crash_set_error(PyObject *self, PyObject *pyargs) {
+  char *target;
+  PyObject *rc;
+
+  if (!PyArg_ParseTuple(pyargs, "s", &target)) {
+    PyErr_SetString(crashError, "invalid parameter type");
+    return NULL;
+  }
+
+  // Make a copy of current pc->error_path
+  rc =  Py_BuildValue("s", pc->error_path);
+
+  if (!set_error(target)) {
+    PyErr_SetString(crashError, "cannot set this target");
+    Py_XDECREF(rc);
+    return NULL;
+  }
+  // Return the old target as a string
+  return rc;
+}
 
 // We need to reopen vmcore. Unfortunately, we cannot get its FD from
 // 'crash' at this moment
@@ -1595,6 +1620,7 @@ static PyMethodDef crashMethods[] = {
   {"enumerator_value", py_crash_enumerator_value,  METH_VARARGS},
   //  {"get_symbol_type",  py_crash_get_symbol_type, METH_VARARGS},
   {"get_GDB_output",  py_get_GDB_output, METH_VARARGS},
+  {"crash_set_error", py_crash_set_error, METH_VARARGS},
   {"exec_crash_command",  py_exec_crash_command, METH_VARARGS},
   {"exec_crash_command_bg2",  py_exec_crash_command_bg2, METH_VARARGS},
   {"exec_epython_command",  py_exec_epython_command, METH_VARARGS},
