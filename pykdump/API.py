@@ -708,6 +708,21 @@ def lsModules():
         pass
     return __mod_list
 
+# ---------- A context manager to disable crash/gdb error messages -----
+
+class SuppressCrashErrors():
+    def __init__(self, outfile = "/dev/null"):
+        self.newf = outfile
+    def __enter__(self):
+        self.oldf = crash.crash_set_error(self.newf)
+        return self.oldf
+    def __exit__(self, exc_type, exc_value, traceback):
+        if (self.oldf != self.newf):
+            crash.crash_set_error(self.oldf)
+            #print("error_path: restoring {}".format(self.oldf))
+
+
+
 
 # Execute 'sys' command and put its split output into a dictionary
 # Some names contain space and should be accessed using a dict method, e.g.
@@ -719,12 +734,6 @@ def lsModules():
               #vmcore3 [PARTIAL DUMP]
               #vmcore4 [PARTIAL DUMP]
 
-def old_doSys():
-    """Execute 'sys' commands inside crash and return the parsed results"""
-    for il in exec_crash_command("sys").splitlines():
-        spl = il.split(':', 1)
-        if (len(spl) == 2):
-            sys_info.__setattr__(spl[0].strip(), spl[1].strip())
 
 def _doSys():
     """Execute 'sys' commands inside crash and return the parsed results"""
