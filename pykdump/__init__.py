@@ -6,18 +6,18 @@
 It is now Python-3 based
 """
 # Version number
-__version__ = '3.0.4'
+__version__ = '3.2.1'
 
 import sys
 
 # Copyright notice string
 __copyright__ = """\
-(C) Copyright 2006-2018 Hewlett Packard Enterprise Development LP
+(C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
 Author: Alex Sidorenko <asid@hpe.com>
 """
 
 # A minimal C-module version that is needed for API to work
-minimal_cmod_version = "3.0.2"
+minimal_cmod_version = "3.2.1"
 
 
 # The next subroutines are used for version compatibility control.
