@@ -120,8 +120,8 @@ def print_sdev_header(sdev):
 
 def print_shost_header(shost):
         print("{:8s}  {:32s}   {:12x} {:24x} {:24x}\n".format(shost.shost_gendev.kobj.name,
-            shost.hostt.name, shost, shost.shost_data,
-            shost.hostdata, end=""))
+            shost.hostt.module.name, shost, shost.shost_data,
+            shost.hostdata))
 
 def get_gendev():
     gendev_dict = {}
@@ -179,16 +179,16 @@ def print_sdev_shost():
                   "===============================================================================")
             print("HOST      DRIVER")
             print("NAME      NAME                               {:24s} {:24s} {:24s}".format("Scsi_Host",
-                  "shost_data", "&.hostdata[0]", end=""))
+                  "shost_data", "&.hostdata[0]"))
             print("--------------------------------------------------------"
                   "-------------------------------------------------------")
 
             print_shost_header(shost)
 
-            print("{:17s} {:23s} {:16s} {:25s} {:24s}   {}  {}    {}"
-                  "\n".format("DEV NAME", "scsi_device", "H:C:T:L", "VENDOR/MODEL",
+            print("{:17s} {:23s} {:16s} {:25s} {:24s}   {}  {}    {}".format("DEV NAME",
+                  "scsi_device", "H:C:T:L", "VENDOR/MODEL",
                   "DEVICE STATE", "IOREQ-CNT", "IODONE-CNT",
-                  "           IOERR-CNT"), end="")
+                  "           IOERR-CNT"))
             print("-----------------------------------------------------"
                   "-----------------------------------------------------"
                   "---------------------------------------------------")
@@ -217,13 +217,13 @@ def print_sdev_shost():
                     name = "null"
 
                 print("{:17s} {:x} {:6s} {:16} {} {} {:22s}"
-                      "{:14d} {:11}  ({:3d})\t{:10d}\n".format(name,
+                      "{:14d} {:11}  ({:3d})\t{:10d}".format(name,
                       int(sdev), "", get_scsi_device_id(sdev),
                       sdev.vendor[:8], sdev.model[:16],
                       get_sdev_state(enum_sdev_state.getnam(sdev.sdev_state)),
                       sdev.iorequest_cnt.counter, sdev.iodone_cnt.counter,
                       sdev.iorequest_cnt.counter-sdev.iodone_cnt.counter,
-                      sdev.ioerr_cnt.counter), end='')
+                      sdev.ioerr_cnt.counter))
 
 def print_starget_shost():
     enum_starget_state = EnumInfo("enum scsi_target_state")
@@ -241,11 +241,11 @@ def print_starget_shost():
 
             print_shost_header(shost)
 
-            print("----------------------------------------------------"
-                  "----------------------------------------------------")
             print("{:15s} {:20s} {:8s} {:6s} {:20s} {:15s} {:15s}".format("TARGET DEVICE",
                   "scsi_target", "CHANNEL", "ID", "TARGET STATUS", 
                   "TARGET_BUSY", "TARGET_BLOCKED"))
+            print("----------------------------------------------------"
+                  "----------------------------------------------------")
 
             for starget in readSUListFromHead(shost.__targets, "siblings", "struct scsi_target"):
 
@@ -278,12 +278,51 @@ def print_starget_shost():
                         pylog.warning("Error in processing scsi_target {:x},"
                                       "please check manually".format(int(starget)))
 
+def print_qla2xxx_shost_info(shost):
+    scsi_qla_host = readSU("struct scsi_qla_host", shost.hostdata)
+    qla_hw_data = readSU("struct qla_hw_data", scsi_qla_host.hw)
+    print("\n\n   Qlogic HBA specific details")
+    print("   ---------------------------")
+    print("   scsi_qla_host       : {:x}".format(scsi_qla_host))
+    print("   qla_hw_data         : {:x}".format(qla_hw_data))
+    print("   pci_dev             : {:x}".format(qla_hw_data.pdev))
+    print("   pci_dev slot        : {}".format(qla_hw_data.pdev.dev.kobj.name))
+    print("   operating_mode      : {}".format(qla_hw_data.operating_mode))
+    print("   model_desc          : {}".format(qla_hw_data.model_desc))
+    print("   optrom_state        : {}".format(qla_hw_data.optrom_state))
+    print("   fw_major_version    : {}".format(qla_hw_data.fw_major_version))
+    print("   fw_minor_version    : {}".format(qla_hw_data.fw_minor_version))
+    print("   fw_subminor_version : {}".format(qla_hw_data.fw_subminor_version))
+    print("   fw_dumped           : {}".format(qla_hw_data.fw_dumped))
+    print("   ql2xmaxqdepth       : {}".format(readSymbol("ql2xmaxqdepth")))
+
+def print_lpfc_shost_info(shost):
+    lpfc_vport = readSU("struct lpfc_vport", shost.hostdata)
+    lpfc_hba = readSU("struct lpfc_hba", lpfc_vport.phba)
+    print("\n\n   Emulex HBA specific details")
+    print("   ---------------------------")
+    print("   lpfc_vport          : {:x}".format(lpfc_vport))
+    print("   lpfc_hba            : {:x}".format(lpfc_hba))
+    print("   pci_dev             : {:x}".format(lpfc_hba.pcidev))
+    print("   pci_dev slot        : {}".format(lpfc_hba.pcidev.dev.kobj.name))
+    print("   brd_no              : {}".format(lpfc_hba.brd_no))
+    print("   SerialNumber        : {}".format(lpfc_hba.SerialNumber))
+    print("   OptionROMVersion    : {}".format(lpfc_hba.OptionROMVersion))
+    print("   ModelDesc           : {}".format(lpfc_hba.ModelDesc))
+    print("   ModelName           : {}".format(lpfc_hba.ModelName))
+    print("   cfg_hba_queue_depth : {}".format(lpfc_hba.cfg_hba_queue_depth))
+    print("   cfg_lun_queue_depth : {}".format(lpfc_vport.cfg_lun_queue_depth))
+    print("   cfg_tgt_queue_depth : {}".format(lpfc_vport.cfg_tgt_queue_depth))
+
 def print_shost_info():
     use_atomic_counters = -1
 
     enum_shost_state = EnumInfo("enum scsi_host_state")
 
     hosts = get_scsi_hosts()
+    mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic"]
+    verbose_info_logged = 0
+    verbose_info_available = 0
 
     try:
         use_atomic_counters = readSU("struct Scsi_Host", long(hosts[0].host_busy.counter))
@@ -295,33 +334,71 @@ def print_shost_info():
               "============================================================")
         print("HOST      DRIVER")
         print("NAME      NAME                               {:24s} {:24s} {:24s}".format("Scsi_Host",
-              "shost_data", "&.hostdata[0]", end=""))
+              "shost_data", "&.hostdata[0]"))
         print("-------------------------------------------------------------"
               "------------------------------------------------------------")
 
-        print("{:8s}  {:32s}   {:12x} {:24x} {:24x}".format(shost.shost_gendev.kobj.name,
-            shost.hostt.name, shost, shost.shost_data,
-            shost.hostdata, end=""))
+        print("{:8s}  {:32s}   {:12x} {:24x} {:24x}\n".format(shost.shost_gendev.kobj.name,
+            shost.hostt.module.name, shost, shost.shost_data,
+            shost.hostdata))
 
         try:
-            print("\n   DRIVER VERSION      : {}".format(shost.hostt.module.version), end="")
+            print("   Driver version      : {}".format(shost.hostt.module.version))
         except:
-            print("\n   DRIVER VERSION      : {}".format("Error in checking "
-                                                             "'Scsi_Host->hostt->module->version'"), end="")
+            print("   Driver version      : {}".format("Error in checking "
+                                                             "'Scsi_Host->hostt->module->version'"))
 
         if (use_atomic_counters != -1):
-            print("\n   HOST BUSY           : {}".format(shost.host_busy.counter), end="")
-            print("\n   HOST BLOCKED        : {}".format(shost.host_blocked.counter), end="")
+            print("   host_busy           : {}".format(shost.host_busy.counter))
+            print("   host_blocked        : {}".format(shost.host_blocked.counter))
         else:
-            print("\n   HOST BUSY           : {}".format(shost.host_busy), end="")
-            print("\n   HOST BLOCKED        : {}".format(shost.host_blocked), end="")
+            print("   host_busy           : {}".format(shost.host_busy))
+            print("   host_blocked        : {}".format(shost.host_blocked))
 
-        print("\n   HOST FAILED         : {}".format(shost.host_failed), end="")
-        print("\n   SELF BLOCKED        : {}".format(shost.host_self_blocked), end="")
-        print("\n   SHOST STATE         : {}".format(enum_shost_state.getnam(shost.shost_state)), end="")
-        print("\n   MAX LUN             : {}".format(shost.max_lun), end="")
-        print("\n   CMD/LUN             : {}".format(shost.cmd_per_lun), end="")
-        print("\n   WORK Q NAME         : {}".format(shost.work_q_name), end="")
+        print("   host_failed         : {}".format(shost.host_failed))
+        print("   host_self_blocked   : {}".format(shost.host_self_blocked))
+        print("   shost_state         : {}".format(enum_shost_state.getnam(shost.shost_state)))
+
+        if (member_size("struct Scsi_Host", "eh_deadline") != -1):
+            if (shost.eh_deadline == -1 and shost.hostt.eh_host_reset_handler != 0):
+                print("   eh_deadline         : {} (off)".format(shost.eh_deadline))
+            elif (shost.eh_deadline == -1 and shost.hostt.eh_host_reset_handler == 0):
+                print("   eh_deadline         : {} (off, not supported by driver)".format(
+                      shost.eh_deadline))
+            elif (shost.eh_deadline != -1 and shost.hostt.eh_host_reset_handler != 0):
+                print("   eh_deadline         : {}".format(shost.eh_deadline))
+
+        print("   max_lun             : {}".format(shost.max_lun))
+        print("   cmd_per_lun         : {}".format(shost.cmd_per_lun))
+        print("   work_q_name         : {}".format(shost.work_q_name))
+
+        if (struct_exists("struct fc_host_attrs") and verbose == 1):
+            fc_host_attrs = readSU("struct fc_host_attrs", shost.shost_data)
+            if (fc_host_attrs and ('fc_wq_' in fc_host_attrs.work_q_name[:8])):
+                try:
+                    print("\n\n   FC/FCoE HBA attributes")
+                    print("   ----------------------")
+                    print("   fc_host_attrs       : {:x}".format(fc_host_attrs))
+                    print("   node_name (wwnn)    : {:x}".format(fc_host_attrs.node_name))
+                    print("   port_name (wwpn)    : {:x}".format(fc_host_attrs.port_name))
+                    verbose_info_logged += 1
+                except KeyError:
+                    pylog.warning("Error in processing fc_host_attrs {:x}".format(fc_host_attrs))
+
+        if (verbose):
+            if (('lpfc' in shost.hostt.module.name) and struct_exists("struct lpfc_hba")):
+                print_lpfc_shost_info(shost)
+                verbose_info_logged += 1
+            elif (('qla2xxx' in shost.hostt.module.name) and struct_exists("struct qla_hw_data")):
+                print_qla2xxx_shost_info(shost)
+                verbose_info_logged += 1
+
+        if (shost.hostt.module.name in mod_with_verbose_info):
+            verbose_info_available += 1
+
+    if (verbose_info_available !=0 and verbose_info_logged == 0):
+        print("\n\n   *** NOTE: More detailed HBA information available, use '-v'"
+              " or '--verbose' to view.")
 
 def print_request_queue():
     counter = 0
@@ -751,10 +828,16 @@ def run_scsi_checks():
     if (not (warnings or errors or gendev_q_sdev_q_mismatch)):
         print("Nothing found")
 
+verbose = 0
+
 if ( __name__ == '__main__'):
 
     import argparse
     parser =  argparse.ArgumentParser()
+
+    parser.add_argument("-v", "--verbose", dest="Verbose", default = 0,
+        action="count",
+        help="verbose output")
 
     parser.add_argument("-p", "--proc", dest="proc_info", default = 0,
         action="store_true",
@@ -800,8 +883,9 @@ if ( __name__ == '__main__'):
         const="jiffies", default=0,
         help="show fields relative to the given value/symbol.  Uses jiffies without argument")
 
-
     args = parser.parse_args()
+
+    verbose = args.Verbose
 
     if (args.runcheck):
         run_scsi_checks()

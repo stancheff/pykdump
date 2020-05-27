@@ -1535,7 +1535,7 @@ if ( __name__ == '__main__'):
                   help="Print info about nfs_client at address")
     parser.add_argument("--maxrpctasks", dest="Maxrpctasks", default = 20,
                   type=int, action="store",
-                  help="Maximum number of RPC tasks tp print")
+                  help="Maximum number of RPC tasks to print")
 
     parser.add_argument("--locks", dest="Locks", default = 0,
                     action="store_true",
