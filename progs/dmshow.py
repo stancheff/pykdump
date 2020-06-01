@@ -57,7 +57,7 @@ def get_dm_devices():
 def lookup_field(obj, fieldname):
     segments = fieldname.split("[")
     while (len(segments) > 0):
-        obj = obj.Eval(segments[0])
+        obj = getattr(obj, segments[0])
         if (len(segments) > 1):
             offset = segments[1].split("]")
             if (isinstance(obj, SmartString)):
