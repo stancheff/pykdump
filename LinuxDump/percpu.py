@@ -104,7 +104,8 @@ def get_percpu_ptr_26(ptr, cpu):
     p =  __percpu_disguise(ptr)
     #print " ptr=0x%x disguised = 0x%x" % (ptr, p)
     dp = readSU("struct percpu_data", p)
-    if (isinstance(ptr, pykdump.wrapcrash.StructResult)):
+    cname = type(ptr).__name__
+    if (cname.startswith("StructResult")):
         optr = readSU(ptr.PYT_symbol, dp.ptrs[cpu])
     else:
         optr = tPtr(dp.ptrs[cpu], ptr.ptype)

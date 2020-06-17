@@ -434,7 +434,7 @@ def __epythonOptions():
             purge_memoize_cache(CU_TIMEOUT)
         __timeout_exec = o.timeout
     if (o.Maxel):
-        highlevel._MAXEL = o.Maxel
+        highlevel._MAXEL = lowlevel._MAXEL = o.Maxel
 
     # Reset nsproxy every time
     set_nsproxy(None)

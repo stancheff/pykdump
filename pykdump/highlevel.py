@@ -75,11 +75,23 @@ def readS64(addr):
 def readSU(symbol, addr):
     return StructResult(symbol, addr)
 
+#     ======= return a Generator to iterate through SU array
+def __SUArray(sname, addr, maxel = None):
+    if (maxel is None):
+        maxel = _MAXEL
+    size = getSizeOf(sname)
+    addr -= size
+    while (maxel):
+        addr += size
+        yield readSU(sname, addr)
+        maxel -= 1
+    return
+
 # Read an array of structs/unions given the structname, start and dimension
 def readSUArray(suname, startaddr, dim=0):
     # If dim==0, return a Generator
     if (dim == 0):
-        return SUArray(suname, startaddr)
+        return __SUArray(suname, startaddr)
     sz = struct_size(suname)
     # Now create an array of StructResult.
     out = []

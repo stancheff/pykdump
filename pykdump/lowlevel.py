@@ -1062,18 +1062,6 @@ class tPtrDimensionlessArray(object):
         return tPtr(addr, self.ptype)
 
 
-#     ======= return a Generator to iterate through SU array
-def SUArray(sname, addr, maxel = None):
-    if (maxel is None):
-        maxel = _MAXEL
-    size = getSizeOf(sname)
-    addr -= size
-    while (maxel):
-        addr += size
-        yield readSU(sname, addr)
-        maxel -= 1
-    return
-
 
 
 # We cannot subclass from ArtStructInfo as signature is different
@@ -1118,6 +1106,7 @@ def sdef2ArtSU(sdef):
 
 
 #exec_crash_command = new_exec_crash_command
+import crash
 from crash import  mem2long, readInt, FD_ISSET, readPtr, readmem
 readIntN = readInt
 
