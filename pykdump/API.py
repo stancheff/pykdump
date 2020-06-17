@@ -8,7 +8,7 @@
 # depending on availability of low-level shared library dlopened from crash
 #
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2019 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -89,10 +89,16 @@ require_cmod_version(pykdump.minimal_cmod_version)
 
 from . import Generic as gen
 from .Generic import (Bunch, DCache, TrueOnce,
-        ArtStructInfo, EnumInfo, iterN,
-        memoize_cond, purge_memoize_cache, PY_select_purge,
+        iterN)
+
+from .datatypes import (ArtStructInfo, EnumInfo)
+
+from .memocaches import ( memoize_cond, purge_memoize_cache, PY_select_purge,
         CU_LIVE, CU_LOAD, CU_PYMOD, CU_TIMEOUT,
         memoize_typeinfo, purge_typeinfo, PY_select)
+
+
+from . import datatypes as Dat
 
 hexl = gen.hexl
 unsigned16 = gen.unsigned16
@@ -124,8 +130,9 @@ except AttributeError:
     def set_default_timeout(timeout):
         return None
 
-from . import wrapcrash
+from . import lowlevel, highlevel
 
+'''
 from .wrapcrash import (readU8, readU16, readU32, readS32,
      readU64, readS64, readInt, readPtr,
      readSymbol, readSU,
@@ -135,7 +142,7 @@ from .wrapcrash import (readU8, readU16, readU32, readS32,
      readSUArray, readSUListFromHead, readStructNext,
      getStructInfo, getFullBuckets, getFullBucketsH, FD_ISSET,
      struct_exists, symbol_exists,
-     Addr, Deref, SmartString, tPtr,
+     Addr, Deref, tPtr, SmartString,
      sym2addr, addr2sym, sym2alladdr, addr2mod,
      get_pathname, is_task_active, pid_to_task, task_to_pid,
      readmem, uvtop, phys_to_page, readProcessMem, set_readmem_task,
@@ -145,16 +152,18 @@ from .wrapcrash import (readU8, readU16, readU32, readS32,
      exec_crash_command_bg2, exec_command,
      structSetAttr, structSetProcAttr, sdef2ArtSU, AttrSetter,
      getCurrentModule, registerObjAttrHandler, registerModuleAttr)
+'''
 
-gen.d = wrapcrash
-# Add all GDB-registered types as Generic and wrapcrash variables
+from .highlevel import *
+
+# Add all GDB-registered types
 for n in dir(crash):
     if (n.find('TYPE_CODE') == 0):
-        setattr(gen, n, getattr(crash, n))
-        setattr(wrapcrash, n, getattr(crash, n))
+        setattr(Dat, n, getattr(crash, n))
+        setattr(lowlevel, n, getattr(crash, n))
     TYPE_CODE_SU = (crash.TYPE_CODE_STRUCT, crash.TYPE_CODE_UNION)
-    setattr(gen, 'TYPE_CODE_SU', TYPE_CODE_SU)
-    setattr(wrapcrash, 'TYPE_CODE_SU', TYPE_CODE_SU)
+    setattr(Dat, 'TYPE_CODE_SU', TYPE_CODE_SU)
+    setattr(lowlevel, 'TYPE_CODE_SU', TYPE_CODE_SU)
 
 from .tparser import CEnum, CDefine
 
@@ -270,7 +279,7 @@ class PyLog:
 
 
 pylog = PyLog()
-setattr(wrapcrash, 'pylog', pylog)
+setattr(highlevel, 'pylog', pylog)
 
 
 class MsgExtra(object):
@@ -287,7 +296,7 @@ class MsgExtra(object):
     def __str__(self):
         return str(self._msgstack[-1])
 
-setattr(wrapcrash, 'MsgExtra', MsgExtra)
+setattr(highlevel, 'MsgExtra', MsgExtra)
 
 # Check whether we output to a real file.
 
@@ -374,7 +383,7 @@ def __epythonOptions():
         aargs = uargs = []
 
     (o, args) = op.parse_args(aargs)
-    wrapcrash.experimental = API_options.experimental = o.experimental
+    highlevel.experimental = API_options.experimental = o.experimental
     global debug, __timeout_exec
     if (o.debug != -1):
         debug = o.debug
@@ -425,7 +434,7 @@ def __epythonOptions():
             purge_memoize_cache(CU_TIMEOUT)
         __timeout_exec = o.timeout
     if (o.Maxel):
-        wrapcrash._MAXEL = o.Maxel
+        highlevel._MAXEL = o.Maxel
 
     # Reset nsproxy every time
     set_nsproxy(None)
@@ -770,7 +779,7 @@ def _doSys():
 pointersize = getSizeOf("void *")
 _intsize = getSizeOf("int")
 _longsize = getSizeOf("long int")
-sys_info.pointersize = wrapcrash.pointersize = pointersize
+sys_info.pointersize = highlevel.pointersize = pointersize
 sys_info.pointermask = 2**(pointersize*8)-1
 _doSys()
 
@@ -791,7 +800,8 @@ sys_info.HZ = HZ
 sys_info.CPUS = int(sys_info.CPUS.split()[0])
 
 # Extract hardware from MACHINE
-sys_info.machine = wrapcrash.machine = sys_info["MACHINE"].split()[0]
+sys_info.machine = highlevel.machine = sys_info["MACHINE"].split()[0]
+lowlevel.machine = highlevel.machine
 
 # This is where debug kernel resides
 try:

@@ -95,6 +95,8 @@ struct ASID {
   struct AA ze[];
 };
 
+struct S1 qm;
+
 struct ASID asid;
 struct AA aa;
 long seven = 7;

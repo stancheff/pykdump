@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Time-stamp: <2019-07-02 11:10:25 alexs>
+# Time-stamp: <2020-06-16 16:11:36 alexs>
 
 # --------------------------------------------------------------------
 # (C) Copyright 2006-2018 Hewlett-Packard Development Company, L.P.
@@ -16,24 +16,36 @@ import sys
 #sys.path.insert(0, "../..")
 import time
 
+from operator import itemgetter, attrgetter
 #import cProfile
 
 from pykdump.API import *
+from crash import gdb_typeinfo
 
-import pykdump.Generic as Gen
-from pykdump.Generic import TypeInfo, VarInfo, SUInfo
+from pykdump.datatypes import TypeInfo, VarInfo, SUInfo
 
 
 import crash
 loadModule("testmod", "testmod.ko")
 
-#pp.pprint(crash.gdb_typeinfo("struct ASID"))
+#pp.pprint(gdb_typeinfo("struct ASID"))
+
+#ti = TypeInfo("struct ASID")
+#print(ti.fullstr())
+
+
+#si = SUInfo("struct ASID")
+#print(si)
+#print(si.fullstr())
+#sys.exit(0)
 
 addr = sym2addr("asid")
 asid = readSU("struct ASID", addr)
 asid = readSymbol("asid")
+
+f2 = asid.PYT_sinfo["f2"]
+print(f2.offset, f2.bitoffset)
 print("{} {:#x}".format(asid,  Addr(asid, "sarr")))
-sys.exit(0)
 
 nfailed = 0
 ntests = 0
@@ -103,7 +115,7 @@ else:
     print ("Struct arrays failed")
     nfailed += 1
 
-# Integer Pointers 
+# Integer Pointers
 
 
 ntests += 1
@@ -213,14 +225,14 @@ tot = 100000
 t0 = time.time()
 for i in xrange(0, tot):
     readPtr(addr)
-    
+
 print ("readPtr: %10.0f/s" % (tot/(time.time() - t0)))
 
 t0 = time.time()
 size = 8
 for i in xrange(0, tot):
     readIntN(addr, size, True)
-    
+
 print ("readinteger: %10.0f/s" % (tot/(time.time() - t0)))
 
 t0 = time.time()
@@ -269,8 +281,7 @@ faddr = addr + fi.offset
 t0 = time.time()
 for i in xrange(0, tot):
     reader(faddr)
-    
-    
+
 print ("ptrReader: %10.0f/s" % (tot/(time.time() - t0)))
 
 
@@ -278,13 +289,13 @@ t0 = time.time()
 for i in xrange(0, tot):
     fi = s.PYT_sinfo["sptr"]
     reader = fi.reader
-    
+
 print ("getattr/reader: %10.0f/s" % (tot/(time.time() - t0)))
 
 t0 = time.time()
 for i in xrange(0, tot):
     tptr = tPtr(addr, fi)
-    
+
 print ("tPtr: %10.0f/s" % (tot/(time.time() - t0)))
 
 
