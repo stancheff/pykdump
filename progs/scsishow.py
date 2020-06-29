@@ -338,9 +338,7 @@ def print_shost_info():
         print("-------------------------------------------------------------"
               "------------------------------------------------------------")
 
-        print("{:8s}  {:32s}   {:12x} {:24x} {:24x}\n".format(shost.shost_gendev.kobj.name,
-            shost.hostt.module.name, shost, shost.shost_data,
-            shost.hostdata))
+        print_shost_header(shost)
 
         try:
             print("   Driver version      : {}".format(shost.hostt.module.version))
