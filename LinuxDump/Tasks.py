@@ -3,7 +3,7 @@
 # module LinuxDump.Tasks
 #
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2019 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -1096,3 +1096,7 @@ def print_memory_stats(ntop = 8):
     print(" === Total Memory in SHM {:6.3f} Gb"\
           .format(totshm/2**30))
     return
+
+@memoize_cond(CU_LIVE)
+def get_task_mem_usage(addr):
+    return crash.get_task_mem_usage(addr)

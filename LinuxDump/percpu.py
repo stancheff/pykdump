@@ -189,3 +189,13 @@ elif (symbol_exists("runqueues")):
         percpu_ptr = None
 else:
     raise TypeError("Cannot process runqueues on this kernel")
+
+# Is this a per_cpu symbol? At this moment we do not check for modules yet
+if (symbol_exists("__per_cpu_start") and symbol_exists("__per_cpu_end")):
+    __per_cpu_start = sym2addr("__per_cpu_start")
+    __per_cpu_end = sym2addr("__per_cpu_end")
+    def is_percpu_symbol(addr):
+        return (addr >= __per_cpu_start and addr < __per_cpu_end)
+else:
+    def is_percpu_symbol(addr):
+        return False

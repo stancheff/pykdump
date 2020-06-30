@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-# module pykdump.API
-#
 
 # This is the only module from pykdump that should be directly imported
 # by applications. We want to hide the details of specific implementation from
@@ -31,10 +29,6 @@ not call low-level functions directly but use this module instead.
 '''
 
 
-# Messages to be used for warnings and errors
-WARNING = "+++WARNING+++"
-ERROR =   "+++ERROR+++"
-INFO = "...INFO..."
 
 debug = 0
 
@@ -50,8 +44,7 @@ import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
 
-# To be able to use legacy (Python-2) based subroutines
-long = int
+# ================ Checking whether C-module is new enough ========
 
 # It does not make sense to continue if C-module is unavailable
 try:
@@ -80,8 +73,10 @@ except ImportError as e:
 
 import pykdump                          # For version check
 require_cmod_version = pykdump.require_cmod_version
-
 require_cmod_version(pykdump.minimal_cmod_version)
+
+# To be able to use legacy (Python-2) based subroutines
+long = int
 
 
 # Here we make some pieces of other modules classes/functions/varibles
@@ -89,39 +84,23 @@ require_cmod_version(pykdump.minimal_cmod_version)
 
 from . import Generic as gen
 from .Generic import (Bunch, DCache, TrueOnce,
-        iterN)
-
-from .datatypes import (ArtStructInfo, EnumInfo)
+                      iterN, dbits2str, print2columns)
 
 from .memocaches import ( memoize_cond, purge_memoize_cache, PY_select_purge,
         CU_LIVE, CU_LOAD, CU_PYMOD, CU_TIMEOUT,
         memoize_typeinfo, purge_typeinfo, PY_select)
 
-
-from . import datatypes as Dat
-
-hexl = gen.hexl
-unsigned16 = gen.unsigned16
-unsigned32 = gen.unsigned32
-unsigned64 = gen.unsigned64
-
-dbits2str = gen.dbits2str
-print2columns = gen.print2columns
-
-@memoize_cond(CU_LIVE)
-def get_task_mem_usage(addr):
-    return crash.get_task_mem_usage(addr)
-
-
-HZ = crash.HZ
-PAGESIZE = crash.PAGESIZE
-PAGE_CACHE_SHIFT = crash.PAGE_CACHE_SHIFT
-
+from .logging import PyLog, WARNING
 crash.WARNING = WARNING                 # To be used from C-code
 
+from .dlkmload import *
 
+# This import computes pointer/integer sizes, gets info about kernel
+# and fills-in 'sys_info'
+from .vmcorearch import *
 
-import pprint
+# The standard hex() appended L for longints, not needed anymore
+hexl = hex
 
 # For binary compatibility with older module
 try:
@@ -130,45 +109,13 @@ except AttributeError:
     def set_default_timeout(timeout):
         return None
 
-from . import lowlevel, highlevel
-
-'''
-from .wrapcrash import (readU8, readU16, readU32, readS32,
-     readU64, readS64, readInt, readPtr,
-     readSymbol, readSU,
-     sLong, le32_to_cpu, cpu_to_le32, le16_to_cpu,
-     readList, readBadList, getListSize, readListByHead,  list_for_each_entry,
-     ListHead, LH_isempty, hlist_for_each_entry,
-     readSUArray, readSUListFromHead, readStructNext,
-     getStructInfo, getFullBuckets, getFullBucketsH, FD_ISSET,
-     struct_exists, symbol_exists,
-     Addr, Deref, tPtr, SmartString,
-     sym2addr, addr2sym, sym2alladdr, addr2mod,
-     get_pathname, is_task_active, pid_to_task, task_to_pid,
-     readmem, uvtop, phys_to_page, readProcessMem, set_readmem_task,
-     struct_size, union_size, member_offset, member_size, enumerator_value,
-     getSizeOf, container_of, whatis, funcargs, printObject,
-     exec_gdb_command, exec_crash_command, exec_crash_command_bg,
-     exec_crash_command_bg2, exec_command,
-     structSetAttr, structSetProcAttr, sdef2ArtSU, AttrSetter,
-     getCurrentModule, registerObjAttrHandler, registerModuleAttr)
-'''
-
+from . import highlevel
 from .highlevel import *
 
-# Add all GDB-registered types
-for n in dir(crash):
-    if (n.find('TYPE_CODE') == 0):
-        setattr(Dat, n, getattr(crash, n))
-        setattr(lowlevel, n, getattr(crash, n))
-    TYPE_CODE_SU = (crash.TYPE_CODE_STRUCT, crash.TYPE_CODE_UNION)
-    setattr(Dat, 'TYPE_CODE_SU', TYPE_CODE_SU)
-    setattr(lowlevel, 'TYPE_CODE_SU', TYPE_CODE_SU)
 
 from .tparser import CEnum, CDefine
 
 # API module globals
-sys_info = Bunch()
 API_options = Bunch()
 
 # =================================================================
@@ -182,121 +129,10 @@ registerModuleAttr("debugReload", default=0)
 global __timeout_exec
 __timeout_exec = 0
 
-class PyLog:
-    def __init__(self):
-        self._cache = defaultdict(list)
-        self._silent = ""
-    def _addtocache(self, name, data):
-        if (not data in self._cache[name]):
-            self._cache[name].append(data)
-    def _printandcache(self, name, data):
-        self._addtocache(name, data)
-        print(name, end=' ')
-        args, kwargs = data
-        print(*args, **kwargs)
-    def timeout(self, msg):
-        print(WARNING, msg)
-        self._addtocache("timeout", msg)
-    def warning(self, *args, **kwargs):
-        # Print traceback if debug is enabled
-        if (debug):
-            traceback.print_stack()
-        name = WARNING
-        self._printandcache(name, (args, kwargs))
-    # Another flavor of warning - print on exit only
-    def warning_onexit(self, *args, **kwargs):
-        name = WARNING
-        self._addtocache(name, (args, kwargs))
-    def info(self, *args, **kwargs):
-        name = INFO
-        self._addtocache(name, (args, kwargs))
-    def error(self, *args, **kwargs):
-        name = ERROR
-        # Print traceback if debug is enabled
-        if (debug):
-            traceback.print_stack()
-
-        self._printandcache(name, (args, kwargs))
-    def silent(self, msg):
-        self._silent = msg
-    def getsilent(self):
-        msg = self._silent
-        self._silent = ""
-        return msg
-    # Propagate silent error to real error if any, but do not print it
-    def silenterror(self, extra):
-        msg = self.getsilent()
-        if (msg):
-            args = (extra, msg)
-            kwargs = {}
-            self._addtocache(ERROR, (args, kwargs))
-    def cleanup(self):
-        # Clear the cache
-        self._cache.clear()
-        self._silent = ""
-    def onexit(self):
-        # Is there anything to print?
-        if (not self._cache):
-            return
-        self.__print_problems()
-        self.__print_info()
-    def __print_info(self):
-        if (not INFO in self._cache):
-            return
-        print("")
-        print(" Additional Info ".center(78, '~'))
-        for args, kwargs in self._cache[INFO]:
-            print(end="    ")
-            print(*args, **kwargs)
-        print('~'*78)
-    def __print_problems(self):
-        _keys = set(self._cache.keys()) - {INFO}
-        if (not _keys):
-            return
-        print("")
-        print('*'*78)
-        print(" A Summary Of Problems Found ".center(78, '*'))
-        print('*'*78)
-        # Are there are timeout messages?
-        if (self._cache["timeout"]):
-            print(" Some crash built-in commands did not complete "
-                  "within timeout ".center(78, '-'))
-            for l in self._cache["timeout"]:
-                print("   ", l)
-            print(" *** You can rerun your command with a different timeout\n"
-                  "     by adding --timeout=NNN to your options\n"
-                  "     For example, 'crashinfo -v --timeout=1200\n"
-                  "     to run with timeout of 1200s")
-        # Are there any warnings/errors?
-        for name in (WARNING, ERROR):
-            if (self._cache[name]):
-                print(" A list of all {} messages ".format(name).center(78, '-'))
-                for args, kwargs in self._cache[name]:
-                    print(end="    ")
-                    print(*args, **kwargs)
-        print('-'*78)
 
 
 
 pylog = PyLog()
-setattr(highlevel, 'pylog', pylog)
-
-
-class MsgExtra(object):
-    _msgstack = [None]
-    def __init__(self, msg = None):
-        self.msg = msg
-
-    def __enter__(self):
-        self._msgstack.append(self.msg)
-        return None
-
-    def __exit__(self, *args):
-        self._msgstack.pop()
-    def __str__(self):
-        return str(self._msgstack[-1])
-
-setattr(highlevel, 'MsgExtra', MsgExtra)
 
 # Check whether we output to a real file.
 
@@ -329,14 +165,6 @@ def set_nsproxy(pid = None):
             print("There is no PID={}".format(pid))
             sys.exit(0)
 
-# Some kernels use a simple integer and some use atomic_t wrapper
-# This subroutine returns a.counter if argument is atomic_t or
-# just argument without any changes otherwise
-def atomic_t(o):
-    try:
-        return o.counter
-    except AttributeError:
-        return o
 
 # Process common (i.e. common for all pykdump scripts) options.
 from optparse import OptionParser, Option
@@ -434,7 +262,7 @@ def __epythonOptions():
             purge_memoize_cache(CU_TIMEOUT)
         __timeout_exec = o.timeout
     if (o.Maxel):
-        highlevel._MAXEL = lowlevel._MAXEL = o.Maxel
+        highlevel._MAXEL = o.Maxel
 
     # Reset nsproxy every time
     set_nsproxy(None)
@@ -600,123 +428,6 @@ def funcToMethod(func,clas,method_name=None):
 
 
 
-# For fbase specified as 'nfsd' find all files like nfds.o, nfsd.ko,
-# nfsd.o.debug and nfsd.ko.debug that are present in a given directory
-
-def possibleModuleNames(topdir, fbase):
-    """Find filenames matching a given module name"""
-    if (topdir == None):
-        return None
-    exts = (".ko.debug", ".o.debug", ".ko", ".o")
-    lfb = len(fbase)
-    #print ("++ searching for", fbase, " at", topdir)
-
-    for d, dummy, files in os.walk(topdir):
-        for f in files:
-            if (f.find(fbase) != 0):
-                continue
-            ext = f[lfb:]
-            for e in exts:
-                if (ext == e):
-                    return os.path.join(d, fbase + e)
-    return None
-
-
-# Loading extra modules. Some defauls locations for debuginfo:
-
-# RH /usr/lib/debug/lib/modules/uname/...
-# CG /usr/lib/kernel-image-2.6.10-telco-1.27-mckinley-smp-dbg/lib/modules/2.6.10-telco-1.27-mckinley-smp/...
-
-# So we'll try these directories first, then the default /lib/modules/uname,
-# then the dump directory
-
-# If we load module successfully, we receive
-#  MODULE   NAME          SIZE  OBJECT FILE
-# f8a95800  sunrpc      139173  /data/Dumps/test/sunrpc.ko.debug
-
-
-__loaded_Mods = {}
-def loadModule(modname, ofile = None, altname = None):
-    """Load module file into crash"""
-
-    # In some cases we load modules renaming them.
-    # In this case modname is the original name (used to search for debug)
-    # and altname is the name in 'mod' output
-    if (not altname):
-        altname = modname
-    try:
-        return __loaded_Mods[modname]
-    except KeyError:
-        pass
-
-    if (debug > 1):
-        print ("Starting module search", modname)
-    if (ofile == None):
-        for t in sys_info.debuginfo:
-            if (debug > 1):
-                print (t)
-            # Some modules use different names in file object and lsmod, e.g.:
-            # dm_mod -> dm-mod.ko
-            for mn in (modname, modname.replace("_", "-")):
-               ofile = possibleModuleNames(t, mn)
-               if (ofile):
-                   break
-            if (ofile):
-                break
-        if (debug > 1):
-            print ("Loading", ofile)
-    if (ofile == None):
-        return False
-    # If we specify a non-loaded module, exec_crash_command does not return
-    if (debug > 1):
-        print ("Checking for altname")
-    if (not altname in lsModules()):
-        return False
-    if (debug > 1):
-        print ("Trying to insert", altname, ofile)
-    rc = exec_crash_command("mod -s %s %s" % (altname, ofile))
-    success = (rc.find("MODULE") != -1)
-    __loaded_Mods[modname] = success
-    # Invalidate typeinfo caches
-    purge_typeinfo()
-    return success
-
-# Unload module
-
-def delModule(modname):
-    #print __loaded_Mods
-    try:
-        del __loaded_Mods[modname]
-        exec_crash_command("mod -d %s" % modname)
-        if (debug):
-            print ("Unloading", modname)
-    except KeyError:
-        pass
-
-# get modules list. We need it mainly to find
-__mod_list = []
-def lsModules():
-    if (len(__mod_list) > 1):
-        return __mod_list
-
-    try:
-        # On older kernels, we have module_list
-        kernel_module = sym2addr("kernel_module")
-        if (kernel_module):
-            module_list = readSymbol("module_list")
-            for m in readStructNext(module_list, "next", inchead = False):
-                if (long(m) != kernel_module):
-                    __mod_list.append(m.name)
-        else:
-            # On new kernels, we have a listhead
-            lh = ListHead(sym2addr("modules"), "struct module")
-            for m in lh.list:
-               __mod_list.append(m.name)
-    except:
-        # If anything went wrong, return a partial list
-        pass
-    return __mod_list
-
 # ---------- A context manager to disable crash/gdb error messages -----
 
 class SuppressCrashErrors():
@@ -733,35 +444,6 @@ class SuppressCrashErrors():
 
 
 
-# Execute 'sys' command and put its split output into a dictionary
-# Some names contain space and should be accessed using a dict method, e.g.
-# sys_info["LOAD AVERAGE"]
-#
-# A special case:
-   #DUMPFILES: vmcore1 [PARTIAL DUMP]
-              #vmcore2 [PARTIAL DUMP]
-              #vmcore3 [PARTIAL DUMP]
-              #vmcore4 [PARTIAL DUMP]
-
-
-def _doSys():
-    """Execute 'sys' commands inside crash and return the parsed results"""
-    key = 'UNKNOWN'
-    for il in exec_crash_command("sys").splitlines():
-        spl = il.split(':', 1)
-        if (len(spl) == 2):
-            key = spl[0].strip()
-            sys_info[key] = spl[1].strip()
-        else:
-            sys_info[key] += '|' + il.strip()
-    # If there are DUMPFILES, fill-in DUMPFILE for printing
-    dfiles = sys_info.get('DUMPFILES', None)
-    if (dfiles is None):
-        return
-    out = []
-    for v in dfiles.split('|'):
-        out.append(v.split()[0].strip())
-    sys_info['DUMPFILE'] = ','.join(out)
 
 # -----------  initializations ----------------
 
@@ -774,122 +456,6 @@ def _doSys():
 #
 # But the function enter_python() is called every time - the first time when
 # we do import, next times as it is registered as a hook
-
-
-pointersize = getSizeOf("void *")
-_intsize = getSizeOf("int")
-_longsize = getSizeOf("long int")
-sys_info.pointersize = highlevel.pointersize = pointersize
-sys_info.pointermask = 2**(pointersize*8)-1
-_doSys()
-
-# Check whether this is a live dump
-if (sys_info.DUMPFILE.find("/dev/") == 0):
-    sys_info.livedump = gen.livedump = True
-else:
-    sys_info.livedump = gen.livedump = False
-
-
-# Check the kernel version and set HZ
-kernel = re.search(r'^(\d+\.\d+\.\d+)', sys_info.RELEASE).group(1)
-sys_info.kernel = gen.KernelRev(kernel)
-sys_info.HZ = HZ
-
-# Convert CPUS to integer. Usually we just have an integer, but sometimes
-# CPUS: 64 [OFFLINE: 32]
-sys_info.CPUS = int(sys_info.CPUS.split()[0])
-
-# Extract hardware from MACHINE
-sys_info.machine = highlevel.machine = sys_info["MACHINE"].split()[0]
-lowlevel.machine = highlevel.machine
-
-# This is where debug kernel resides
-try:
-    sys_info.DebugDir = os.path.dirname(sys_info["DEBUG KERNEL"])
-except KeyError:
-    sys_info.DebugDir = os.path.dirname(sys_info["KERNEL"])
-
-# A list of top directories where we will search for debuginfo
-kname = sys_info.RELEASE
-RHDIR = "/usr/lib/debug/lib/modules/" + kname
-CGDIR = "/usr/lib/kernel-image-%s-dbg/lib/modules/%s/" %(kname, kname)
-debuginfo = [RHDIR, CGDIR]
-
-if (sys_info.DebugDir == ""):
-    sys_info.DebugDir ="."
-if (not  sys_info.livedump):
-    # Append the directory of where the dump is located
-    debuginfo.append(sys_info.DebugDir)
-else:
-    # Append the current directory (useful for development)
-    debuginfo.insert(0, '.')
-# Finally, there's always a chance that this kernel is compiled
-# with debuginfo
-debuginfo.append("/lib/modules/" + kname)
-sys_info.debuginfo = debuginfo
-
-
-# As we cannnot analyze 32-bit dump with a 32-bit crash, Python
-# is built for the same arch. So on Python 2, 'int matches' C-int size
-if (pointersize == 4):
-    PTR_SIZE = 4
-elif (pointersize == 8):
-    PTR_SIZE = 8
-else:
-    raise TypeError("Cannot find pointer size on this arch")
-
-if (_intsize == 4):
-    readInt = readS32
-    readUInt = readU32
-    uInt =  unsigned32
-    INT_MASK = 0xffffffff
-    INT_SIZE = 4
-    BITS_PER_INT = 32
-elif (_intsize == 8):
-    readInt = readS64
-    readUInt = readU64
-    uInt =  unsigned64
-    INT_MASK = 0xffffffffffffffff
-    INT_SIZE = 8
-    BITS_PER_INT = 64
-else:
-    raise TypeError("Cannot find int size on this arch")
-
-if (_longsize == 4):
-    readLong = readS32
-    readULong = readU32
-    uLong = unsigned32
-    LONG_MASK = 0xffffffff
-    LONG_SIZE = 4
-    BITS_PER_LONG = 32
-elif (_longsize == 8):
-    readLong = readS64
-    readULong = readU64
-    uLong = unsigned64
-    LONG_MASK = 0xffffffffffffffff
-    LONG_SIZE = 8
-    BITS_PER_LONG = 64
-else:
-    raise TypeError("Cannot find long size on this arch")
-
-
-INT_MAX = ~0&(INT_MASK)>>1
-LONG_MAX = ~0&(LONG_MASK)>>1
-
-def ALIGN(addr, align):
-    return (long(addr) + align-1)&(~(align-1))
-
-HZ = sys_info.HZ
-
-# Is this a per_cpu symbol? At this moment we do not check for modules yet
-if (symbol_exists("__per_cpu_start") and symbol_exists("__per_cpu_end")):
-    __per_cpu_start = sym2addr("__per_cpu_start")
-    __per_cpu_end = sym2addr("__per_cpu_end")
-    def is_percpu_symbol(addr):
-        return (addr >= __per_cpu_start and addr < __per_cpu_end)
-else:
-    def is_percpu_symbol(addr):
-        return False
 
 # A special object to be used instead of readSymbol, e.g.
 # readSymbol("xtime") -> PYKD.xtime

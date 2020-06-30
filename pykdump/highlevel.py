@@ -21,7 +21,53 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+# Specify what is imported when we do 'from highlevel *'  - it is easier
+# to do this here than in pykdump.API
+
+__all = '''
+     TypeInfo, SUInfo, ArtStructInfo, EnumInfo,
+     type_length,
+
+     pointersize, PTR_SIZE,
+     INT_MASK, INT_SIZE, BITS_PER_INT, INT_MAX, uInt,
+     LONG_MASK, LONG_SIZE, BITS_PER_LONG, LONG_MAX, uLong,
+     ALIGN,
+
+     readU8, readU16, readU32, readS32,
+     readU64, readS64, readInt, readPtr,
+     readInt, readUInt, readLong, readULong,
+     readSymbol, readSU,
+
+     sLong, le32_to_cpu, cpu_to_le32, le16_to_cpu,
+     unsigned16, unsigned32, unsigned64,
+
+     readList, readBadList, getListSize, readListByHead,  list_for_each_entry,
+     ListHead, LH_isempty, hlist_for_each_entry,
+     readSUArray, readSUListFromHead, readStructNext,
+     getStructInfo, getFullBuckets, getFullBucketsH, FD_ISSET,
+     struct_exists, symbol_exists,
+     Addr, Deref, tPtr, SmartString,
+     sym2addr, addr2sym, sym2alladdr, addr2mod,
+     get_pathname, is_task_active, pid_to_task, task_to_pid,
+     readmem, uvtop, phys_to_page, readProcessMem, set_readmem_task,
+     struct_size, union_size, member_offset, member_size, enumerator_value,
+     getSizeOf, container_of, whatis, funcargs, printObject,
+     exec_gdb_command, exec_crash_command, exec_crash_command_bg,
+     exec_crash_command_bg2, exec_command,
+     structSetAttr, structSetProcAttr, sdef2ArtSU, AttrSetter,
+     getCurrentModule, registerObjAttrHandler, registerModuleAttr,
+
+     atomic_t
+'''
+
+__all__ = [o.strip(',') for o in __all.split()]
+
+from .Generic import Bunch
 from .lowlevel import *
+from .vmcorearch import sys_info
+from .logging import PyLog
+
+pylog = PyLog()
 
 # =============================================================
 #
@@ -36,6 +82,41 @@ import crash
 crash.default_timeout=120
 
 _bjoin = b''
+
+# =============================================================
+#   Values specific for this vmcore arch, such as integer sizes
+# =============================================================
+pointersize = type_length("void *")
+__intsize = type_length("int")
+__longsize = type_length("long int")
+
+sys_info.pointersize = pointersize
+sys_info.pointermask = 2**(pointersize*8)-1
+
+# As we cannnot analyze 32-bit dump with a 32-bit crash, Python
+# is built for the same arch. So on Python 2, 'int matches' C-int size
+if (pointersize == 4):
+    PTR_SIZE = 4
+elif (pointersize == 8):
+    PTR_SIZE = 8
+else:
+    raise TypeError("Cannot find pointer size on this arch")
+
+
+def ALIGN(addr, align):
+    return (long(addr) + align-1)&(~(align-1))
+
+# Generic conversions
+def unsigned16(l):
+    return l & 0xffff
+
+def unsigned32(l):
+    return l & 0xffffffff
+
+def unsigned64(l):
+    return l & 0xffffffffffffffff
+
+
 
 # =============================================================
 #
@@ -68,6 +149,43 @@ def readU64(addr):
 def readS64(addr):
     s = readmem(addr, 8)
     return mem2long(s, signed = True)
+
+if (__intsize == 4):
+    readInt = readS32
+    readUInt = readU32
+    uInt =  unsigned32
+    INT_MASK = 0xffffffff
+    INT_SIZE = 4
+    BITS_PER_INT = 32
+elif (__intsize == 8):
+    readInt = readS64
+    readUInt = readU64
+    uInt =  unsigned64
+    INT_MASK = 0xffffffffffffffff
+    INT_SIZE = 8
+    BITS_PER_INT = 64
+else:
+    raise TypeError("Cannot find int size on this arch")
+
+if (__longsize == 4):
+    readLong = readS32
+    readULong = readU32
+    uLong = unsigned32
+    LONG_MASK = 0xffffffff
+    LONG_SIZE = 4
+    BITS_PER_LONG = 32
+elif (__longsize == 8):
+    readLong = readS64
+    readULong = readU64
+    uLong = unsigned64
+    LONG_MASK = 0xffffffffffffffff
+    LONG_SIZE = 8
+    BITS_PER_LONG = 64
+else:
+    raise TypeError("Cannot find long size on this arch")
+
+INT_MAX = ~0&(INT_MASK)>>1
+LONG_MAX = ~0&(LONG_MASK)>>1
 
 # ~~~~~~~~~~ SU readers ~~~~~~~~~~
 
@@ -262,8 +380,7 @@ def readList(start, offset=0, maxel = None, inchead = True, warn = True):
         if (next == 0 or next == start):
             break
         if (next in known):
-            msgextra = str(MsgExtra())
-            pylog.error("{} Circular dependency in list".format(msgextra))
+            pylog.error("Circular dependency in list")
             break
         known.add(next)
         out.append(next)
@@ -605,10 +722,19 @@ def funcargs(symbol):
         return None
     return [a.typestr() for a in ti.prototype[1:]]
 
+# Some kernels use a simple integer and some use atomic_t wrapper
+# This subroutine returns a.counter if argument is atomic_t or
+# just argument without any changes otherwise
+def atomic_t(o):
+    try:
+        return o.counter
+    except AttributeError:
+        return o
+
 
 # Replacing Python versions by bindings to C-subroutines
 from crash import sym2addr, addr2sym, sym2alladdr, addr2mod
-from crash import  mem2long, readInt, FD_ISSET
+from crash import  mem2long, FD_ISSET
 from crash import enumerator_value
 from crash import get_pathname, is_task_active, pid_to_task, task_to_pid
 def exec_gdb_command(cmd):

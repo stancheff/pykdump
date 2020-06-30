@@ -30,10 +30,29 @@ from .Generic import LazyEval
 
 import crash
 
+# Add all GDB-registered code types
+for n in dir(crash):
+    if (n.find('TYPE_CODE') == 0):
+        globals()[n] = getattr(crash, n)
+TYPE_CODE_SU = (crash.TYPE_CODE_STRUCT, crash.TYPE_CODE_UNION)
+globals()['TYPE_CODE_SU'] =  TYPE_CODE_SU
+
+
 @memoize_typeinfo
 def gdb_typeinfo(sname):
     return crash.gdb_typeinfo(sname)
 
+# Length of type, where type can be struct/unions/pointer/arrays etc.
+# This returns just the "base type length" not caring whether this is
+# array or not
+
+@memoize_typeinfo
+def type_length(tname):
+    try:
+        return gdb_typeinfo(tname)["typelength"]
+    except:
+        # Can be KeyError or crash.error
+        return -1
 
 # INTTYPES = ('char', 'short', 'int', 'long', 'signed', 'unsigned',
 #             '__u8', '__u16', '__u32', '__u64',

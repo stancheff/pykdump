@@ -44,17 +44,6 @@ livedump = False
 # GLobals used my this module
 
 
-# The standard hex() appended L for longints, not needed anymore
-hexl = hex
-
-def unsigned16(l):
-    return l & 0xffff
-
-def unsigned32(l):
-    return l & 0xffffffff
-
-def unsigned64(l):
-    return l & 0xffffffffffffffff
 
 # A helper class to implement lazy attibute computation. It calls the needed
 # function only once and adds the result as an attribute so that next time
@@ -286,27 +275,4 @@ def print2columns(left,right):
         print (l.ljust(38), r)
 
 
-class KernelRev(str):
-    def __init__(self, s):
-        self.ov = KernelRev.conv(s)
-
-    def __lt__(self, s):
-        nv = KernelRev.conv(s)
-        return self.ov < nv
-    def __le__(self, s):
-        nv = KernelRev.conv(s)
-        return self.ov <= nv
-    def __gt__(self, s):
-        nv = KernelRev.conv(s)
-        return self.ov > nv
-    def __ge__(self, s):
-        nv = KernelRev.conv(s)
-        return self.ov >= nv
-
-    def conv(s):
-        a = [0, 0, 0]
-        for i, v in enumerate(s.split('.')):
-            a[i] = long(v)
-        return a[0] * 100000 + a[1] * 1000 + a[2]
-    conv = staticmethod(conv)
 

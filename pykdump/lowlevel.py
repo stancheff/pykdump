@@ -42,12 +42,19 @@ debug = False
 from io import StringIO
 from .tparser import parseSUDef
 from . import Generic as Gen
+from .vmcorearch import sys_info
+
 long = int
 
 from . import datatypes as Dat
 
-from .datatypes import (TypeInfo,VarInfo, PseudoVarInfo,
-                        _SUInfo, SUInfo, ArtStructInfo, EnumInfo)
+from .datatypes import \
+    (TypeInfo,VarInfo, PseudoVarInfo,
+     _SUInfo, SUInfo, ArtStructInfo, EnumInfo,
+     TYPE_CODE_PTR, TYPE_CODE_SU, TYPE_CODE_FUNC, TYPE_CODE_INT,
+     TYPE_CODE_ENUM,
+     type_length
+)
 
 from .Generic import (Bunch,
              DCache,
@@ -744,7 +751,7 @@ def ptrReader(vi, ptrlev):
     # Function pointer
     def funcPtr(addr):
         ptr = readPtr(addr)
-        if (ptr and machine == "ia64"):
+        if (ptr and sys_info.machine == "ia64"):
             ptr = readPtr(ptr)
         return ptr
 
@@ -1107,6 +1114,6 @@ def sdef2ArtSU(sdef):
 
 #exec_crash_command = new_exec_crash_command
 import crash
-from crash import  mem2long, readInt, FD_ISSET, readPtr, readmem
-readIntN = readInt
+from crash import  mem2long, FD_ISSET, readPtr, readmem
+readIntN = crash.readInt
 

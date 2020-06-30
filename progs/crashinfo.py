@@ -557,7 +557,7 @@ def get_important():
     print (' -- rw_semaphores with count > 0 --')
     for n in results[srws]:
         addr = sym2addr(n)
-        if (is_percpu_symbol(addr)):
+        if (percpu.is_percpu_symbol(addr)):
             li = percpu.get_cpu_var(addr)
         else:
             li = [addr]
@@ -574,7 +574,7 @@ def get_important():
     print (' -- rw_semaphores with count <= 0 --')
     for n in results["struct rw_semaphore"]:
         addr = sym2addr(n)
-        if (is_percpu_symbol(addr)):
+        if (percpu.is_percpu_symbol(addr)):
             li = percpu.get_cpu_var(addr)
         else:
             li = [addr]
@@ -611,7 +611,7 @@ def get_important():
         for n in results["struct work_struct"]:
             # per_cpu_xxx should be processed in a different way
             addr = sym2addr(n)
-            if (n.find("per_cpu") == 0 or is_percpu_symbol(addr)):
+            if (n.find("per_cpu") == 0 or percpu.is_percpu_symbol(addr)):
                 continue
             addr = sym2addr(n)
             nel = getListSize(addr+off, 0, 1000000)

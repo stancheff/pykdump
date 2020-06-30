@@ -29,7 +29,7 @@ import types
 
 pp = pprint.PrettyPrinter(indent=4)
 
-from .Generic import hexl, Bunch
+from .Generic import Bunch
 
 FieldInfo = Bunch
 

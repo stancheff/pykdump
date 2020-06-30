@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2018 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -17,7 +17,7 @@ import re
 
 from pykdump.API import *
 from LinuxDump.fs import *
-from LinuxDump.Tasks import (TaskTable, Task, tasksSummary, ms2uptime, 
+from LinuxDump.Tasks import (TaskTable, Task, tasksSummary, ms2uptime,
                              decode_tflags, decode_waitq, TASK_STATE)
 from LinuxDump.BTstack import (exec_bt, bt_mergestacks, fastSubroutineStacks,
                                verifyFastSet)
@@ -25,7 +25,7 @@ from LinuxDump.BTstack import (exec_bt, bt_mergestacks, fastSubroutineStacks,
 from LinuxDump.Analysis import (print_wait_for_AF_UNIX, print_pidlist,
                                 check_possible_hang,
                                 check_saphana, check_memory_pressure,
-                                get_tentative_arg)                                
+                                get_tentative_arg)
 
 from LinuxDump.Files import pidFiles
 from LinuxDump.KernLocks import (decode_semaphore, get_rwsemaphore_tasks,
@@ -47,11 +47,11 @@ __resource_owner_extra = defaultdict(set)      # pids owned by us
 def resource_owners_clear():
     __resource_owners.clear()
     __resource_owner_extra.clear()
-    
+
 def add_resource_pid(pid, extra = set()):
     __resource_owners.add(pid)
     __resource_owner_extra[pid] |= extra
-    
+
 # Debugging
 def _print_wait_tree():
     print("\n+++ Debugging +++")
@@ -93,7 +93,7 @@ def print_header(msg, n = None):
     print("\n {:=^60}".format(" " + msg + " "))
 
 # Get UNINTERRUPTIBLE tasks
-# In reality, get STOPPED, TRACED, ZOMBIE, DEAD and WAKING etc too - 
+# In reality, get STOPPED, TRACED, ZOMBIE, DEAD and WAKING etc too -
 # everygthing > 1
 # Return a set of pids/tids
 #@memoize_cond(CU_LIVE)
@@ -138,7 +138,7 @@ def if_mutexOK(addr):
         if (owner):
             _next_tasks = owner.tasks.next
         for i in range(5):
-            _next_wait_list = _next_wait_list.next 
+            _next_wait_list = _next_wait_list.next
             if (owner and _next_tasks):
                 _next_tasks = _next_tasks.next
         return 2 if owner else 1
@@ -172,17 +172,17 @@ def print_mutex(mutex, pids = set()):
     else:
         ownertask = "\n   No Owner"
     print("  -- {} {} {}".format(mutex, mtype, ownertask))
-            
-        
+
+
 
 # stack data consists of lines like
-#    ffff8b71e4a21558: 0000000000000082 ffff8b71e4a20010 
-#    ffff8b71e4a21568: 0000000000011800 0000000000011800 
+#    ffff8b71e4a21558: 0000000000000082 ffff8b71e4a20010
+#    ffff8b71e4a21568: 0000000000011800 0000000000011800
 
 # For x86 (32 bits):
 #    [RA: c06278ad  SP: e0ad1e28  FP: e0ad1e40  SIZE: 28]
-#    e0ad1e28: ed826aec  ed826aec  d62354d0  ed826ae4  
-#    e0ad1e38: 00000000  ed826a70  c06278ad  
+#    e0ad1e28: ed826aec  ed826aec  d62354d0  ed826ae4
+#    e0ad1e38: 00000000  ed826a70  c06278ad
 
 # Convert it to an array of integers
 
@@ -276,8 +276,7 @@ def check_mmap_sem(tasksrem):
             continue
         s = task.mm.mmap_sem
         cmsg = "task={} mmap_sem={}".format(task, s)
-        with MsgExtra(cmsg):
-            wtasks = get_rwsemaphore_tasks(s)
+        wtasks = get_rwsemaphore_tasks(s)
 
         pids = [t.pid for t in wtasks]
         if (pids):
@@ -302,7 +301,7 @@ def check_mmap_sem(tasksrem):
                     add_resource_pid(o)
             remove_pidlist(tasksrem, pids)
 
-      
+
 
 def check_inode_mutexes(tasksrem):
     goodpids = _funcpids(__mutexfunc +\
@@ -317,9 +316,9 @@ def check_inode_mutexes(tasksrem):
             path = fields[4]
             if (ftype not in ('REG', 'DIR', 'PIPE')):
                 continue
-    
+
             inode_addrs[inode_addr] = path
-    
+
     #print(len(inode_addrs))
     waiters = {}
     for inodeaddr, v in inode_addrs.items():
@@ -346,16 +345,16 @@ def check_inode_mutexes(tasksrem):
             remove_pidlist(tasksrem, pids)
 
 
-# Check cred_guard_mutex. 
+# Check cred_guard_mutex.
 # Older kernels: this is task.cred_guard_mutex
 # Newer kernels: this is task.signal.cred_guard_mutex
-structSetAttr("struct task_struct", "Cred_guard_mutex", 
+structSetAttr("struct task_struct", "Cred_guard_mutex",
               ["cred_guard_mutex", "signal.cred_guard_mutex"])
 
 def check_cred_guard_mutex(task):
     gm = task.Cred_guard_mutex
     return gm
-    
+
 __mutexfunc = "__mutex_lock_slowpath"
 def check_other_mutexes(tasksrem):
     #print(mutexlist)
@@ -399,7 +398,7 @@ def check_other_mutexes(tasksrem):
 
 
 def check_congestion_queues(tasksrem):
-    # Congestion queues    
+    # Congestion queues
     for i, wqh in enumerate(readSymbol("congestion_wqh")):
         pids = []
         try:
@@ -410,7 +409,7 @@ def check_congestion_queues(tasksrem):
             for l in text.splitlines():
                 fields = l.split()
                 pids.append(int(fields[1]))
-    
+
         if (pids):
             if (i == 0):
                 print(" ---- waiting on the read congestion queue ---")
@@ -448,11 +447,11 @@ def check_kthread_create_list(tasksrem):
         tasks += decode_waitq(create.done.wait)
 
     pids_on_the_queue = [t.pid for t in tasks]
-    
+
     # Check pids of processes having kthread_create_on_node
     extra = _funcpids("kthread_create_on_node")
     extra = list( extra - set(pids_on_the_queue))
-    
+
     if (tasks):
         print_header("Waiting for kthreadd")
         print_pidlist(pids_on_the_queue, title="On the queue: ",
@@ -462,7 +461,7 @@ def check_kthread_create_list(tasksrem):
             print("   Dequeued but not processed yet: {}".format(extra))
         remove_pidlist(tasksrem, pids_on_the_queue + extra)
 
- 
+
 # Check threads that have throttle_direct_reclaim
 # They are waiting for kswapd
 __tdr_func = "throttle_direct_reclaim"
@@ -471,10 +470,10 @@ def check_throttle_direct_reclaim(tasksrem):
     verifyFastSet(pids, __tdr_func)
     if (pids):
         print_header("Waiting for kswapd")
-        print_pidlist(pids, maxpids = _MAXPIDS, verbose = _VERBOSE, 
+        print_pidlist(pids, maxpids = _MAXPIDS, verbose = _VERBOSE,
                       sortbytime = _SORTBYTIME, statefilter = ('UN',))
         remove_pidlist(tasksrem, pids)
-        
+
 
 # Threads waiting on console_sem
 def check_console_sem(tasksrem):
@@ -504,9 +503,9 @@ def check_wait_on_bit(tasksrem):
         #if (not bt.hasfunc(__mutexfunc)):
             continue
 
-        
-# ==============end of check subroutines=======================   
-       
+
+# ==============end of check subroutines=======================
+
 
 # Classify UNINTERRUPTIBLE threads
 def classify_UN(v):
@@ -514,7 +513,7 @@ def classify_UN(v):
     resource_owners_clear()
     # We get a list of UN tasks
     tasksrem = getUNTasks()
-    
+
     if (not tasksrem):
         print ("There are no UNINTERRUPTIBLE tasks")
         return
@@ -566,7 +565,7 @@ def classify_UN(v):
         for pid in __pseudo_owners:
             print("  --- Doing {} ---".format(pid))
             print(__resource_owner_extra[pid])
-        
+
 
     # Are any of these owners looping in zone allocator?
     #_owners = zvm_pids & rem
@@ -592,7 +591,7 @@ if ( __name__ == '__main__'):
 
     op.add_option("-v", dest="Verbose", default = 0,
                 action="count",
-                help="verbose output")    
+                help="verbose output")
 
     op.add_option("--version", dest="Version", default = 0,
                   action="store_true",
@@ -601,11 +600,11 @@ if ( __name__ == '__main__'):
     op.add_option("--maxpids", dest="Maxpids", default = 10,
                   action="store", type='int',
                   help="Maximum number of PIDs to print")
-    
+
     op.add_option("--sortbypid", dest="Sortbypid", default = 0,
                   action="store_true",
                   help="Sort by pid (the default is by ran_ago)")
-    
+
     op.add_option("--syslogger", dest="Syslogger", default = 0,
                   action="store_true",
                   help="Print info about hangs on AF_UNIX sockets (such as used by syslogd")
@@ -619,14 +618,14 @@ if ( __name__ == '__main__'):
                   help="Print recommendations for SAP HANA specific hangs")
 
     (o, args) = op.parse_args()
-    
+
     v = _VERBOSE = o.Verbose
     _PRINT_TREE = o.Tree
     _MAXPIDS = o.Maxpids
     _SORTBYTIME = not o.Sortbypid
     T_table = TaskTable()
     _SAPHANA = check_saphana()
-    
+
     if (o.Version):
         print ("HANGINFO version %s" % (__version__))
         sys.exit(0)
@@ -646,10 +645,10 @@ if ( __name__ == '__main__'):
         else:
             print("This host is _not_ running SAP HANA!")
         sys.exit(0)
-       
+
     stacks_helper = fastSubroutineStacks()
     _funcpids = stacks_helper.find_pids_byfuncname
-    
+
 
 
     classify_UN(v)
@@ -657,21 +656,21 @@ if ( __name__ == '__main__'):
     summarize_subroutines("shrink_all_zones|shrink_zone",
                                  title='shrinking zone')
     summarize_subroutines("shrink_slab")
-   
+
     summarize_subroutines("balance_dirty_pages")
-    
+
     print("\n")
     print_wait_for_AF_UNIX(0)
 
     _p_hang = check_possible_hang()
     _p_memory_pressure = check_memory_pressure(_funcpids)
-    
+
     if (_SAPHANA == 2 and _p_hang and _p_memory_pressure):
         pylog.warning("This host is running SAP HANA and is under memory pressure"
             "\n\tMost probably, it is not properly tuned and this is the root cause"
             "\n\tof the hang"
             "\n\tRun 'hanginfo --saphana' for explanations and tuning suggestions")
- 
+
     if (_PRINT_TREE):
         #_print_wait_tree()
         print_wait_tree()
