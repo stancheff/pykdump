@@ -122,15 +122,13 @@ API_options = Bunch()
 # =                                                               =
 #              Global and Debugging options                       =
 # =                                                               =
+# =================================================================
 
 registerModuleAttr("debugReload", default=0)
 
 # Timeout used on a previous run
 global __timeout_exec
 __timeout_exec = 0
-
-
-
 
 pylog = PyLog()
 
@@ -333,7 +331,7 @@ def argv2s(argv):
 # Here we can print information messages  and initialize statistics
 
 re_apidebug=re.compile(r'^--apidebug=(\d+)$')
-def enter_epython():
+def __enter_epython():
     # Purge temp entries in DCache
     DCache.cleartmp()
     global t_start, t_start_children, t_starta, pp
@@ -375,13 +373,13 @@ def enter_epython():
     # Insert directory of the file to sys.path
     pdir = os.path.dirname(sys.argv[0])
     #print ("pdir=", pdir)
-    # We need to remove it in exit_epython
+    # We need to remove it in __exit_epython
     sys.path.insert(0, pdir)
     #raise Exception("enter_epython")
 
 
 # We call this when exiting epython
-def exit_epython():
+def __exit_epython():
     # Remove prog directory that we have inserted
     sys.path.pop(0)
     if API_options.dumpcache:
@@ -389,10 +387,10 @@ def exit_epython():
         #wrapcrash.BaseTypeinfo.printCache()
         pass
     pylog.onexit()
-    cleanup()
+    __cleanup()
 
 
-def cleanup():
+def __cleanup():
     set_readmem_task(0)
     try:
         ost = os.times()
@@ -412,19 +410,6 @@ def cleanup():
     except BrokenPipeError as v:
         print(v, file=sys.stderr)
         pass
-
-
-
-# The following function is used to do some black magic - adding methods
-# to classes dynamically after dump is open.
-# E.g. we cannot obtain struct size before we have access to dump
-
-def funcToMethod(func,clas,method_name=None):
-    """This function adds a method dynamically"""
-    import new
-    method = new.instancemethod(func,None,clas)
-    if not method_name: method_name=func.__name__
-    setattr(clas, method_name, method)
 
 
 
@@ -470,12 +455,11 @@ class __PYKD_reader(object):
 
 PYKD = __PYKD_reader()
 
-enter_epython()
+__enter_epython()
 
 # Hooks used by C-extension
-sys.enterepython = enter_epython
-sys.exitepython = exit_epython
+sys.enterepython = __enter_epython
+sys.exitepython = __exit_epython
 
 if (API_options.debug):
     print ("-------PyKdump %s-------------" % pykdump.__version__)
-#atexit.register(cleanup)

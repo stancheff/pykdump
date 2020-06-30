@@ -276,3 +276,14 @@ def print2columns(left,right):
 
 
 
+# The following function is used to do some black magic - adding methods
+# to classes dynamically after dump is open.
+# E.g. we cannot obtain struct size before we have access to dump
+
+def funcToMethod(func,clas,method_name=None):
+    """This function adds a method dynamically"""
+    import new
+    method = new.instancemethod(func,None,clas)
+    if not method_name: method_name=func.__name__
+    setattr(clas, method_name, method)
+

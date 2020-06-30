@@ -19,6 +19,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+# For _getframe
+import sys
+
 debugMemoize = 0
 
 # These options can be reset from API.py

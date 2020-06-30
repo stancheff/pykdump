@@ -27,7 +27,7 @@ WARNING = "+++WARNING+++"
 ERROR =   "+++ERROR+++"
 INFO = "...INFO..."
 
-# Using " Singleton Borg pattern" so that we can call constructor
+# Using "Singleton Borg pattern" so that we can call constructor
 # from different modules
 class PyLog:
     _cache = defaultdict(list)
