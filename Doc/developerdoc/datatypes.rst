@@ -37,7 +37,7 @@ pointers to structures or other typed data, *PyKdump* subclasses
 
 .. class:: tEnum(int)
 
-   When data is represented by enums, we have an integre value and
+   When data is represented by enums, we have an integer value and
    symbolic name. We can use instances of this class as normal
    integers but if needed, we can retireve their name as well
 
@@ -125,7 +125,7 @@ we will use the following in Python::
 
   result = a.f1.f2.f3.f4
 
-PyKdump analyzes intermediate fields type and intepretes them as
+PyKdump analyzes intermediate fields type and interprets them as
 structs or pointer to structs as needed, so that we ultimately reach
 *f4* value. Please note that this works for simple pointers only, not
 to pointer to a pointer like ``struct B **dp;``. The type of *result*
@@ -243,9 +243,9 @@ represented with the following::
   char *var;
   char s[10];
 
-the problem is that we cannot be 100% sure that ``char s[10]`` is
+The problem is that we cannot be 100% sure that ``char s[10]`` is
 really used for a string or is just an array of 10 signed 8-byte
-values. So hile it is reasonable to assume that this is a string, we
+values. So while it is reasonable to assume that this is a string, we
 should have a way to interpret it as simple bytes instead.
 
 To deal with this ambiguity, variables that "look" as strings are
@@ -291,8 +291,8 @@ converted not to text but rather special objects.
 
       (unsigned long) &a.s
 
-Accessing Global/Statisc variables by Name
-------------------------------------------
+Accessing Global/Static variables by Name
+-----------------------------------------
 
 Many kernel tables and variables are defined either as globals or
 static and usually we can access them using their name.
@@ -314,7 +314,7 @@ static and usually we can access them using their name.
 Accessing Information about Types
 ---------------------------------
 
-When you got an object by using :func:`readSymbol` or from some other
+When you get an object by using :func:`readSymbol` or from some other
 subroutine, you might need to check object type. For example, some global
 variables have different definitions for different kernel versions and
 you want your program to deal with all kernels.
@@ -330,9 +330,9 @@ You can use the generic Python :func:`isinstance` to do basic checks::
   if (not isinstance(strarr, list)):
       ...
 
-but what if you need to get more details? For many objects, we can
+But what if you need to get more details? For many objects, we can
 retrieve more details about them using the attached :class:`Typeinfo`
-instance
+instance:
 
 .. class:: Typeinfo
 

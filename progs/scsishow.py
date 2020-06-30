@@ -121,7 +121,7 @@ def print_sdev_header(sdev):
 def print_shost_header(shost):
         print("{:8s}  {:32s}   {:12x} {:24x} {:24x}\n".format(shost.shost_gendev.kobj.name,
             shost.hostt.module.name, shost, shost.shost_data,
-            shost.hostdata))
+            shost.hostdata[0]))
 
 def get_gendev():
     gendev_dict = {}
@@ -314,13 +314,35 @@ def print_lpfc_shost_info(shost):
     print("   cfg_lun_queue_depth : {}".format(lpfc_vport.cfg_lun_queue_depth))
     print("   cfg_tgt_queue_depth : {}".format(lpfc_vport.cfg_tgt_queue_depth))
 
+def print_hpsa_shost_info(shost):
+    ctlr_info = readSU("struct ctlr_info", shost.hostdata[0])
+    print("\n\n   HPSA HBA specific details")
+    print("   ---------------------------")
+    print("   ctlr_info           : {:x}".format(ctlr_info))
+    print("   pci_dev             : {:x}".format(ctlr_info.pdev))
+    print("   pci_dev slot        : {}".format(ctlr_info.pdev.dev.kobj.name))
+    print("   devname             : {}".format(ctlr_info.devname))
+    print("   product_name        : {}".format(ctlr_info.product_name))
+    print("   board_id            : {:#x}".format(ctlr_info.board_id))
+    print("   fwrev               : {:c}{:c}{:c}{:c}{:c}".format(ctlr_info.hba_inquiry_data[32],
+        ctlr_info.hba_inquiry_data[33], ctlr_info.hba_inquiry_data[34],
+        ctlr_info.hba_inquiry_data[35], ctlr_info.hba_inquiry_data[36]))
+    print("   CommandList         : {:x}".format(ctlr_info.cmd_pool))
+    print("   nr_cmds             : {}".format(ctlr_info.nr_cmds))
+    print("   max_commands        : {}".format(ctlr_info.max_commands))
+    print("   commands_outstanding: {}".format(ctlr_info.commands_outstanding.counter))
+    print("   interrupts_enabled  : {}".format(ctlr_info.interrupts_enabled))
+    print("   intr_mode           : {}".format(ctlr_info.intr_mode))
+    print("   remove_in_progress  : {}".format(ctlr_info.remove_in_progress))
+    print("   reset_in_progress   : {}".format(ctlr_info.reset_in_progress))
+
 def print_shost_info():
     use_atomic_counters = -1
 
     enum_shost_state = EnumInfo("enum scsi_host_state")
 
     hosts = get_scsi_hosts()
-    mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic"]
+    mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic", "hpsa"]
     verbose_info_logged = 0
     verbose_info_available = 0
 
@@ -338,9 +360,7 @@ def print_shost_info():
         print("-------------------------------------------------------------"
               "------------------------------------------------------------")
 
-        print("{:8s}  {:32s}   {:12x} {:24x} {:24x}\n".format(shost.shost_gendev.kobj.name,
-            shost.hostt.module.name, shost, shost.shost_data,
-            shost.hostdata))
+        print_shost_header(shost)
 
         try:
             print("   Driver version      : {}".format(shost.hostt.module.version))
@@ -391,6 +411,9 @@ def print_shost_info():
                 verbose_info_logged += 1
             elif (('qla2xxx' in shost.hostt.module.name) and struct_exists("struct qla_hw_data")):
                 print_qla2xxx_shost_info(shost)
+                verbose_info_logged += 1
+            elif (('hpsa' in shost.hostt.module.name) and struct_exists("struct ctlr_info")):
+                print_hpsa_shost_info(shost)
                 verbose_info_logged += 1
 
         if (shost.hostt.module.name in mod_with_verbose_info):
