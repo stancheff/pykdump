@@ -39,7 +39,6 @@ experimental = True
 
 debug = False
 
-from io import StringIO
 from .tparser import parseSUDef
 from . import Generic as Gen
 from .vmcorearch import sys_info
@@ -70,6 +69,8 @@ from .memocaches import ( memoize_cond, purge_memoize_cache, PY_select_purge,
 
 # Deref debugging
 registerModuleAttr("debugDeref", default=0)
+
+pointersize = type_length("void *")
 
 
 # --------- Auxiliary subroutines for data conversions ---------------
