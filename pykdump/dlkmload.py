@@ -27,7 +27,8 @@ from .highlevel import *
 from .vmcorearch import sys_info
 from .memocaches import purge_typeinfo
 
-debug = 0
+# Deref debugging
+registerModuleAttr("debugDLKM", default=0)
 
 # For fbase specified as 'nfsd' find all files like nfds.o, nfsd.ko,
 # nfsd.o.debug and nfsd.ko.debug that are present in a given directory
@@ -78,11 +79,11 @@ def loadModule(modname, ofile = None, altname = None):
     except KeyError:
         pass
 
-    if (debug > 1):
+    if (debugDLKM > 1):
         print ("Starting module search", modname)
     if (ofile == None):
         for t in sys_info.debuginfo:
-            if (debug > 1):
+            if (debugDLKM > 1):
                 print (t)
             # Some modules use different names in file object and lsmod, e.g.:
             # dm_mod -> dm-mod.ko
@@ -92,16 +93,16 @@ def loadModule(modname, ofile = None, altname = None):
                    break
             if (ofile):
                 break
-        if (debug > 1):
+        if (debugDLKM > 1):
             print ("Loading", ofile)
     if (ofile == None):
         return False
     # If we specify a non-loaded module, exec_crash_command does not return
-    if (debug > 1):
+    if (debugDLKM > 1):
         print ("Checking for altname")
     if (not altname in lsModules()):
         return False
-    if (debug > 1):
+    if (debugDLKM > 1):
         print ("Trying to insert", altname, ofile)
     rc = exec_crash_command("mod -s %s %s" % (altname, ofile))
     success = (rc.find("MODULE") != -1)
@@ -118,7 +119,7 @@ def delModule(modname):
     try:
         del __loaded_Mods[modname]
         exec_crash_command("mod -d %s" % modname)
-        if (debug):
+        if (debugDLKM):
             print ("Unloading", modname)
     except KeyError:
         pass

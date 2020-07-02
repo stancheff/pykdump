@@ -11,8 +11,9 @@ Welcome to PyKdump Documentation!
    :caption: Contents:
 
    install/index
-   developerdoc/index
    userdoc/index
+   developerdoc/index
+   design/index
 
 Indices and tables
 ==================

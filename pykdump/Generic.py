@@ -4,7 +4,7 @@
 #
 #
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2019 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -20,30 +20,11 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-import string
-import pprint
-
-import os, sys
+import sys
 import copy
 import inspect
 from collections import defaultdict
-
-
-from io import StringIO
-from functools import reduce
 from itertools import zip_longest
-long = int
-
-pp = pprint.PrettyPrinter(indent=4)
-
-# These options can be reset from API.py
-debug = 0
-livedump = False
-
-
-# GLobals used my this module
-
-
 
 # A helper class to implement lazy attibute computation. It calls the needed
 # function only once and adds the result as an attribute so that next time
@@ -75,13 +56,12 @@ class Bunch(dict):
     def copy(self):
         return Bunch(dict.copy(self))
     def __str__(self):
-        prn = StringIO()
+        out = []
         keys = sorted(self.keys())
         for k in keys:
-            print ("  ", k.ljust(12), self[k], file=prn)
-        rc = prn.getvalue()
-        prn.close()
-        return rc
+            out.append("   {:<12s} {}".format(k, self[k]))
+        return "\n".join(out)
+
 
 # A special subclass of Bunch to be used for 'DataCache' class
 # In particular, we can register handlerk subroutines that will
@@ -204,7 +184,6 @@ def registerModuleAttr(attrname, pyctlname=None, default=None):
 
 # We need the next line as it is used in registerObjAttrHandler
 _debugDCache = 0
-registerModuleAttr('debugMemoize', default=0)
 registerModuleAttr('_debugDCache', 'debugDCache')
 
 # Produce an object that will return True a predefined number of times.

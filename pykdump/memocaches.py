@@ -22,12 +22,13 @@
 # For _getframe
 import sys
 
-debugMemoize = 0
+from .Generic import registerModuleAttr
 
-# These options can be reset from API.py
-debug = 0
+registerModuleAttr('debugMemoize', default=0)
+
+# It is unknown yet whether this is a live session, should be set
+# elsewhere
 livedump = False
-
 
 # Memoize methods with one simple arg
 class MemoizeTI(type):
