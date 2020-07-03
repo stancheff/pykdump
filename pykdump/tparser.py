@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2018 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -17,7 +17,8 @@
 # GNU General Public License for more details.
 
 __doc__ = '''
-A collection of useful parsers, e.g. a parser for processing C-like declarations.
+A collection of useful parsers, e.g. a parser for processing
+C-like declarations.
 '''
 
 import sys
@@ -33,8 +34,6 @@ from .Generic import Bunch
 
 FieldInfo = Bunch
 
-_Py3 = (sys.version_info[0] == 3)
-
 # int(a, 0) does not work in the same way in Python 3 as in Python 2
 # Namely, if we have a leading zero not followed by radix specifier,
 # int(a, 0) raises Value error
@@ -49,7 +48,7 @@ def actionToInt(s,l,t):
     try:
         return int(t[0], 0)
     except ValueError:
-        if (_Py3 and t[0][0] == '0'):
+        if (t[0][0] == '0'):
             return int(t[0], 8)
 
 def actionToHex(s,l,t):
@@ -91,7 +90,7 @@ Cenumdecl.ignore(pythonStyleComment)
 
 defineStmt = Suppress("#define")+ \
              Group(Cid + (Cid|intval))
-#defineStmt.ignore(cStyleComment)            
+#defineStmt.ignore(cStyleComment)
 defineBlock = OneOrMore(defineStmt).ignore(cStyleComment)
 
 
@@ -222,7 +221,7 @@ def parseSUDef(s):
       out.append((tn, fn))
   return (sname, out )
 
-    
+
 
 __test_defs = '''
 /* A comment */
@@ -241,7 +240,7 @@ __test_defs = '''
 
 __test_enum_1 = '''
         enum aa {NETREG_UNINITIALIZED, NETREG_REGISTERING, NETREG_REGISTERED,
-   NETREG_UNREGISTERING, NETREG_UNREGISTERED, NETREG_RELEASED} reg_state; 
+   NETREG_UNREGISTERING, NETREG_UNREGISTERED, NETREG_RELEASED} reg_state;
 '''
 
 __test_enum_2 = '''

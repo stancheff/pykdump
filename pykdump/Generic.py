@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 #
-#  Generic classes and subroutines
+#  Generic classes and subroutines - not using any other PyKdump
+#  subroutines/classes
 #
 #
 # --------------------------------------------------------------------

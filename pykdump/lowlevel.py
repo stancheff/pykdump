@@ -34,18 +34,13 @@ import types
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
-experimental = False
-experimental = True
-
 debug = False
 
 from .tparser import parseSUDef
-from . import Generic as Gen
 from .vmcorearch import sys_info
 
+# For legacy code
 long = int
-
-from . import datatypes as Dat
 
 from .datatypes import \
     (TypeInfo,VarInfo, PseudoVarInfo,

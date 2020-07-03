@@ -82,7 +82,6 @@ long = int
 # Here we make some pieces of other modules classes/functions/varibles
 # visible to API
 
-from . import Generic as gen
 from .Generic import (Bunch, DCache, TrueOnce,
                       iterN, dbits2str, print2columns)
 
@@ -213,7 +212,7 @@ def __epythonOptions():
     global debug, __timeout_exec
     if (o.debug != -1):
         debug = o.debug
-    API_options.debug = gen.debug = debug
+    API_options.debug = debug
 
     if (o.ehelp):
         op.print_help()
@@ -410,24 +409,6 @@ def __cleanup():
     except BrokenPipeError as v:
         print(v, file=sys.stderr)
         pass
-
-
-
-# ---------- A context manager to disable crash/gdb error messages -----
-
-class SuppressCrashErrors():
-    def __init__(self, outfile = "/dev/null"):
-        self.newf = outfile
-    def __enter__(self):
-        self.oldf = crash.crash_set_error(self.newf)
-        return self.oldf
-    def __exit__(self, exc_type, exc_value, traceback):
-        if (self.oldf != self.newf):
-            crash.crash_set_error(self.oldf)
-            #print("error_path: restoring {}".format(self.oldf))
-
-
-
 
 
 # -----------  initializations ----------------

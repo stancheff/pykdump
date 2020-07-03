@@ -57,7 +57,7 @@ __all = '''
      structSetAttr, structSetProcAttr, sdef2ArtSU, AttrSetter,
      getCurrentModule, registerObjAttrHandler, registerModuleAttr,
 
-     atomic_t
+     atomic_t, SuppressCrashErrors
 '''
 
 __all__ = [o.strip(',') for o in __all.split()]
@@ -730,6 +730,21 @@ def atomic_t(o):
         return o.counter
     except AttributeError:
         return o
+
+# ---------- A context manager to disable crash/gdb error messages -----
+
+class SuppressCrashErrors():
+    def __init__(self, outfile = "/dev/null"):
+        self.newf = outfile
+    def __enter__(self):
+        self.oldf = crash.crash_set_error(self.newf)
+        return self.oldf
+    def __exit__(self, exc_type, exc_value, traceback):
+        if (self.oldf != self.newf):
+            crash.crash_set_error(self.oldf)
+            #print("error_path: restoring {}".format(self.oldf))
+
+
 
 
 # Replacing Python versions by bindings to C-subroutines
