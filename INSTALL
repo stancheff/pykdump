@@ -6,7 +6,7 @@ from sources.
 
 Before doing anything else, please install the following components:
 
-1. CRASH can be obtained from http://people.redhat.com/anderson
+1. CRASH can be obtained from https://github.com/crash-utility/crash
 2. Python programming language with runtime libraries, http://www.python.org
 
 
