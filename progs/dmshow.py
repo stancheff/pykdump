@@ -670,9 +670,9 @@ if ( __name__ == '__main__'):
         print("\nNo dm-multipath devices found!")
 
     if (args.pvs):
-        print("\n\n   Note: The 'DEVICE SIZE' column shows size of device used for PV, it is\n" 
-                 "         not the actual size of PV itself. Since the size of PV could be\n"
-                 "         slightly less, depending upon number of PEs and PE size.")
+        print("\n\n   Note: 'DEVICE SIZE' column shows the size of device used for PV, it is\n"
+                 "         not the actual PV size. Depending upon the number of Physical\n"
+                 "         Extents and Extent size, actual PV size could be slightly less.")
 
     if (args.runcheck):
         run_check_on_multipath()
