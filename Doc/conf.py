@@ -67,3 +67,13 @@ html_static_path = ['_static']
 latex_elements = {
 }
 
+# Options for man page creation
+# -----------------------------
+man_pages = [
+    ('userdoc/mpykdump', 'mpykdump', 'PyKdump - Python '
+     'crash API (mpykdump)',
+     ['Alex Sidorenko <asid@hpe.com>, '
+      'Milan P. Gandhi <mgandhi@redhat.com>'], 8),
+]
+
+master_doc = 'index'
