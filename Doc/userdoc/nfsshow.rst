@@ -4,7 +4,7 @@ Reviewing NFS server and client details (nfsshow)
 The nfsshow program available in PyKdump can be used to quickly
 process NFS server and client information from the vmcores.
 
-Options provided by nfsshow::
+Options provided by 'nfsshow'::
 
     crash> nfsshow -h
     usage: nfsshow [-h] [-a] [--server] [--client] [--rpctasks] [--decoderpctask DECODERPCTASK] [--nfsclient NFSCLIENT] [--maxrpctasks MAXRPCTASKS] [--locks] [--deferred]
@@ -654,7 +654,7 @@ Decode RPC task at specified address (-\\-decoderpctask)
 The '-\\-decoderpctask' option allows to retrieve information about
 specific RPC task using a pointer for struct rpc_task.
 
-For example, in above output there is a RPC task (pid=3556), with
+For example, in above output there is a RPC task (pid=3556) with
 rpc_task poiner 0xffff880079da4798. This pointer can be used as an
 argument to '-\\-decoderpctask' to get more details about it::
 

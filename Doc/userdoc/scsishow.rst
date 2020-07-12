@@ -7,7 +7,7 @@ from different targets and the in-flight SCSI commands. It also provides
 '-\\-check' option which can detect stalled error handling process, stuck
 IO requests, SCSI commands and other potential isuses in SCSI error handling.
 
-Use '-h' to view the options provided by this program::
+Options provided by ‘scsishow’::
 
     crash> scsishow -h
     usage: scsishow [-h] [-p] [-d [FIELDS]] [-s [FIELDS]] [-T [FIELDS]] [-c [FIELDS]] [-q [FIELDS]] [-r [FIELDS]] [-x] [--check] [--time] [--relative [RELATIVE]]

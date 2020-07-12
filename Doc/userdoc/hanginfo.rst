@@ -1,9 +1,12 @@
 Getting hung task details (hanginfo)
 ====================================
 
-The hanginfo program available in PyKdump framework provides below options to
-retrieve more information about the processes stuck in UN (un-interruptible)
-::
+The hanginfo program available in PyKdump framework can be used to quickly
+process various information about the hung tasks. It displays the list of
+processes stuck on various function calls, tasks waiting for mutex locks,
+lock owner, etc.
+
+Options provided by ‘hanginfo’::
 
     crash> hanginfo -h
     Usage: hanginfo [options]

@@ -5,7 +5,7 @@ The dmshow program can be used to quickly extract dm-multipath and LVM
 volume information from vmcore. It also provides '-\\-check' option to
 check for potential LVM, multipath issues and report the same.
 
-Use '-h' to view the options provided by this program::
+Options provided by ‘dmshow’::
 
     crash> dmshow -h
     usage: dmshow [-h] [-x] [--check] [-m [FIELDS]] [-ll [FIELDS]] [-d [FIELDS]] [--table] [--lvs] [--lvuuid] [--pvs]
