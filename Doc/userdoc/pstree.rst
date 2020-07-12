@@ -4,7 +4,7 @@ Graphical representation of parent/child processes (pstree)
 The pstree program provides graphical representation of parent/child
 processes, number of threads, their states, etc.
 
-Options provided by ‘pstree’:
+Options provided by ‘pstree’::
 
     crash> pstree -h
     Usage: pstree [options]
