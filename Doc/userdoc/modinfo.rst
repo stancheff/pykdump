@@ -2,7 +2,9 @@ Getting module specific information (modinfo)
 =============================================
 
 The modinfo program provides several options to quickly extract module specific
-information from the vmcores. Below are the options provided by modinfo::
+information from the vmcores.
+
+Options provided by 'modinfo'::
 
     crash> modinfo -h
     Usage: modinfo [options]
