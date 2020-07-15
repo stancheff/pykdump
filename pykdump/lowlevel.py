@@ -24,23 +24,18 @@
 # GNU General Public License for more details.
 
 
-import sys
-import string, re
-import struct
-import os, select, time
-
 import types
-
-import pprint
-pp = pprint.PrettyPrinter(indent=4)
-
-debug = False
 
 from .tparser import parseSUDef
 from .vmcorearch import sys_info
 
 # For legacy code
 long = int
+
+#   subroutines from C-module
+import crash
+from crash import  mem2long, FD_ISSET, readPtr, readmem
+readIntN = crash.readInt
 
 from .datatypes import \
     (TypeInfo,VarInfo, PseudoVarInfo,
@@ -59,8 +54,7 @@ from .memocaches import ( memoize_cond, purge_memoize_cache, PY_select_purge,
         memoize_typeinfo, purge_typeinfo, PY_select)
 
 
-
-# GLobals used my this module
+# Globals used my this module
 
 # Deref debugging
 registerModuleAttr("debugDeref", default=0)
@@ -72,19 +66,19 @@ pointersize = type_length("void *")
 
 # Create a multi-dim list based on index list,
 # e.g. [2,3,4] =>  a[2][3][4] filled with None
-def multilist(mdim):
+def _multilist(mdim):
     d1 = mdim[0]
     if (len(mdim) > 1):
         a = []
         for i in range(d1):
-            a.append(multilist(mdim[1:]))
+            a.append(_multilist(mdim[1:]))
     else:
         a =  [None for i in range(d1)]
     return a
 
 def _arr1toM(dims, arr1):
     # We do this for 2- and 3-dim only
-    out = multilist(dims)
+    out = _multilist(dims)
     if (len(dims) == 2):
         I = dims[0]
         J = dims[1]
@@ -106,36 +100,11 @@ def _arr1toM(dims, arr1):
 
 
 
-
-class subStructResult(type):
-    __cache = {}
-    def __call__(cls, *args):
-        sname = args[0]
-        try:
-            ncls = subStructResult.__cache[sname]
-        except KeyError:
-            supername = cls.__name__
-            classname = '%s_%s' % (supername, sname)
-            # Class names cannot contain spaces or -
-            classname = classname.replace(' ', '_').replace('-', '_')
-            #execstr = 'class %s(%s): pass' % (classname, supername)
-            #print '===', execstr
-            #exec(execstr)
-            #ncls = locals()[classname]
-            ncls = type(classname, (StructResult,), {})
-            ncls.PYT_symbol = sname
-            ncls.PYT_sinfo = SUInfo(sname)
-            ncls.PYT_size = ncls.PYT_sinfo.PYT_size
-            ncls.PYT_attrcache = {}
-
-        #print("ncls=", ncls)
-        rc =  ncls.__new__(ncls, *args)
-        rc.__init__(*args)
-        subStructResult.__cache[sname] = ncls
-        return rc
-
-# ------------Pseudoattributes------------------------------------------------
-
+# =============================================================
+#
+#       ======= Pseudo Attributes Implementaion =======
+#
+# =============================================================
 
 # Pseudoattributes.
 class PseudoAttr(object):
@@ -145,7 +114,7 @@ class PseudoAttr(object):
     def __get__(self, obj, objtype):
         if (self.chain == None):
             return obj
-        val = pseudoAttrEvaluator(long(obj),  self.fi, self.chain)
+        val = pseudoAttrEvaluator(int(obj),  self.fi, self.chain)
         return val
 
 # Procedural
@@ -184,7 +153,6 @@ def structSetAttr(sname, aname, estrings, sextra = []):
     except TypeError:
         # This struct does not exist - return False
         return False
-    #print sname, cls
     for s in estrings:
         # A special case - an empty string means "return ourself"
         if (s == ""):
@@ -197,7 +165,6 @@ def structSetAttr(sname, aname, estrings, sextra = []):
             setattr(cls,  aname, pa)
             vi = _test_chain(sname, aname, fi, chain)
             if (vi):
-                #print sname, vi, vi.offset
                 cls.PYT_sinfo[aname] = vi
             for extra in sextra:
                 ecls = StructResult(extra).__class__
@@ -334,7 +301,7 @@ def parseDerefString(sname, teststring):
     return (fi, out)
 
 def pseudoAttrEvaluator(addr, vi, chain):
-    addr = long(addr)
+    addr = int(addr)
     for ptr, offset in chain:
         if (ptr):
             addr = readPtr(addr+offset)
@@ -343,39 +310,41 @@ def pseudoAttrEvaluator(addr, vi, chain):
     # Now read the variable as defined by fi from address addr
     return vi.reader(addr)
 
-# ----------------------------------------------------------------------------
+# ========== End of Pseudo Attributes subroutines ===============
 
+# =============================================================
+#
+#           ======= StructResult =======
+#
+# =============================================================
 
-_testcache = {}
-
-#class StructResult(long, metaclass = subStructResult):
-class StructResult(long):
-    __metaclass__ = subStructResult
-    def __new__(cls, sname, addr = 0):
-        return long.__new__(cls, addr)
-
-    def X__init__(self, sname, addr = 0):
-        # Create a new class and change our instance to point to it
+# ------------- Metaclass for StructResult -----------------
+class subStructResult(type):
+    __cache = {}
+    def __call__(cls, *args):
+        sname = args[0]
         try:
-            ncls = _testcache[sname]
-        except:
-            supername = "StructResult"
+            ncls = subStructResult.__cache[sname]
+        except KeyError:
+            supername = cls.__name__
             classname = '%s_%s' % (supername, sname)
             # Class names cannot contain spaces or -
             classname = classname.replace(' ', '_').replace('-', '_')
-            d = {}
-            d["PYT_symbol"] = sname
-            d["PYT_sinfo"] = SUInfo(sname)
-            d["PYT_size"] = d["PYT_sinfo"].PYT_size
-
             ncls = type(classname, (StructResult,), {})
-            setattr(ncls, "PYT_symbol", sname)
-            si = SUInfo(sname)
-            setattr(ncls, "PYT_sinfo", si)
-            setattr(ncls, "PYT_size", si.PYT_size)
-            _testcache[sname] = ncls
-        self.__class__ = ncls
+            ncls.PYT_symbol = sname
+            ncls.PYT_sinfo = SUInfo(sname)
+            ncls.PYT_size = ncls.PYT_sinfo.PYT_size
+            ncls.PYT_attrcache = {}
 
+        #print("ncls=", ncls)
+        rc =  ncls.__new__(ncls, *args)
+        rc.__init__(*args)
+        subStructResult.__cache[sname] = ncls
+        return rc
+
+class StructResult(int, metaclass = subStructResult):
+    def __new__(cls, sname, addr = 0):
+        return int.__new__(cls, addr)
 
 
     # The next two methods implement pointer arithmetic, i.e.
@@ -388,7 +357,7 @@ class StructResult(long):
             return self.PYT_sinfo[i]
 
         sz1 = self.PYT_size
-        return StructResult(self.PYT_symbol, long(self) + i * sz1)
+        return StructResult(self.PYT_symbol, int(self) + i * sz1)
 
     # The __add__ method can break badly-written programs easily - if
     # we forget to cast the pointer to (void *)
@@ -396,34 +365,10 @@ class StructResult(long):
         #raise TypeError, "!!!"
         return self[i]
 
-    def X__getattr__(self, name):
-        try:
-            fi = self.PYT_sinfo[name]
-        except KeyError:
-            # Due to Python 'private' class variables mangling,
-            # if we use a.__var inside 'class AAA', it will be
-            # converted to a._AAA__var. This creates prob;ems for
-            # emulating C to access attributes.
-            # The approach I use below is ugly - but I have not found
-            # a better way yet
-            ind = name.find('__')
-            if (ind > 0):
-                name = name[ind:]
-            try:
-                fi = self.PYT_sinfo[name]
-            except KeyError:
-                msg = "<%s> does not have a field <%s>" % \
-                      (self.PYT_symbol, name)
-                raise KeyError(msg)
-
-        #print( fi, fi.offset, fi.reader)
-        #print("addr to read: 0x%x" % (long(self) + fi.offset), type(fi.offset))
-        return fi.reader(long(self) + fi.offset)
-
     # A faster version of __getattr__
     def __getattr__(self, name):
         try:
-            return self.PYT_attrcache[name](long(self))
+            return self.PYT_attrcache[name](int(self))
         except KeyError:
             pass
         if (name in self.PYT_sinfo):
@@ -446,29 +391,28 @@ class StructResult(long):
                 raise KeyError(msg)
 
         #print( fi, fi.offset, fi.reader)
-        #print("addr to read: 0x%x" % (long(self) + fi.offset), type(fi.offset))
+        #print("addr to read: 0x%x" % (int(self) + fi.offset), type(fi.offset))
         reader = lambda addr: fi.reader(addr + fi.offset)
         self.PYT_attrcache[name] = reader
-        #print("+++", self.PYT_symbol, name)
-        return reader(long(self))
+        return reader(int(self))
 
     def __eq__(self, cmp):
-        return (long(self) == cmp)
+        return (int(self) == cmp)
     # In Python 3, object with __eq__ but without explicit __hash__ method
     # are unhashable!
     def __hash__(self):
-        return (long(self))
+        return (int(self))
     def __str__(self):
         return "<%s 0x%x>" % \
-               (self.PYT_symbol, long(self))
+               (self.PYT_symbol, int(self))
 
     def __repr__(self):
         return "StructResult <%s 0x%x> \tsize=%d" % \
-               (self.PYT_symbol, long(self), self.PYT_size)
+               (self.PYT_symbol, int(self), self.PYT_size)
     # Short string (without struct/union word), useful when line space is tight
     def shortStr(self):
         sn = self.PYT_symbol.split()[-1]
-        return "<%s 0x%x>" % (sn, long(self))
+        return "<%s 0x%x>" % (sn, int(self))
 
     # Print all fields (without diving into structs/unions)
     def Dump(self, indent = 0):
@@ -510,7 +454,7 @@ class StructResult(long):
         try:
             (fi, chain) = cls.__cache[estr]
             #print "Got from Eval cache", estr, cls
-            return pseudoAttrEvaluator(long(self), fi, chain)
+            return pseudoAttrEvaluator(int(self), fi, chain)
         except AttributeError:
             #print "Creating a Eval cache for", cls
             cls.__cache = {}
@@ -518,25 +462,27 @@ class StructResult(long):
             pass
         (fi, chain) = parseDerefString(self.PYT_symbol, estr)
         cls.__cache[estr] = (fi, chain)
-        return pseudoAttrEvaluator(long(self), fi, chain)
+        return pseudoAttrEvaluator(int(self), fi, chain)
 
     # Cast to another type. Here we assume that that one struct resides
     # as the first member of another one, this is met frequently in kernel
     # sources
     def castTo(self, sname):
-        return StructResult(sname, long(self))
+        return StructResult(sname, int(self))
 
     Deref = property(getDeref)
 
-
-# This adds a metaclass
-StructResult = subStructResult('StructResult', (StructResult,), {})
+# =============================================================
+#
+#       ======= factory subroutines for readers =======
+#
+# =============================================================
 
 # A factory function for Enum readers. If understand correctly,
 # in C we cannot have enums in bitfields (but we can in C++!)
 # GCC-5 let me compile C-program with enum bitfields
 # At this moment we do a spcial processing for scalar (not array)
-# only. for array we fall back to normal int reader
+# only. For array we fall back to normal int reader
 def ti_enumReader(ti):
     #print("ti_enumReader")
     def signedReader(addr):
@@ -642,10 +588,9 @@ def ti_intReader(ti, bitoffset = None, bitsize = None):
     dims = ti.dims
     elements = ti.elements
     totsize = size * elements
-    if (debug):
-        print ("Creating an intReader size=%d" % size, \
-              "uint=", uint, \
-              "bitsize=", bitsize, "bitoffset=", bitoffset)
+    # print ("Creating an intReader size=%d" % size, \
+    #        "uint=", uint, \
+    #        "bitsize=", bitsize, "bitoffset=", bitoffset)
 
     #print "dims=", dims
     if (dims != None and len(dims) == 1 and ti.stype == 'char'):
@@ -681,7 +626,6 @@ def ti_intReader(ti, bitoffset = None, bitsize = None):
         else:
             mask = (~(~0<<bitsize))
             return signedBFReader
-
 
 
 # A factory function for struct/union readers
@@ -783,7 +727,7 @@ def ptrReader(vi, ptrlev):
                     self.addr = addr
                 def __getitem__(self, i):
                     return basereader(self.addr + i*size)
-                def __long__(self):
+                def __int__(self):
                     return self.addr
             return lambda addr: Array0(addr)
         else:
@@ -812,10 +756,15 @@ def ptrReader(vi, ptrlev):
 
 
     # Error - print debugging info
-    raise TypeError("Cannot find a suitable reader for {} ptrbasetype={} dims={}".format(ti, ti.ptrbasetype,dims))
+    raise TypeError("Cannot find a suitable reader for {}"
+                    " ptrbasetype={} dims={}".format(ti, ti.ptrbasetype,dims))
     return None
 
-# With Python3 readmem() returns 'bytes'
+# ========== End of Readers Factory Subroutines ===============
+
+# ---------------- Smart Strings ------------------------------
+
+# readmem() returns 'bytes'
 # We always have the address where data is located as 'addr'
 # If this is created from a struct field, we have another address available,
 # that of the variable in struct. That is:
@@ -833,7 +782,7 @@ class SmartString(str):
         #if (isinstance(s, tPtr) and s.ptrlev == 1):
         ptrlev = getattr(s, "ptrlev", None)
         if (ptrlev == 1):
-            addr = long(s)
+            addr = int(s)
             s = readmem(s, 256)
         elif (not isinstance(s, bytes)):
             raise TypeError("Cannot convert type {} to SmartString".format(
@@ -847,7 +796,7 @@ class SmartString(str):
         return sobj
     def __init__(self, s, addr = None, ptr = None):
         pass
-    def __long__(self):
+    def __int__(self):
         return self.ptr
     def __getslice__(  self, i, j):
         return self.__fullstr.__getslice__(i, j)
@@ -863,11 +812,11 @@ def Addr(obj, extra = None):
     if (isinstance(obj, StructResult)):
         # If we have extra set, we want to know the address of this field
         if (extra == None):
-            return long(obj)
+            return int(obj)
         else:
             off = obj.PYT_sinfo[extra].offset
-            return long(obj) + off
-    elif (isinstance(obj, SmartString) or isinstance(obj, SmartList)):
+            return int(obj) + off
+    elif (isinstance(obj, SmartString)):
           return obj.addr
     else:
         raise TypeError(type(obj))
@@ -882,6 +831,7 @@ def Deref(obj):
     else:
         raise TypeError("Trying to dereference a non-pointer " + str(obj))
 
+# ---------------- Typed Pointers ------------------------------
 
 # When we do readSymbol and have pointers to struct, we need a way
 # to record this info instead of just returning integer address
@@ -889,9 +839,9 @@ def Deref(obj):
 # To make dereferences faster, we store the basetype and ptrlev
 
 
-class tPtr(long):
+class tPtr(int):
     def __new__(cls, l, ti):
-        return long.__new__(cls, l)
+        return int.__new__(cls, l)
     def __init__(self, l, ti):
         self.ti = ti
         self.ptrlev = self.ti.ptrlev
@@ -902,7 +852,7 @@ class tPtr(long):
     def __getitem__(self, i):
         return self.getArrDeref(i)
     def getArrDeref(self, i):
-        addr = long(self)
+        addr = int(self)
         ptrlev = self.ptrlev
         if (addr == 0):
             msg = "\nNULL pointer %s" % repr(self)
@@ -923,7 +873,7 @@ class tPtr(long):
                 ntptr.ptrlev = ptrlev - 1
                 return ntptr
     def getDeref(self, i = None):
-        addr = long(self)
+        addr = int(self)
         if (addr == 0):
             msg = "\nNULL pointer %s" % repr(self)
             raise IndexError(msg)
@@ -944,22 +894,9 @@ class tPtr(long):
         return self.ti
     ptype = property(getPtype)
 
-# A wrapper for tPtr dimensionless arrays
-class tPtrZeroArray(tPtr):
-    #pass
-    def __getitem__(self, i):
-        return tPtr(readPtr(long(self) + i * self.ti.size), self.ti)
 
-# Dimensionless array of pointers to SU, e.g.
-# struct rt_trie_node *child[];
-class tPtrZeroArraySU(tPtr):
-    # pass
-    def __getitem__(self, i):
-        return readSU(self.ti.stype, readPtr(long(self) + i * self.ti.size))
-
-
-
-# An experimental dereferencer. We assume that there can be no pointer bitfields!
+# An experimental dereferencer.
+# We assume that there can be no pointer bitfields!
 @memoize_cond(CU_PYMOD)
 def newDereferencer(ti):
     # Target ti
@@ -995,24 +932,13 @@ def newDereferencer(ti):
     return reader
 
 # Enums representation - integers plus some data
-class tEnum(long):
+class tEnum(int):
     def __new__(cls, l, einfo):
-        return long.__new__(cls, l)
+        return int.__new__(cls, l)
     def __init__(self, l, einfo):
         self.einfo = einfo
     def __repr__(self):
         return self.einfo.getnam(self)
-
-
-
-
-class SmartList(list):
-    def __new__(cls, l = [], addr = None):
-        return list.__new__(cls, l)
-    def __init__(self, l = [], addr = None):
-        list.__init__(self, l)
-        self.addr = addr
-
 
 
 # Print the object delegating all work to GDB. At this moment can do this
@@ -1020,12 +946,12 @@ class SmartList(list):
 
 def printObject(obj):
     if (isinstance(obj, StructResult)):
-        cmd = "p *(%s *)0x%x" %(obj.PYT_symbol, long(obj))
+        cmd = "p *(%s *)0x%x" %(obj.PYT_symbol, int(obj))
         print (cmd)
         s = exec_gdb_command(cmd)
         # replace the 1st line with something moe useful
         first, rest = s.split("\n", 1)
-        print ("%s 0x%x {" %(obj.PYT_symbol, long(obj)))
+        print ("%s 0x%x {" %(obj.PYT_symbol, int(obj)))
         print (rest)
     else:
         raise TypeError
@@ -1041,18 +967,18 @@ def printObject(obj):
 #
 # unsigned long __per_cpu_offset[0];
 
-class intDimensionlessArray(long):
+class intDimensionlessArray(int):
     def __new__(cls, addr, isize, signed):
-        return long.__new__(cls, addr)
+        return int.__new__(cls, addr)
     def __init__(self, addr, isize, signed):
         self.isize = isize
         self.signed = signed
     def __getitem__(self, i):
-        addr = long(self) + i * self.isize
+        addr = int(self) + i * self.isize
         return readIntN(addr, self.isize, self.signed)
     def __repr__(self):
         return "<intDimensionlessArray addr=0x%x, sz=%d, signed=%d>" %\
-            (long(self), self.isize, self.signed)
+            (int(self), self.isize, self.signed)
 
 
 class tPtrDimensionlessArray(object):
@@ -1066,6 +992,9 @@ class tPtrDimensionlessArray(object):
 
 
 
+# --------- Create a struct-like obect from C definition ------
+#
+#   This is probably not needed and will be eventually removed
 
 # We cannot subclass from ArtStructInfo as signature is different
 
@@ -1107,9 +1036,4 @@ def sdef2ArtSU(sdef):
         uas.size = uas.PYT_size
     return uas
 
-
-#exec_crash_command = new_exec_crash_command
-import crash
-from crash import  mem2long, FD_ISSET, readPtr, readmem
-readIntN = crash.readInt
 
