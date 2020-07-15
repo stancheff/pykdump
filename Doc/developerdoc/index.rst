@@ -9,3 +9,5 @@ Developer Guide
    reference
    crash
    c-api
+
+   debugging
