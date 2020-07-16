@@ -9,7 +9,7 @@
 --------------
 
 This module implements Python bindings to ``crash`` and ``GDB``
-internal commands and structures. Some of these subrotuines are
+internal commands and structures. Some of these subroutines are
 intended for framework itself. Those of general interest are available
 after ``import pydkump.API``, there is no need to ``import crash`` to
 use them.
@@ -119,7 +119,7 @@ argument and some rely on default
    This is a swiss-army knife subroutine to convert a byte string into
    integers or a list of integers. In C, we have integers of different
    sizes, signed/unsigned and arrays of integers (this subroutine can
-   hadnle 1-dimensional arrays only). After we read a chunk of memory,
+   handle 1-dimensional arrays only). After we read a chunk of memory,
    it is represented by a byte string. Thus subroutine converts it
    according as specified by arguments. We assume that byte string
    consists of *int* for this architecture. So you cannot use this
@@ -135,7 +135,7 @@ argument and some rely on default
 
 .. function:: readmem(addr, size [, mtype])
 
-   Interface to ``crash`` bulitin ``readmem()``.
+   Interface to ``crash`` builtin ``readmem()``.
 
    :param addr: address to read from
    :param size: how many bytes to read
@@ -178,7 +178,7 @@ Conversion between Memory Types
 .. function:: uvtop(taskaddr, vaddr)
 
    Interface to ``crash`` builtin ``uvtop(tskaddr, vaddr)`` - converts
-   a virtual address to physicall address in the context of specified
+   a virtual address to physical address in the context of specified
    task
 
    :param taskaddr: address of ``struct task_struct``
@@ -217,7 +217,7 @@ Miscellaneous
 
    Find full buckets in hash-tables. If we have hash-tables consisting
    of many buckets (>100,000) but just a few of them are non-empty, this
-   subroutine is significantly faste thatn trying to do the same in
+   subroutine is significantly faster than trying to do the same in
    pure Python. Useful for networking tables
 
    :param start: address of the hash-table
@@ -297,7 +297,7 @@ overflow. So to emulate C behavior we need to use special functions
 
 .. function:: sLong(i)
 
-   In C, the same bits sequnce can represent either *signed* or
+   In C, the same bits sequence can represent either *signed* or
    *unsigned* integer. In Python, there is no native *unsigned*
    integer. This subroutine lets you convert a Python integer to
    *signed* assuming that integer size is that for *long* type of
