@@ -101,7 +101,7 @@ available in it::
     crash>
 
 The same command can be used for in-built or third party modules.
-e.g. checking the detalils about 'involflt' module::
+e.g. checking the details about 'involflt' module::
 
     crash> modinfo --details=involflt|head -20
     struct module   : 0xffffffffc033c340
@@ -173,7 +173,7 @@ To view the memory address range allocated for the module, use '-a' option::
     0xffffffffc03b7000 crct10dif_common               12595 
     [...]
 
-Show gaps between modules as well as phyiscally allocated sizes (-g)
+Show gaps between modules as well as physically allocated sizes (-g)
 --------------------------------------------------------------------
 
 The '-g' option displays module size, allocated size and gap size.
