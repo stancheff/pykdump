@@ -1,2 +1,2 @@
-Executing custom PyKdump progrms using epython
-==============================================
+Executing custom PyKdump programs using epython
+===============================================
