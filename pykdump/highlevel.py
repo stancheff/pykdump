@@ -67,8 +67,7 @@ __all = '''
 
 __all__ = [o.strip(',') for o in __all.split()]
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+import sys, select, os
 
 from .Generic import Bunch
 from .lowlevel import *
