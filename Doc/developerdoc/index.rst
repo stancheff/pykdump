@@ -7,6 +7,7 @@ Developer Guide
 
    datatypes
    reference
+   LinuxDump/index
    crash
    c-api
 
