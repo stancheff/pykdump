@@ -21,8 +21,13 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Specify what is imported when we do 'from highlevel *'  - it is easier
 # to do this here than in pykdump.API
+#
+# To avoid typing each name in quotes, we parse a multiline string
+# converting it to the needed form
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 __all = '''
      TypeInfo, SUInfo, ArtStructInfo, EnumInfo,
@@ -61,6 +66,9 @@ __all = '''
 '''
 
 __all__ = [o.strip(',') for o in __all.split()]
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 from .Generic import Bunch
 from .lowlevel import *
@@ -194,9 +202,7 @@ def readSU(symbol, addr):
     return StructResult(symbol, addr)
 
 #     ======= return a Generator to iterate through SU array
-def __SUArray(sname, addr, maxel = None):
-    if (maxel is None):
-        maxel = _MAXEL
+def __SUArray(sname, addr, *, maxel = _MAXEL):
     size = getSizeOf(sname)
     addr -= size
     while (maxel):
@@ -245,16 +251,16 @@ def readProcessMem(taskaddr, uvaddr, size):
 #
 # If we pass a string as 'headaddr', this is the symbol pointing
 # to structure itself, not its listhead member
-def readSUListFromHead(headaddr, listfieldname, mystruct, maxel=None,
-                     inchead = False, warn = True):
-    if (maxel is None):
-        maxel = _MAXEL
+def readSUListFromHead(headaddr, listfieldname, mystruct, *,
+                       maxel = _MAXEL,
+                       inchead = False, warn = True):
     msi = getStructInfo(mystruct)
     offset = msi[listfieldname].offset
     if (type(headaddr) == type("")):
         headaddr = sym2addr(headaddr) + offset
     out = []
-    for p in readList(headaddr, 0, maxel+1, inchead, warn):
+    for p in readList(headaddr, 0, maxel=maxel+1, inchead=inchead,
+                      warn=warn):
         out.append(readSU(mystruct, p - offset))
     if (len(out) > maxel):
         del out[-1]
@@ -267,9 +273,7 @@ def readSUListFromHead(headaddr, listfieldname, mystruct, maxel=None,
 # an embedded listhead. 'shead' is either a structure or tPtr pointer
 # to structure
 
-def readStructNext(shead, nextname, maxel=None, inchead = True):
-    if (maxel is None):
-        maxel = _MAXEL
+def readStructNext(shead, nextname, *, maxel=_MAXEL, inchead = True):
     if (not isinstance(shead, StructResult)):
         # This should be tPtr
         if (shead == 0):
@@ -278,7 +282,7 @@ def readStructNext(shead, nextname, maxel=None, inchead = True):
     stype = shead.PYT_symbol
     offset = shead.PYT_sinfo[nextname].offset
     out = []
-    for p in readList(Addr(shead), offset, maxel, inchead=inchead):
+    for p in readList(Addr(shead), offset, maxel=maxel, inchead=inchead):
         out.append(readSU(stype, p))
     return out
 
@@ -289,10 +293,8 @@ def readStructNext(shead, nextname, maxel=None, inchead = True):
 # In most cases the head is standalone and other list_heads are embedded
 # in parent structures.
 
-def readListByHead(start, offset=0, maxel = None, warn = True):
-    if (maxel is None):
-        maxel = _MAXEL
-    return readList(start, offset, maxel, False, warn)
+def readListByHead(start, offset=0, *, maxel = _MAXEL, warn = True):
+    return readList(start, offset, maxel=maxel, inchead=False, warn=warn)
 
 # An alias
 list_for_each_entry = readListByHead
@@ -311,13 +313,10 @@ list_for_each_entry = readListByHead
 #
 
 class ListHead(list):
-    def __new__(cls, lhaddr, sname = None, maxel = None, warn = True):
+    def __new__(cls, lhaddr, sname = None, *, maxel = _MAXEL, warn = True):
         return list.__new__(cls)
-    def __init__(self, lhaddr, sname = None, maxel = None, warn = True):
+    def __init__(self, lhaddr, sname = None, *,  maxel = _MAXEL, warn = True):
         self.sname = sname
-        if (maxel is None):
-            maxel = _MAXEL
-        #self.maxel = _MAXEL
         self.warn = warn
         count = 0
         next = lhaddr
@@ -354,9 +353,7 @@ def LH_isempty(lh):
 # For list declared using LIST_HEAD, the empty list is when both next and prev
 # of LIST_HEAD point to its own address
 
-def readList(start, offset=0, maxel = None, inchead = True, warn = True):
-    if (maxel is None):
-        maxel = _MAXEL
+def readList(start, offset=0, *, maxel = _MAXEL, inchead = True, warn = True):
     start = long(start)     # equivalent to (void *) cast
     if (start == 0):
         return []
@@ -396,7 +393,7 @@ def readList(start, offset=0, maxel = None, inchead = True, warn = True):
 # The same as readList, but in case we are interested
 # in partial lists even when there are low-level errors
 # Returns (partiallist, error/None)
-def readBadList(start, offset=0, maxel = _MAXEL, inchead = True):
+def readBadList(start, offset=0, *, maxel = _MAXEL, inchead = True):
     start = long(start)     # equivalent to (void *) cast
     # A dictionary used to detect duplicates
     ha = {}
