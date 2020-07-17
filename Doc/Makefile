@@ -22,6 +22,6 @@ help:
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 publish:
-	rsync -av --delete --exclude='.git' --exclude "bootcamp" \
-	--exclude=".nojekyll" --exclude=".buildinfo" --exclude='*.inv' \
-	"$(BUILDDIR)/html/" "$(PUBLISHDIR)"
+	@echo Documentation is automatically rebuilt and published from the
+	@echo \"dev\" branch whenever it is updated on Sourceforge. There is no
+	@echo need to manually publish docs!

@@ -386,7 +386,7 @@ would be able to execute it just as ``progname``. For example,
 
    :param shorthelp: a string with short help
 
-   :param longhelp: a string with detaiels help
+   :param longhelp: a string with detailed help
 
 An example::
 
@@ -442,7 +442,7 @@ with the following keys:
 * bitsize - for bitfields, the size in bits. For normal fields, this
   key is not present in dictionary
 
-* bitoffset - for bitfields, offset from the workd boundary, in bits
+* bitoffset - for bitfields, offset from the word boundary, in bits
 
 * edef - for enumeration types, a list of pairs (name, value)
 
@@ -599,10 +599,10 @@ The following constants are copied from ``crash`` sources, namely from
 
 When we build PyKdump, we use headers from a specific ``crash``
 sources. We do not necessarily need to load the extension using
-exectly the same version of `crash``, typically extensions are
-comoatible with any ``crash`` binary as long as its major version is
+exactly the same version of `crash``, typically extensions are
+compatible with any ``crash`` binary as long as its major version is
 the same. So it is OK to build extensions using e.g. crash-7.2.3 and
-use them with the binary of crash-7.2.8. But when major vwersion of
+use them with the binary of crash-7.2.8. But when major version of
 ``crash`` changes, extensions built with previous major version might
 not work.
 
