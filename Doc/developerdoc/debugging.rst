@@ -230,3 +230,61 @@ reloading - we are running code from it at this moment!).
 
 So this approach works well for developing user programs, but not
 framework itself.
+
+Interactive Development
+-----------------------
+
+The standard Python interpreter can be run as a REPL (Read-Eval Print Loop),
+which allows the user to enter Python code and see the result of running it
+interactively. PyKdump supports this mode of operation as well, with a built in
+program that can be run using ``epython repl``::
+
+    crash> epython repl
+    PyKdump Embedded REPL: Python 3.8.3 (default, Jul 17 2020, 16:58:36)
+    [GCC 4.8.5 20150623 (Red Hat 4.8.5-39.0.3)]
+    Use Ctrl-D to return to crash
+
+    from pykdump.API import *
+
+    >>> from LinuxDump.Tasks import TaskTable
+    >>> tt = TaskTable()
+    >>> tt.getByPid(332005)
+    PID=332005 <struct task_struct 0xffff88341422af70> CMD=awk
+    >>>
+    Returning to crash
+
+     ** Execution took  32.47s (real)   0.00s (CPU)
+    crash>
+
+This allows you to import any Python code included by PyKdump and execute it
+interactively.
+
+For the best results, your mpykdump.so should be compiled with a static readline
+(as is the default, see the installation instructions). This will allow line
+editing and command history. The REPL will still work without readline, but it
+is less convenient to use.
+
+When done using the REPL, use Ctrl-D to exit it. If you re-open the REPL (by
+running ``epython repl`` again), your variables will be preserved::
+
+    crash> epython repl
+    PyKdump Embedded REPL: Python 3.8.3 (default, Jul 17 2020, 16:58:36)
+    [GCC 4.8.5 20150623 (Red Hat 4.8.5-39.0.3)]
+    Use Ctrl-D to return to crash
+
+    from pykdump.API import *
+
+    >>> x = 5
+    >>>
+    Returning to crash
+
+     ** Execution took   3.14s (real)   0.00s (CPU)
+    crash> epython repl
+    PyKdump Embedded REPL: Python 3.8.3 (default, Jul 17 2020, 16:58:36)
+    [GCC 4.8.5 20150623 (Red Hat 4.8.5-39.0.3)]
+    Use Ctrl-D to return to crash
+
+    from pykdump.API import *
+
+    >>> print(x)
+    5
