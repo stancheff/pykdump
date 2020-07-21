@@ -25,7 +25,7 @@
 # Programs from prog/ ro include
 PROGS := crashinfo.py xportshow.py taskinfo.py nfsshow.py hanginfo.py \
 	fregs.py server.py tslog.py scsi.py scsishow.py dmshow.py \
-	pyctl.py \
+	pyctl.py repl.py \
 	modinfo.py mountshow.py pstree.py
 
 ZIPPROGS := $(addprefix progs/, $(PROGS))

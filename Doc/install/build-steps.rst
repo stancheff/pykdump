@@ -71,6 +71,12 @@ for Python 3.
   Please make sure to rename it to just Setup.local as demonstrated
   above.
 
+* The default Setup.local file configures Python to include a static copy of the
+  readline module. To support this, you should install the ``readline-static``
+  package. Alternatively, if you do not wish to include readline support
+  (which provides line-editing for ``input()`` and for Python REPLs), you may
+  remove the line in ``Modules/Setup.local`` which refers to readline.
+
 * Compile Python::
 
     $ make
