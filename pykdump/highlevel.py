@@ -46,6 +46,8 @@ __all = '''
      sLong, le32_to_cpu, cpu_to_le32, le16_to_cpu,
      unsigned16, unsigned32, unsigned64,
 
+     setListMaxel,
+
      readList, readBadList, getListSize, readListByHead,  list_for_each_entry,
      ListHead, LH_isempty, hlist_for_each_entry,
      readSUArray, readSUListFromHead, readStructNext,
@@ -67,9 +69,9 @@ __all = '''
 
 __all__ = [o.strip(',') for o in __all.split()]
 
-import sys, select, os
+import sys, select, os, inspect
 
-from .Generic import Bunch
+from .Generic import (Bunch, patch_default_kw)
 from .lowlevel import *
 from .vmcorearch import sys_info
 from .logging import PyLog
@@ -194,6 +196,19 @@ else:
 INT_MAX = ~0&(INT_MASK)>>1
 LONG_MAX = ~0&(LONG_MASK)>>1
 
+# ~~~~~~~~~~ Subroutine to chagne default value of 'maxel' ~~~~~~~~~~
+
+def setListMaxel(newval):
+    patch_default_kw(getCurrentModule(), 'maxel', newval)
+
+def warn_maxel(maxel):
+    funclist = [fr.function for fr in inspect.stack()[2:] if
+                fr.function != '<module>'  ]
+    funcstr = " <- ".join(funclist)
+    pylog.warning(f"We have reached the limit while reading a list"
+                  f" {maxel=}\n\t\tfrom {funcstr}")
+
+
 # ~~~~~~~~~~ SU readers ~~~~~~~~~~
 
 # addr should be numeric here
@@ -264,7 +279,7 @@ def readSUListFromHead(headaddr, listfieldname, mystruct, *,
     if (len(out) > maxel):
         del out[-1]
         if (warn):
-            pylog.warning("We have reached the limit while reading a list")
+            warn_maxel(maxel)
 
     return out
 
@@ -332,7 +347,7 @@ class ListHead(list):
         if (count > maxel):
             del self[-1]
             if (self.warn):
-                pylog.warning("We have reached the limit while reading a list")
+                warn_maxel(maxel)
 
     def __getattr__(self, fname):
         off = member_offset(self.sname, fname)
@@ -384,8 +399,7 @@ def readList(start, offset=0, *, maxel = _MAXEL, inchead = True, warn = True):
     if (count > maxel):
         del out[-1]
         if (warn):
-            pylog.warning("We have reached the limit while reading a list"
-                " maxel={}".format(maxel))
+            warn_maxel(maxel)
 
     return out
 
@@ -420,7 +434,7 @@ def readBadList(start, offset=0, *, maxel = _MAXEL, inchead = True):
         out.append(next)
         count += 1
     if (count == maxel):
-        pylog.warning("We have reached the limit while reading a list")
+        warn_maxel(maxel)
 
     return (out, None)
 

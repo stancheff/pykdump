@@ -83,7 +83,9 @@ long = int
 # visible to API
 
 from .Generic import (Bunch, DCache, TrueOnce,
-                      iterN, dbits2str, print2columns)
+                      iterN, dbits2str, print2columns,
+                      patch_default_kw
+)
 
 from .memocaches import ( memoize_cond, purge_memoize_cache, PY_select_purge,
         CU_LIVE, CU_LOAD, CU_PYMOD, CU_TIMEOUT,
@@ -123,7 +125,8 @@ API_options = Bunch()
 # =                                                               =
 # =================================================================
 
-registerModuleAttr("debugReload", default=0)
+registerModuleAttr("debugReload", default=0,
+                   help="Debug reloading Python modules")
 
 # Timeout used on a previous run
 global __timeout_exec
@@ -241,10 +244,6 @@ def __epythonOptions():
                 if (debugReload > 1):
                     print(k, fpath)
 
-                #del sys.modules[k]
-                # Befor reloading, delete DCache objects related
-                # to this module
-                DCache.perm._delmodentries(m)
                 importlib.reload(m)
                 if (debugReload):
                     print ("--reloading", k)
@@ -259,7 +258,7 @@ def __epythonOptions():
             purge_memoize_cache(CU_TIMEOUT)
         __timeout_exec = o.timeout
     if (o.Maxel):
-        highlevel._MAXEL = o.Maxel
+        setListMaxel(o.Maxel)
 
     # Reset nsproxy every time
     set_nsproxy(None)

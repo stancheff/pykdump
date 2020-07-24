@@ -24,7 +24,7 @@
 import sys
 import copy
 import inspect
-from collections import defaultdict
+from collections import (defaultdict, namedtuple)
 from itertools import zip_longest
 
 # A helper class to implement lazy attibute computation. It calls the needed
@@ -64,58 +64,53 @@ class Bunch(dict):
         return "\n".join(out)
 
 
+# Get module object from where we call this subroutine
+
+def getCurrentModule(depth = 1):
+    cframe = inspect.currentframe()
+    m = inspect.getmodule(cframe)
+    f = inspect.getouterframes(cframe)[depth]
+
+    # The following does not work when called from ZIP (Why?)
+    #m = inspect.getmodule(f.frame)
+    #return m
+
+    # An alternative approach:
+    mname = f.frame.f_globals["__name__"]
+    return sys.modules[mname]
+
+def getFrameLocals(depth = 1):
+    cframe = inspect.currentframe()
+    m = inspect.getmodule(cframe)
+    f = inspect.getouterframes(cframe)[depth]
+    return f.frame.f_locals
+
+def getMod_and_kwargs():
+    loc2 = getFrameLocals(depth=3)
+    return (loc2["mod"], loc2["kwargscopy"])
+
+# Format *args and **kwargs for nice printing
+def formatargs(*args, **kwargs):
+    out = []
+    out.extend([str(s) for s in args])
+    out.extend([f"{a!r} = {v}" for a, v in kwargs.items()])
+    return ", ".join(out)
+
+# !!!!!!!!!!!!!!!!!!!! Obsoleted code, need to be reworked !!!!!!!!!
 # A special subclass of Bunch to be used for 'DataCache' class
 # In particular, we can register handlerk subroutines that will
 # be called when we change iterm value
 class _Bunch(Bunch):
     def __init__(self, d = {}):
         super().__init__(d)
-        # Used for regiestered handlers
-        object.__setattr__(self, '_registered', defaultdict(list))
     def clear(self):
         for name in self.keys():
             object.__delattr__(self, name)
         dict.clear(self)
     def __setitem__(self, name, value):
         super().__setitem__(name,value)
-        if (name in self._registered):
-            for func, o, ownermod in self._registered[name]:
-                func(value)
-                if (_debugDCache):
-                    print(" Setting {}={} for {}".format(name, value, o))
     def __getattr__(self, name):
         return None
-    def _register(self, pyctlname, func, o, ownermod):
-        self._registered[pyctlname].append((func, o, ownermod))
-        if (_debugDCache):
-            print(" <{}> {} option registered".format(pyctlname, o))
-
-    # Delete all entries related to a specific module - this is needed
-    # during reload
-    def _delmodentries(self, mod):
-        _reg = self._registered
-        for k in _reg:
-            # _reg[k][2] is ownermoddule
-            lst = _reg[k]
-            lst[:] = [e for e in lst if e[2] is not mod]
-            _reg[k] = lst
-    def Dump(self):
-        _reg = self._registered
-        out = []
-        if (_reg):
-            out.append(" -- Listing registered options --")
-            for k in _reg:
-                v = self[k]
-                for func, o, ownermod in _reg[k]:
-                    if (inspect.ismodule(o)):
-                        descr = " in {}".format(o.__name__)
-                    else:
-                        nowner = ownermod.__name__
-                        descr = "{} in {}".format(type(o).__name__, nowner)
-                    out.append("     <{}={}>  {}".\
-                               format(k, v, descr))
-            s = "\n".join(out)
-            print(s)
 
 class DataCache(object):
     def __init__(self):
@@ -145,43 +140,73 @@ class DataCache(object):
 
 DCache = DataCache()
 
-# Get module object from whete we call this subroutine
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!@!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# ---------- Dispatcher - run work for registered callbacks -----
+#
+# Callbacks are registered per module.
+# While registering the callback function, we can optionally provide
+# keyword arguments and their shallow copy will be stored for this key
+# This copy is attached to our function as _kwargs
+#
+# This might be useful, for example we can print the contents of 'help'
+# or we can store the default value so that we can reset to it
+#
 
-def getCurrentModule(depth = 1):
-    cframe = inspect.currentframe()
-    m = inspect.getmodule(cframe)
-    f = inspect.getouterframes(cframe)[depth]
+class _Pyctl(object):
+    def __init__(self):
+        self._names = {}
+    # Register a callback function for 'name'. If there already is one,
+    # replace it
+    def regfunc(self, name, f, **kwargs):
+        #argscopy = copy.copy(args)
+        kwargscopy = copy.copy(kwargs)
+        mod = getCurrentModule(depth=2)
+        currentvalue = None
+        info = self._names[name] = [f, mod, kwargscopy, currentvalue]
+    # Execute a registered function by name
+    def runfn(self, name, *args, **kwargs):
+        f, mod, kwargscopy, currentvalue  = self._names[name]
+        fargs = formatargs(*args, **kwargs)
+        #print(f"-- Executing {f.__name__}({fargs})")
+        retval = f(*args, **kwargs)
+        self.setCurentValue(name, retval)
+    def Dump(self):
+        for name,  (f, mod, kwargs, currentvalue) in self._names.items():
+            print(f"{name=} {mod.__name__}\n\tfunc={f.__name__}, "
+                  f"{kwargs=}")
+    def getDict(self):
+        return self._names
+    def setCurentValue(self, name, newval):
+        self._names[name][3] = newval
+    def TypeConv(self, name):
+        return self._names[name][2]['type']
 
-    # The following does not work when called from ZIP (Why?)
-    #m = inspect.getmodule(f.frame)
-    #return m
-
-    # An alternative approach:
-    mname = f.frame.f_globals["__name__"]
-    return sys.modules[mname]
+PyCtl = _Pyctl()
 
 # Register object handler to change its attribute externally
-def registerObjAttrHandler(o, attrname, pyctlname=None, default=None):
-    __D = DCache.perm
-    if (pyctlname is None):
-        pyctlname = attrname
+def registerObjAttrHandler(o, attrname, **kwargs):
+    pyctlname = attrname
     def __func(value):
         setattr(o, attrname, value)
         return value
     # If it is not set yet, set it to default
-    if (default is None and hasattr(o, attrname)):
-        default = getattr(o, attrname)
-
-    if (not pyctlname in __D):
-        __D[pyctlname] = default
-    __func(default)             # Create it if needed
-    __D._register(pyctlname, __func, o, getCurrentModule(2))
+    default = kwargs["default"]
+    if (hasattr(o, attrname)):
+        curval = getattr(o, attrname)
+        if (default is None):
+            default = curval
+    __curval = __func(default)    # Create it if needed
+    PyCtl.regfunc(pyctlname, __func, **kwargs)
+    PyCtl.setCurentValue(pyctlname, __curval)
 
 # Register a handler for a module attribute, where module is the one
 # where we call this subroutine from
-def registerModuleAttr(attrname, pyctlname=None, default=None):
+def registerModuleAttr(attrname, pyctlname=None, default=None,
+                       help="", type=int):
     cmod = getCurrentModule(2)
-    registerObjAttrHandler(cmod, attrname, pyctlname, default)
+    kwargs = {"pyctlname": pyctlname, "default" : default,
+              "type": type, "help":help}
+    registerObjAttrHandler(cmod, attrname, **kwargs)
 
 # We need the next line as it is used in registerObjAttrHandler
 _debugDCache = 0
@@ -267,3 +292,46 @@ def funcToMethod(func,clas,method_name=None):
     if not method_name: method_name=func.__name__
     setattr(clas, method_name, method)
 
+
+# Monkey-patching of default keyword argument value.
+# Assuming that there are functions/classes in module 'mod' that use default
+# value, e.g.
+# def func(one, *, two=2, ...)
+#
+# Calling this functions lets us to change the default value for all
+# functions/class methods for this module
+
+registerModuleAttr('debugMP_KW', default=0,
+                   help="Debug Monkey-Patching of default keywords")
+
+def patch_default_kw(mod, kname, newval):
+    modname = mod.__name__
+    def __patch(o, newval):
+        o.__kwdefaults__[kname] = newval
+
+    # A generator to iterate through all callables,
+    # both functions and class methods
+    def __getcallables():
+        for o in dir(mod):
+            o = getattr(mod, o)
+            omod = getattr(o, '__module__', None)
+            if (omod != modname):
+                continue
+            # Check whether this is a function or a class
+            if (inspect.isclass(o)):
+                # For class, we need to patch all callable methods,
+                # including__new__ and __init__
+                yield from  (getattr(o, method_name) for method_name in dir(o)
+                      if callable(getattr(o, method_name)))
+
+            elif (inspect.isfunction(o)):
+                yield o
+
+    for co in __getcallables():
+        # Check whether it has default kwargs
+        kwd = getattr(co, '__kwdefaults__', None)
+        if (kwd is None):
+            continue
+        if (debugMP_KW):
+            print(f"-- patching  {co}  {kname} -> {newval}")
+        kwd[kname] = newval

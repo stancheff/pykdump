@@ -24,7 +24,8 @@ import sys
 
 from .Generic import registerModuleAttr
 
-registerModuleAttr('debugMemoize', default=0)
+registerModuleAttr('debugMemoize', default=0,
+                   help="Debug Memoization")
 
 # It is unknown yet whether this is a live session, should be set
 # elsewhere

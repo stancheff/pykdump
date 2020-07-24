@@ -28,7 +28,8 @@ from .vmcorearch import sys_info
 from .memocaches import purge_typeinfo
 
 # Deref debugging
-registerModuleAttr("debugDLKM", default=0)
+registerModuleAttr("debugDLKM",
+                   default=0, help="Debug DLKM debuginfo subroutines")
 
 # For fbase specified as 'nfsd' find all files like nfds.o, nfsd.ko,
 # nfsd.o.debug and nfsd.ko.debug that are present in a given directory
