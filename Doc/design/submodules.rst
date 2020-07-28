@@ -16,6 +16,7 @@ Directory Structure
    pykdump/
            __init__.py         - check versions of Python code and C-module
            API.py              - main module
+           ASCII_Artc.py       - ASCII-art for tree-like structures
            datatypes.py        - mapping C types to Python types
            dlkmload.py         - loading DLKM debuginfo
            Generic.py          - generic useful subroutines/classes
@@ -23,7 +24,6 @@ Directory Structure
            logging.py          - log messages to be printed as summary
            lowlevel.py         - low-level readers for data
            memocaches.py       - memoization of types and data
-           Misc.py             - ASCII-art for tree-like structures
            tparser.py*         - parse pieces of text in C syntax
            vmcorearch.py       - get vmcore arch specific info
 
@@ -218,11 +218,10 @@ vmcore (if we are using a live kernel, some things change with time).
 Loading DLKM debuginfo might change structs definitions, so some
 caches should be invalidated after such operations.
 
-Misc.py
--------
+ASCII-Art.py
+------------
 
-ASCII-art for displaying tree-like structures. Should be really renamed to
-something like AArt.py
+ASCII-art for displaying tree-like structures.
 
 tparser.py
 ----------
