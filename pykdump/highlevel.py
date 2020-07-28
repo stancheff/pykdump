@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 #
 # High-level subroutines intended for developers of applications
+# You do not need ti import this module yourself - all needed objects
+# are imported via pykdump.API
 #
 #  Logical categories are grouped by headers using ~~~~~~ symbols
 #
@@ -69,7 +71,7 @@ __all = '''
 
 __all__ = [o.strip(',') for o in __all.split()]
 
-import sys, select, os, inspect
+import sys, select, os, time, inspect
 
 from .Generic import (Bunch, patch_default_kw)
 from .lowlevel import *
@@ -89,8 +91,6 @@ _MAXEL = 10000
 
 import crash
 crash.default_timeout=120
-
-_bjoin = b''
 
 # =============================================================
 #   Values specific for this vmcore arch, such as integer sizes
@@ -113,7 +113,7 @@ else:
 
 
 def ALIGN(addr, align):
-    return (long(addr) + align-1)&(~(align-1))
+    return (int(addr) + align-1)&(~(align-1))
 
 # Generic conversions
 def unsigned16(l):
@@ -196,7 +196,7 @@ else:
 INT_MAX = ~0&(INT_MASK)>>1
 LONG_MAX = ~0&(LONG_MASK)>>1
 
-# ~~~~~~~~~~ Subroutine to chagne default value of 'maxel' ~~~~~~~~~~
+# ~~~~~~~~~~ Subroutine to change default value of 'maxel' ~~~~~~~~~~
 
 def setListMaxel(newval):
     patch_default_kw(getCurrentModule(), 'maxel', newval)
@@ -254,9 +254,9 @@ def readProcessMem(taskaddr, uvaddr, size):
         out.append(readmem(paddr, cnt, crash.PHYSADDR))
         uvaddr += cnt
         size -= cnt
-    return _bjoin.join(out)
+    return b''.join(out)
 
-# ~~~~~~~~~~~~~~ lists readers ~~~~~~~~~~~
+# ~~~~~~~~~~~~~~ list readers ~~~~~~~~~~~
 
 # Emulate list_for_each + list_entry
 # We assume that 'struct mystruct' contains a field with
@@ -368,7 +368,7 @@ def LH_isempty(lh):
 # of LIST_HEAD point to its own address
 
 def readList(start, offset=0, *, maxel = _MAXEL, inchead = True, warn = True):
-    start = long(start)     # equivalent to (void *) cast
+    start = int(start)     # equivalent to (void *) cast
     if (start == 0):
         return []
     if (inchead):
@@ -407,7 +407,7 @@ def readList(start, offset=0, *, maxel = _MAXEL, inchead = True, warn = True):
 # in partial lists even when there are low-level errors
 # Returns (partiallist, error/None)
 def readBadList(start, offset=0, *, maxel = _MAXEL, inchead = True):
-    start = long(start)     # equivalent to (void *) cast
+    start = int(start)     # equivalent to (void *) cast
     # A dictionary used to detect duplicates
     ha = {}
     if (start == 0):
@@ -489,7 +489,7 @@ def hlist_for_each_entry(emtype, head, member):
     si = SUInfo(emtype)
     offset = si[member].offset
     while (pos):
-        yield readSU(emtype, long(pos) - offset)
+        yield readSU(emtype, int(pos) - offset)
         pos = pos.next
 
     return
@@ -669,11 +669,9 @@ union_size = struct_size
 
 # ~~~~~~~~~~ Convenience functions ~~~~~~~~~~~~
 #     ======= read from global according to its type  =========
-def readSymbol(symbol, art = None):
+def readSymbol(symbol):
     vi = whatis(symbol)
     return vi.reader(vi.addr)
-
-
 
 
 # Get sizeof(type)
@@ -683,14 +681,7 @@ def getSizeOf(vtype):
 # Similar to C-macro in kernel sources - container of a field
 def container_of(ptr, ctype, member):
     offset = member_offset(ctype, member)
-    return readSU(ctype, long(ptr) - offset)
-
-# .........................................................................
-import time
-
-# ..............................................................
-
-
+    return readSU(ctype, int(ptr) - offset)
 
 @memoize_typeinfo
 def getStructInfo(stype):
@@ -752,9 +743,6 @@ class SuppressCrashErrors():
     def __exit__(self, exc_type, exc_value, traceback):
         if (self.oldf != self.newf):
             crash.crash_set_error(self.oldf)
-            #print("error_path: restoring {}".format(self.oldf))
-
-
 
 
 # Replacing Python versions by bindings to C-subroutines
