@@ -1079,11 +1079,8 @@ def get_AF_UNIX():
             ust = whatis("unix_socket_table")
             unix_socket_table = readSymbol("unix_socket_table")
         except:
-            descr = "struct hlist_head unix_socket_table[257];"
-            print ("We don't have symbolic access to unix_socket_table, assuming")
-            print (descr)
-            unix_socket_table = readSymbol("unix_socket_table", descr)
-            #return
+            print ("We don't have symbolic access to unix_socket_table")
+            return
 
         sainfo = getStructInfo("struct socket_alloc")
         vfs_off = sainfo["vfs_inode"].offset - sainfo["socket"].offset
