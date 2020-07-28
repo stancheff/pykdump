@@ -32,7 +32,7 @@ from LinuxDump.KernLocks import (decode_semaphore, get_rwsemaphore_tasks,
                                  get_mutex_waiters)
 
 from pykdump.tparser import parser_header_tabs
-from pykdump.Misc import AA_Node
+from pykdump.ASCII_Art import AA_Node
 
 from collections import namedtuple, defaultdict
 

@@ -26,7 +26,7 @@ and scheduler.
 # Tasks and Pids
 
 from pykdump.API import *
-from pykdump.Misc import EmbeddedFrames
+from pykdump.ASCII_Art import EmbeddedFrames
 
 from LinuxDump import percpu
 
