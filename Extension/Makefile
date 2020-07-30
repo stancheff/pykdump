@@ -1,11 +1,11 @@
 #
 # Makefile to build standalone extension. We link with a Python library
 # build with -fPIC but not converted to .so. That is, something like
-# libpython3.7m.a
+# libpython3.8m.a
 # After that we create ZIP by appending code written in pure Python
 
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2019 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -157,7 +157,7 @@ $(EXT_FULLAPI):  $(EXT_C_PY) $(TOPDIR)/pykdump/API.py
 	cd $(TOPDIR); $(call FIND, pykdump)  |  zip  $(CPWD)/$(EXT_FULLAPI) -@
 
 
-EXT_FULL_PATH = $(CPWD)/$(EXT_FULL) 
+EXT_FULL_PATH = $(CPWD)/$(EXT_FULL)
 
 $(EXT_FULL): $(EXT_FULLAPI) $(README) $(MAKE3RD)
 	find $(TOPDIR)/LinuxDump -name \*.pyc | xargs rm -f
@@ -183,7 +183,7 @@ clean:
 		$(PYLIB) $(PYPA_C) $(PYLIB) $(README) $(MAKE3RD)
 
 distclean: clean
-	rm -rf  $(PYPA_C) *~ *.mk X86 X86_64 $(README)
+	rm -rf  $(PYPA_C) *~ *.mk X86 X86_64 $(README) __pycache__
 
 install:
 	if test -z "$(prefix)" ; then \
@@ -194,7 +194,7 @@ install:
 	fi
 	@echo suggestion: add to $$HOME/.crashrc this line: ; \
 	test -z "$(prefix)" && dir="$(prefix)/lib/" || dir="$$HOME/.crash.d" ; \
-	echo extend $$dir/mpykdump.so 
+	echo extend $$dir/mpykdump.so
 
 uninstall:
 	rm -f ~/.crash.d/mpykdump.so
