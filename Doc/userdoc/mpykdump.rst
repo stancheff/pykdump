@@ -1,5 +1,5 @@
-PyKdump - Python crash API (mpykdump)
-=====================================
+Packaging and The Contents of mpykdump.so
+=========================================
 
 SYNOPSIS
 --------

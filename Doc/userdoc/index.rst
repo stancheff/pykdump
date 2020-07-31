@@ -45,3 +45,5 @@ extension.
    dmshow.rst
    pstree.rst
    modinfo.rst
+
+   mpykdump

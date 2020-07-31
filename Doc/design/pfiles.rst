@@ -1,4 +1,4 @@
-Contents of **pykdump/** directory
+Framework - **pykdump/** directory
 ===================================
 
 Program developers import everything as::
@@ -16,7 +16,7 @@ Directory Structure
    pykdump/
            __init__.py         - check versions of Python code and C-module
            API.py              - main module
-           ASCII_Artc.py       - ASCII-art for tree-like structures
+           ASCII_Art.py        - ASCII-art for tree-like structures
            datatypes.py        - mapping C types to Python types
            dlkmload.py         - loading DLKM debuginfo
            Generic.py          - generic useful subroutines/classes
