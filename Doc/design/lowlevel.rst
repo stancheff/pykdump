@@ -23,7 +23,8 @@ A general idea is like that:
   is ``char *ptr`` a string or a just pointer?). The idea is to use
   mappings that are probably
 
-In following discussion, we will mostly use ``struct`` term but in most cases the same is applicable to ``union``.
+In following discussion, we will mostly use ``struct`` term but in
+most cases the same is applicable to ``union``.
 
 Smart Strings
 -------------
