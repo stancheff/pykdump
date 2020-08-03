@@ -1608,12 +1608,6 @@ if (o.ext3):
     showExt3()
     sys.exit(0)
 
-if (o.ext3):
-    from LinuxDump.fs.ext3 import showExt3
-
-    showExt3()
-    sys.exit(0)
-
 if (o.ls):
     from LinuxDump.fs.dcache import ls_pathname
 
