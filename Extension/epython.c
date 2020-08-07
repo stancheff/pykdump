@@ -1,5 +1,5 @@
 /* Python3 extension to interact with CRASH
- * WARNING: this needs Python3.7 or later
+ * WARNING: this needs Python3.8 or later
  *
  *
  * # --------------------------------------------------------------------
@@ -47,6 +47,8 @@ extern const char *build_crash_version;
 
 
 static char *ext_filename = NULL;
+
+// Static buffer size - it would be probably better to alloc()?
 #define BUFLEN 1024
 
 const char *py_vmcore_realpath = NULL;
@@ -56,7 +58,7 @@ PyMODINIT_FUNC PyInit_crash(void);
 
 
 // In "defs.h", 'FILE *fp' is a file object used by crash.
-// If we want mix our output with crash's output, we need to connect stdout
+// If we want to use crash's current output stream, we need to connect stdout
 // to it.
 // But there is a potential problem - Python now has its own layer of buffering
 
@@ -115,7 +117,7 @@ void use_crash_sigint(void) {
 // The next pair of functions makes it possible to run some Python subroutines
 // just before we start executing 'epython ...' and before we return
 // to 'crash' prompt
-// The names of these Python subroutines are obtained from
+// The names of these Python subroutines are controlled via
 // sys.enterepython and sys.exitepython
 
 // Entering
@@ -177,14 +179,15 @@ struct extension_table *epython_curext;
 // by setting PYKDUMPPATH environment variable.
 // The order of search is like that:
 // 1. Current directory
-// 2. PYKDUMPPATH (if set, syntax the same as for normal shell PATH)
-// 3. ZIP-archive embedded in our pykdump.so
+// 2.'pylib/' directory of ZIP-archive (part os PSL)
+// 3. PYKDUMPPATH (if set, syntax the same as for normal shell PATH)
+// 4. ZIP-archive embedded in our pykdump.so
 const char *extrapath;
 
 
 /* There is a problem when unloading the extension built with Python
  *   shared library. In this case we load other .so files as needed.
- *   As a result, the reference count of or .so does not go to zero and
+ *   As a result, the reference count of our .so does not go to zero and
  *   when you load again, _init is not called. This is true even for
  *   __attribute__ mechanism. But everything's OK for ZIPped version
  */
@@ -195,7 +198,7 @@ wchar_t _wtmp[BUFLEN];
 char _ctmp[BUFLEN];
 char pystdlib[BUFLEN];
 
-// Computer and store paths to be used.
+// Compute and store paths to be used.
 // We need two strings:
 // I. Where Python Standard Library is located.
 // II. What is to be used for sys.path, i.e. where to search
@@ -256,19 +259,18 @@ wchar_t * _towchar(const char * str) {
     return &_wtmp[0];
 }
 
-# if PY_VERSION_HEX >= 0x03080000
 // Initialization specific to Python-3.8
 void _init_python() {
   PyConfig config;
   PyStatus status;
 
   PyConfig_InitIsolatedConfig(&config);
-  // PyConfig_InitPythonConfig(&config);
 
   config.install_signal_handlers = 1;
   // For initialisation, we need PYLIB directory only.
   // We will modify sys.path later
-  status = PyConfig_SetString(&config, &config.pythonpath_env, _towchar(pystdlib));
+  status = PyConfig_SetString(&config,
+                              &config.pythonpath_env, _towchar(pystdlib));
   if (PyStatus_Exception(status)) {
     goto fail;
   }
@@ -311,39 +313,14 @@ void _print_pyconfig(PyConfig *config) {
     printf("i=%d <%ls>\n", i, wlist.items[i]);
   }
 }
-#else
-// Initialization specific to Python-3.7
-void _init_python() {
-  Py_NoSiteFlag = 1;
-  Py_FrozenFlag = 1;
-  Py_IgnoreEnvironmentFlag = 1;
-  Py_SetPythonHome(L"");
 
-  PyImport_AppendInittab("crash", PyInit_crash);
-  Py_SetPath(_towchar(pystdlib));
-
-  save_GDB_sighandlers();
-  Py_Initialize();
-  save_Python_sighandlers();
-
-  // ------- Update sys.path
-  PySys_SetPath(wstdpath);
-}
-
-#endif
-
-/* Old-style constructrs/destructors for dlopen. */
+/* Old-style constructors/destructors for dlopen. */
 void _init(void)  {
-  //void __attribute__((constructor)) n_init(void) {
-  //PyObject *syspath;
-
-  //PyObject *s;
-
   struct command_table_entry *ct_copy;
   /*
-   *    WARNING:
-   *    dlopen() manpage says that _init() is not very reliable and can be called
-   *    twice in some cases.
+   *  WARNING:
+   *  dlopen() manpage says that _init() is not very reliable and can be called
+   *  twice in some cases.
    */
   if (getenv("PYKDUMPDEBUG"))
     debug = atoi(getenv("PYKDUMPDEBUG"));
@@ -625,7 +602,6 @@ run_fromzip(const char *progname, const char *zipfilename) {
  */
 
 const char *find_pyprog(const char *prog) {
-  //char progpy[BUFSIZE];
   char buf2[BUFSIZE];
   static char buf1[BUFSIZE];
   char *tok;
