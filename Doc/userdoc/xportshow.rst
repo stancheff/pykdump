@@ -1189,7 +1189,7 @@ To get a full list of network related sysctl parameters, use '-\\-sysctl'::
 Print dev_pack info (-\\-devpack)
 ---------------------------------
 
-The '-\\-devpack option prints network packet details from the lists viz.
+The '-\\-devpack' option prints network packet details from the lists viz.
 ptype_all and ptype_base containing protocol handlers for generic and
 specific packet types::
 
