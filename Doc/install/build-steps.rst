@@ -103,8 +103,8 @@ Compiling crash
 Extensions built for different major versions of crash are not compatible.
 We recommend to use crash-7.X
 
-* Obtain the sources of crash from
-  `upstream page <http://people.redhat.com/anderson/>`_. Unpack the sources and
+* Obtain the sources of crash from `upstream page
+  <https://github.com/crash-utility/crash/>`_. Unpack the sources and
   run make::
 
     $ make
