@@ -27,7 +27,7 @@ Options provided by 'modinfo'::
 * `Show module details (-\\-details=MODULE)`_
 * `Show tainted modules (-t)`_
 * `Show address range for the module (-a)`_
-* `Show gaps between modules as well as phyiscally allocated sizes (-g)`_
+* `Show gaps between modules as well as physically allocated sizes (-g)`_
 * `Show unloaded module data if possible (-u)`_
 
 Disassemble module functions (-\\-disasm=MODULE)
@@ -49,7 +49,7 @@ functions in ext4 module::
     0xffffffffc087901b <ext4_unlock_group+0x1b>:	movb   $0x0,(%rdi)
     0xffffffffc087901e <ext4_unlock_group+0x1e>:	nopl   0x0(%rax)
     0xffffffffc0879022 <ext4_unlock_group+0x22>:	pop    %rbp
-    0xffffffffc0879023 <ext4_unlock_group+0x23>:	retq   
+    0xffffffffc0879023 <ext4_unlock_group+0x23>:	retq
     ========== END   disassemble ext4_unlock_group() ==========
 
     ---------- BEGIN disassemble num_clusters_in_group() ----------
@@ -133,8 +133,8 @@ The '-u' option lists the third party or customised kernel modules loaded
 on system::
 
     crash> modinfo -t
-    struct module *    MODULE_NAME                     SIZE 
-    0xffffffffc033c340 involflt                      677188 
+    struct module *    MODULE_NAME                     SIZE
+    0xffffffffc033c340 involflt                      677188
     ===========================================================================
     There are 1 tainted modules
 
@@ -147,30 +147,30 @@ Show address range for the module (-a)
 To view the memory address range allocated for the module, use '-a' option::
 
     crash> modinfo -a
-    struct module *    MODULE_NAME                     SIZE 
-    0xffffffffc033c340 involflt                      677188 
+    struct module *    MODULE_NAME                     SIZE
+    0xffffffffc033c340 involflt                      677188
        addr range : 0xffffffffc02a9000 - 0xffffffffc0350000
-    0xffffffffc0352280 crct10dif_pclmul               14307 
+    0xffffffffc0352280 crct10dif_pclmul               14307
        addr range : 0xffffffffc0350000 - 0xffffffffc0355000
-    0xffffffffc0358080 scsi_tgt                       20027 
+    0xffffffffc0358080 scsi_tgt                       20027
        addr range : 0xffffffffc0355000 - 0xffffffffc035b000
-    0xffffffffc035d180 serio_raw                      13434 
+    0xffffffffc035d180 serio_raw                      13434
        addr range : 0xffffffffc035b000 - 0xffffffffc0360000
-    0xffffffffc03620e0 hyperv_keyboard                12787 
+    0xffffffffc03620e0 hyperv_keyboard                12787
        addr range : 0xffffffffc0360000 - 0xffffffffc0365000
-    0xffffffffc0370b00 floppy                         69432 
+    0xffffffffc0370b00 floppy                         69432
        addr range : 0xffffffffc0365000 - 0xffffffffc0377000
-    0xffffffffc0379000 libcrc32c                      12644 
+    0xffffffffc0379000 libcrc32c                      12644
        addr range : 0xffffffffc0377000 - 0xffffffffc037c000
-    0xffffffffc038dda0 hv_vmbus                       96657 
+    0xffffffffc038dda0 hv_vmbus                       96657
        addr range : 0xffffffffc037e000 - 0xffffffffc0397000
-    0xffffffffc039a1a0 crc32c_intel                   22094 
+    0xffffffffc039a1a0 crc32c_intel                   22094
        addr range : 0xffffffffc0397000 - 0xffffffffc039e000
-    0xffffffffc03a9240 ata_piix                       35052 
+    0xffffffffc03a9240 ata_piix                       35052
        addr range : 0xffffffffc03a2000 - 0xffffffffc03ac000
-    0xffffffffc03ae640 ata_generic                    12923 
+    0xffffffffc03ae640 ata_generic                    12923
        addr range : 0xffffffffc03ac000 - 0xffffffffc03b1000
-    0xffffffffc03b7000 crct10dif_common               12595 
+    0xffffffffc03b7000 crct10dif_common               12595
     [...]
 
 Show gaps between modules as well as physically allocated sizes (-g)
@@ -185,11 +185,11 @@ next module - hv_vmbus is 0xffffffffc037e000. The difference between these
 addresses is the gap size::
 
     crash> modinfo -a
-    struct module *    MODULE_NAME                     SIZE 
+    struct module *    MODULE_NAME                     SIZE
     [...]
-    0xffffffffc0379000 libcrc32c                      12644 
+    0xffffffffc0379000 libcrc32c                      12644
        addr range : 0xffffffffc0377000 - 0xffffffffc037c000
-    0xffffffffc038dda0 hv_vmbus                       96657 
+    0xffffffffc038dda0 hv_vmbus                       96657
        addr range : 0xffffffffc037e000 - 0xffffffffc0397000
     [...]
 
@@ -218,11 +218,11 @@ Show unloaded module data if possible (-u)
 To view unloaded module data, use '-u'::
 
     crash> modinfo -u
-    struct module *    MODULE_NAME                     SIZE 
-    0xffffffffc033c340 involflt                      677188 
-    0xffffffffc0352280 crct10dif_pclmul               14307 
-    0xffffffffc0358080 scsi_tgt                       20027 
-    0xffffffffc035d180 serio_raw                      13434 
-    0xffffffffc03620e0 hyperv_keyboard                12787 
-    0xffffffffc0370b00 floppy                         69432 
+    struct module *    MODULE_NAME                     SIZE
+    0xffffffffc033c340 involflt                      677188
+    0xffffffffc0352280 crct10dif_pclmul               14307
+    0xffffffffc0358080 scsi_tgt                       20027
+    0xffffffffc035d180 serio_raw                      13434
+    0xffffffffc03620e0 hyperv_keyboard                12787
+    0xffffffffc0370b00 floppy                         69432
     [...]
