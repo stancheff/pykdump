@@ -2,12 +2,12 @@ epython command implementation
 =======================================
 
 
-.. highlightlang:: c
+.. highlight:: c
 
 This module implements Python bindings to ``crash`` and ``GDB``
 internal commanda and structures
 
-.. c:function:: cmd_epython()
+.. c:function:: void cmd_epython(void)
 
    Run ``epython`` command as specified on ``crash`` command-line
 
