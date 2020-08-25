@@ -351,3 +351,17 @@ running ``epython repl`` again), your variables will be preserved::
 
     >>> print(x)
     5
+
+Profiling
+---------
+
+PyKdump extension has Python :mod:`cProfile` included. Please see
+Python documentation for usage details, in the simplest form you can
+do something like that::
+
+  crash64> epython -m cProfile -s tottime /home/alexs/tools/pykdump/progs/xportshow.py --every
+
+to get profile for ``/home/alexs/tools/pykdump/progs/xportshow.py`` execution.
+
+
+
