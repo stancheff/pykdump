@@ -686,6 +686,11 @@ wchar_t ** argv2wchar(int argc, char *argv[]) {
   return w_argv;
 }
 
+// Print special options that are removed before passing to program
+void print_special_options(void) {
+  fprintf(fp," ***  Special Options ***\n");
+}
+
 void
 epython_execute_prog(int argc, char *argv[], int quiet) {
   FILE *scriptfp = NULL;
@@ -703,12 +708,14 @@ epython_execute_prog(int argc, char *argv[], int quiet) {
   // That is - all options specified before the first real arg (progname)
   // are internal for epython
 
+#define EHELP 255
 
   static struct option long_options[] = {
                     {"help",     no_argument,       0, 'h' },
                     {"version",  no_argument,       0, 'v' },
                     {"debug",    required_argument, 0, 'd' },
                     {"path",     no_argument,       0, 'p' },
+                    {"ehelp",    no_argument,       0, EHELP },
                     {0,          0,             0, 0 }
   };
 
@@ -753,6 +760,9 @@ epython_execute_prog(int argc, char *argv[], int quiet) {
     case 'm':
       emulate_m = 1;
       break;
+    case EHELP:
+      run_fromzip("epython_helper", ext_filename);
+      return;
     default: /* '?' */
       ep_usage();
       return;

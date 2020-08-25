@@ -168,10 +168,11 @@ def set_nsproxy(pid = None):
 
 # Process common (i.e. common for all pykdump scripts) options.
 from optparse import OptionParser, Option
-def __epythonOptions():
+def __epythonOptions(argv):
     """Process epython common options and filter them out"""
 
-    op = OptionParser(add_help_option=False, option_class=Option)
+    op = OptionParser(usage="epython <commonoptions> command ...",
+                      add_help_option=False, option_class=Option)
     op.add_option("--experimental", dest="experimental", default=0,
               action="store_true",
               help="enable experimental features (for developers only)")
@@ -201,12 +202,11 @@ def __epythonOptions():
     op.add_option("--ofile", dest="filename",
                   help="write report to FILE", metavar="FILE")
 
-    op.add_option("--ehelp", default=0, dest="ehelp",
-                  action = "store_true",
-                  help="Print generic epython options")
-
-    if (len(sys.argv) > 1):
-        (aargs, uargs) = __preprocess(sys.argv[1:], op)
+    if (isinstance(argv, int)):
+        op.print_help()
+        return
+    if (len(argv) > 1):
+        (aargs, uargs) = __preprocess(argv[1:], op)
     else:
         aargs = uargs = []
 
@@ -215,11 +215,9 @@ def __epythonOptions():
     global debug, __timeout_exec
     if (o.debug != -1):
         debug = o.debug
+        print(argv)
     API_options.debug = debug
 
-    if (o.ehelp):
-        op.print_help()
-        print ("Current debug level=%d" % debug)
     # pdir <module 'pdir' from '/tmp/pdir.py'>
     # thisdir <module 'thisdir' from './thisdir.pyc'>
     # subdir.otherdir <module 'subdir.otherdir' from './subdir/otherdir.pyc'>
@@ -350,7 +348,7 @@ def __enter_epython():
     # Process hidden '--apidebug=level' and '--reload' options
     # filtering them out from sys.argv. Save the old copy in sys.__oldargv
     sys.__oldargv = sys.argv.copy()
-    __epythonOptions()
+    __epythonOptions(sys.argv)
 
     # The dumpfile name can optionally have extra info appended, e.g.
     # /Dumps/Linux/test/vmcore-netdump-2.6.9-22.ELsmp  [PARTIAL DUMP]

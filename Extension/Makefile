@@ -36,6 +36,10 @@ INITPROG := PyKdumpInit.py
 # We create it as a simple Python program, so that we can invoke it
 README = README.py
 
+# A helper program to be called from epython.c as needed
+
+EPYTHON_HELPER = epython_helper.py
+
 # Check whether we ran configure
 
 c_ok := $(wildcard crash.mk)
@@ -159,11 +163,11 @@ $(EXT_FULLAPI):  $(EXT_C_PY) $(TOPDIR)/pykdump/API.py
 
 EXT_FULL_PATH = $(CPWD)/$(EXT_FULL)
 
-$(EXT_FULL): $(EXT_FULLAPI) $(README) $(MAKE3RD)
+$(EXT_FULL): $(EXT_FULLAPI) $(README) $(EPYTHON_HELPER) $(MAKE3RD)
 	find $(TOPDIR)/LinuxDump -name \*.pyc | xargs rm -f
 	$(PYTHON) $(COMPALL) -f $(TOPDIR)/LinuxDump
 	cp $(EXT_FULLAPI) $(EXT_FULL)
-	zip $(EXT_FULL) $(README)
+	zip $(EXT_FULL) $(README) $(EPYTHON_HELPER)
 	cd $(TOPDIR); $(call FIND, LinuxDump)  |  zip  $(EXT_FULL_PATH) -@
 	cd $(TOPDIR); $(call FIND, $(PYEXTRADIR))  |  zip  $(EXT_FULL_PATH) -@
 	cd $(TOPDIR); zip  $(EXT_FULL_PATH) $(ZIPPROGS)
