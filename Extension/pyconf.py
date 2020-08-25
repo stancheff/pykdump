@@ -54,10 +54,8 @@ for o, a in opts:
 try:
     re_target = re.compile(r'^TARGET=(\w+)$')
     re_gdb = re.compile(r'^GDB=gdb-(\d)\.(\d)+.*$')
-    re_crashvers = re.compile(r'^VERSION=([\.\d]+)\s*$')
     target = None
     gdb_major = None
-    crash_vers = None
     for l in open(os.path.join(crashdir, "Makefile"), "r"):
         m = re_target.match(l)
         if (m):
@@ -66,13 +64,24 @@ try:
         if (m):
             gdb_major = int(m.group(1))
             gdb_minor = int(m.group(2))
-        m = re_crashvers.match(l)
-        if (m):
-            crash_vers = m.group(1)
                 
 except:
     print("Cannot find Makefile in the specified CRASHDIR", crashdir)
     sys.exit(0)
+
+try:
+    re_crashvers = re.compile(r'^char *build_version = "([\.\d]+)";\s*$')
+    crash_vers = None
+    for l in open(os.path.join(crashdir, "build_data.c"), "r"):
+        m = re_crashvers.match(l)
+        if (m):
+            crash_vers = m.group(1)
+            print (m)
+
+except:
+    print("Cannot find build_data.c in the specified CRASHDIR", crashdir)
+    sys.exit(0)
+
 
 if (not target):
     print("Bad Makefile in ", crashdir)
