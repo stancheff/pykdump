@@ -76,7 +76,7 @@ try:
         m = re_crashvers.match(l)
         if (m):
             crash_vers = m.group(1)
-            print (m)
+            print ("crash version=%s" % crash_vers)
 
 except:
     print("Cannot find build_data.c in the specified CRASHDIR", crashdir)
