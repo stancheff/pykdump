@@ -70,7 +70,7 @@ except:
     sys.exit(0)
 
 try:
-    re_crashvers = re.compile(r'^char *build_version = "([\.\d]+)";\s*$')
+    re_crashvers = re.compile(r'^char \*build_version = "([.\d]+)";\s*$')
     crash_vers = None
     for l in open(os.path.join(crashdir, "build_data.c"), "r"):
         m = re_crashvers.match(l)
