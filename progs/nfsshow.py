@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2019 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -9,7 +9,7 @@
 
 # Print info about NFS/RPC
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 
 from collections import (Counter, OrderedDict, defaultdict)
 import itertools
@@ -1572,8 +1572,11 @@ if ( __name__ == '__main__'):
             host_as_client(detail)
 
     if (detail):
-        print_sunrpc_net(detail)
-    
+        try:
+            print_sunrpc_net(detail)
+        except:
+            print("Cannot print sunrpc_net for this kernel")
+
     if (o.Server or o.All):
         host_as_server(detail)
 
