@@ -39,8 +39,40 @@ possible that C-module will need some changes.
 Dependency on ``crash`` Version
 ...............................
 
-There are three types of changes in ``crash`` per se that might need changes
+There are four types of changes in ``crash`` per se that might need changes
 in C-module (in addition, we depend on ``GDB`` emebedded in ``crash``)
+
+Generating Makefiles during Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before running ``make`` command to build the extension, you need to
+run ``configure`` script to generates Makefiles.
+
+In particular, we need to get ``crash`` version (to be used in reports
+and checks), ``GDB`` version and target. ``crash`` version used to be
+specified directly in its Makefile until recently::
+
+  VERSION=7.2.8
+
+but after ``crash`` project migration to Github it is not there anymore::
+
+  VERSION=
+
+As a result, ``pyconf.py`` script that was used to extract
+version/target from this Makefile needed to be modified, now we rely
+on build_data.c:
+
+.. code-block:: c
+
+  char *build_command = "crash";
+  char *build_data = "Tue Sep  1 08:12:55 EDT 2020 by uid=1000(alexs) on zbook";
+  char *build_target = "X86_64";
+  char *build_version = "7.2.8";
+  char *compiler_version = "gcc (Ubuntu 7.5.0-3ubuntu1~18.04) 7.5.0";
+
+But it is possible that in the future it changes again.
+
+
 
 Internal subroutines/variables/macros
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
