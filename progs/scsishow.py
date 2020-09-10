@@ -33,7 +33,11 @@ from pykdump.API import *
 
 from LinuxDump.scsi import *
 
-from pykdump.wrapcrash import StructResult, tPtr
+import importlib.util
+if importlib.util.find_spec("pykdump.wrapcrash"):
+    from pykdump.wrapcrash import StructResult, tPtr
+else:
+    from pykdump.lowlevel import StructResult, tPtr
 
 def get_sdev_state(enum_state):
     if not isinstance(enum_state, long):
