@@ -55,7 +55,7 @@ __all = '''
      readSUArray, readSUListFromHead, readStructNext,
      getStructInfo, getFullBuckets, getFullBucketsH, FD_ISSET,
      struct_exists, symbol_exists,
-     Addr, Deref, tPtr, SmartString,
+     Addr, Deref, tPtr, SmartString, StructResult,
      sym2addr, addr2sym, sym2alladdr, addr2mod,
      get_pathname, is_task_active, pid_to_task, task_to_pid,
      readmem, uvtop, phys_to_page, readProcessMem, set_readmem_task,
