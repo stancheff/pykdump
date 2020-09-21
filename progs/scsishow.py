@@ -314,7 +314,8 @@ def print_lpfc_shost_info(shost):
     print("   ModelName           : {}".format(lpfc_hba.ModelName))
     print("   cfg_hba_queue_depth : {}".format(lpfc_hba.cfg_hba_queue_depth))
     print("   cfg_lun_queue_depth : {}".format(lpfc_vport.cfg_lun_queue_depth))
-    print("   cfg_tgt_queue_depth : {}".format(lpfc_vport.cfg_tgt_queue_depth))
+    if (member_size("struct lpfc_vport", "cfg_tgt_queue_depth") != -1):
+        print("   cfg_tgt_queue_depth : {}".format(lpfc_vport.cfg_tgt_queue_depth))
 
 def print_hpsa_shost_info(shost):
     ctlr_info = readSU("struct ctlr_info", shost.hostdata[0])
