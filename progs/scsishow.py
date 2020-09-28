@@ -280,6 +280,42 @@ def print_starget_shost():
                         pylog.warning("Error in processing scsi_target {:x},"
                                       "please check manually".format(int(starget)))
 
+def print_fcrports():
+    for shost in get_scsi_hosts():
+        if (shost.__targets.next != shost.__targets.next.next and
+            shost.hostt.module.name in "lpfc_qla2xxx_fnic"):
+            print("\n==================================================="
+                  "====================================================="
+                  "==================================================")
+            print("HOST      DRIVER")
+            print("NAME      NAME                               {:24s} {:24s} {:24s}".format("Scsi_Host",
+                  "shost_data", "&.hostdata[0]"))
+            print("--------------------------------------------------------"
+                  "-------------------------------------------------------")
+
+            print_shost_header(shost)
+
+            print("{:15s} {:16s} {:16s} {:16s} {:16s} {:11s} {:24s} {:20s} {:16s}".format("TARGET DEVICE",
+                  "scsi_target", "fc_rport", "node_name", "port_name", "port_id",
+                  "port_state", "fast_io_fail_tmo", "dev_loss_tmo"))
+            print("----------------------------------------------------"
+                  "----------------------------------------------------"
+                  "--------------------------------------------------")
+
+            enum_fcrport_state = EnumInfo("enum fc_port_state")
+
+            for starget in readSUListFromHead(shost.__targets, "siblings", "struct scsi_target"):
+                try:
+                    dev_parent = readSU("struct device", starget.dev.parent)
+                    fc_rport = container_of(dev_parent, "struct fc_rport", "dev")
+                    print("{:15s} {:x} {:x} {:x} {:x} {:#x}\t{:24s}{:16d}s {:15d}s".format(starget.dev.kobj.name,
+                          starget, fc_rport, fc_rport.node_name, fc_rport.port_name, fc_rport.port_id,
+                          enum_fcrport_state.getnam(fc_rport.port_state), fc_rport.fast_io_fail_tmo,
+                          fc_rport. dev_loss_tmo))
+                except KeyError:
+                    pylog.warning("Error in processing FC rports connnected to scsi_target {:x},"
+                                  "please check manually".format(int(starget)))
+
 def print_qla2xxx_shost_info(shost):
     scsi_qla_host = readSU("struct scsi_qla_host", shost.hostdata)
     qla_hw_data = readSU("struct qla_hw_data", scsi_qla_host.hw)
@@ -881,6 +917,10 @@ if ( __name__ == '__main__'):
                 const="target_busy", default=0, metavar="FIELDS",
         help="show all the scsi targets")
 
+    parser.add_argument("-f", "--fcrports", dest="fcrports", nargs='?',
+                const="port_state", default=0, metavar="FIELDS",
+        help="show all the FC rports")
+
     parser.add_argument("-c", "--commands", dest="commands", nargs='?',
         const="jiffies_at_alloc", default=0, metavar="FIELDS",
         help="show SCSI commands")
@@ -950,7 +990,10 @@ if ( __name__ == '__main__'):
     if (args.queue):
         print_request_queue()
 
+    if (args.fcrports):
+        print_fcrports()
+
     if(args.hosts or not (args.runcheck or args.proc_info or args.devs or
        args.commands or args.requests or args.time or args.targets or
-       args.queue)):
+       args.queue or args.fcrports)):
         print_shost_info()
