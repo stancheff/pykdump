@@ -219,11 +219,18 @@ def print_sdev_shost():
                 else:
                     name = "null"
 
+                try:
+                    sdev_state = get_sdev_state(enum_sdev_state.getnam(sdev.sdev_state))
+                except:
+                    if (sdev.sdev_state == 9):
+                        sdev_state = "SDEV_TRANSPORT_OFFLINE"
+                    else:
+                        sdev_state = "<Error in processing sdev_state>"
+
                 print("{:17s} {:x} {:6s} {:16} {} {} {:22s}"
                       "{:14d} {:11}  ({:3d})\t{:10d}".format(name,
                       int(sdev), "", get_scsi_device_id(sdev),
-                      sdev.vendor[:8], sdev.model[:16],
-                      get_sdev_state(enum_sdev_state.getnam(sdev.sdev_state)),
+                      sdev.vendor[:8], sdev.model[:16], sdev_state,
                       sdev.iorequest_cnt.counter, sdev.iodone_cnt.counter,
                       sdev.iorequest_cnt.counter-sdev.iodone_cnt.counter,
                       sdev.ioerr_cnt.counter))
