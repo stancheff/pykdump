@@ -137,18 +137,24 @@ def show_table_mpath_priogroup(prio):
 def show_mpath_info(prio):
     for path in readSUListFromHead(prio.pgpaths, "list", "struct pgpath"):
         block_device = StructResult("struct block_device", path.path.dev.bdev)
-        scsi_device = StructResult("struct scsi_device", block_device.bd_disk.queue.queuedata)
-
-        print("\n  `- {} {} {}:{}    ".format(scsi_device.sdev_gendev.kobj.name,
-            block_device.bd_disk.disk_name,
-            block_device.bd_dev >> 20,
-            block_device.bd_dev & 0xfffff), end="")
-
-        enum_sdev_state = EnumInfo("enum scsi_device_state")
 
         if ('cciss' in block_device.bd_disk.disk_name):
             print("\t[Not a scsi device, skipping scsi_device struct!]", end ="")
+
+        elif ('nvme' in block_device.bd_disk.disk_name):
+            nvme_ns = StructResult("struct nvme_ns", block_device.bd_disk.queue.queuedata)
+            print("\n  `- {} {}:{}    ".format(block_device.bd_disk.disk_name,
+                block_device.bd_disk.major, block_device.bd_disk.first_minor), end="")
+            print("\t\t[nvme_ctrl: {:#x} nvme_subsystem: {:#x} state: {}]".format(nvme_ns.ctrl,
+                nvme_ns.ctrl.subsys, nvme_ns.ctrl.state), end="")
+
         else:
+            scsi_device = StructResult("struct scsi_device", block_device.bd_disk.queue.queuedata)
+            print("\n  `- {} {} {}:{}    ".format(scsi_device.sdev_gendev.kobj.name,
+                block_device.bd_disk.disk_name,
+                block_device.bd_dev >> 20,
+                block_device.bd_dev & 0xfffff), end="")
+            enum_sdev_state = EnumInfo("enum scsi_device_state")
             print("\t[scsi_device: {:#x} sdev_state: {}]".format(scsi_device,
                 enum_sdev_state.getnam(scsi_device.sdev_state)), end="")
 
@@ -166,7 +172,10 @@ def show_multipath_list(dev):
     temp_pgpath = StructResult("struct pgpath", temp_pgpath_list.next)
 
     try:
-        temp_scsi_device = StructResult("struct scsi_device", temp_pgpath.path.dev.bdev.bd_disk.queue.queuedata)
+        if ('nvme' in temp_pgpath.path.dev.bdev.bd_disk.disk_name):
+            temp_path = StructResult("struct nvme_ns", temp_pgpath.path.dev.bdev.bd_disk.queue.queuedata)
+        else:
+            temp_path = StructResult("struct scsi_device", temp_pgpath.path.dev.bdev.bd_disk.queue.queuedata)
     except:
         pylog.warning("Error in processing sub paths for multipath device:", name)
         pylog.warning("Use 'dmshow --table|grep <mpath-device-name>' to manually verify sub paths.")
@@ -179,9 +188,12 @@ def show_multipath_list(dev):
     if ('cciss' in temp_pgpath.path.dev.bdev.bd_disk.disk_name):
         print("{}  ({})  dm-{:<4d}  HP Smart Array RAID Device (cciss)".format(name, scsi_id[2],
             md.disk.first_minor), end="")
+    elif ('nvme' in temp_pgpath.path.dev.bdev.bd_disk.disk_name):
+        print("{}  ({})  dm-{:<4d} serial: {}, model: {}".format(name, scsi_id[2],
+              md.disk.first_minor, temp_path.ctrl.subsys.serial, temp_path.ctrl.subsys.model), end="")
     else:
         print("{}  ({})  dm-{:<4d}  {}  {}".format(name, scsi_id[2], md.disk.first_minor,
-            temp_scsi_device.vendor[:8], temp_scsi_device.model[:16]), end="")
+            temp_path.vendor[:8], temp_path.model[:16]), end="")
 
     print("\nsize={:.2f}M  ".format(get_size(temp_pgpath.path.dev.bdev.bd_disk)), end="")
 
