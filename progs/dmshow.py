@@ -44,6 +44,21 @@ required_modules = ('dm_mod', 'dm_multipath', 'dm_log', 'dm_mirror',
                     'dm_queue_length', 'dm_round_robin', 'dm_service_time',
                     'dm_region_hash', 'dm_snapshot', 'dm_thin_pool', 'dm_raid')
 
+def get_sdev_state(enum_state):
+    if not isinstance(enum_state, long):
+        return enum_state
+    return {
+        1: "SDEV_CREATED",
+        2: "SDEV_RUNNING",
+        3: "SDEV_CANCEL",
+        4: "SDEV_DEL",
+        5: "SDEV_QUIESCE",
+        6: "SDEV_OFFLINE",
+        7: "SDEV_TRANSPORT_OFFLINE",
+        8: "SDEV_BLOCK",
+        9: "SDEV_CREATED_BLOCK",
+    }[enum_state]
+
 def get_dm_devices():
     sn = "struct hash_cell"
     nameb = readSymbol("_name_buckets")
@@ -135,6 +150,7 @@ def show_table_mpath_priogroup(prio):
             path.path.dev.bdev.bd_disk.disk_name, path_info.repeat_count), end="")
 
 def show_mpath_info(prio):
+    enum_sdev_state = EnumInfo("enum scsi_device_state")
     for path in readSUListFromHead(prio.pgpaths, "list", "struct pgpath"):
         block_device = StructResult("struct block_device", path.path.dev.bdev)
 
@@ -154,9 +170,14 @@ def show_mpath_info(prio):
                 block_device.bd_disk.disk_name,
                 block_device.bd_dev >> 20,
                 block_device.bd_dev & 0xfffff), end="")
-            enum_sdev_state = EnumInfo("enum scsi_device_state")
-            print("\t[scsi_device: {:#x} sdev_state: {}]".format(scsi_device,
-                enum_sdev_state.getnam(scsi_device.sdev_state)), end="")
+            try:
+                sdev_state = get_sdev_state(enum_sdev_state.getnam(scsi_device.sdev_state))
+            except:
+                if (scsi_device.sdev_state == 9):
+                    sdev_state = "SDEV_TRANSPORT_OFFLINE"
+                else:
+                    sdev_state = "<Error in processing sdev_state>"
+            print("\t[scsi_device: {:#x} sdev_state: {}]".format(scsi_device, sdev_state), end="")
 
 def show_multipath_list(dev):
     md, name = dev
