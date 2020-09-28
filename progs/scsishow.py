@@ -258,11 +258,10 @@ def print_starget_shost():
                         stgt_busy_block_cnt = -1
 
                     try:
-                        sdev_state = get_sdev_state(enum_starget_state.getnam(starget.state))
                         print("{:15s} {:x} {:3s} {:5d} {:5d} {:4s}"
                               "{:20s}".format(starget.dev.kobj.name,
-                              int(starget), "", starget.channel,
-                              starget.id, "", sdev_state), end='') 
+                              int(starget), "", starget.channel, starget.id, "",
+                              enum_starget_state.getnam(starget.state)), end='')
 
                         if (stgt_busy_block_cnt != -1):
                             print("{:12d} {:18d}".format(starget.target_busy.counter,
