@@ -47,8 +47,9 @@ def get_sdev_state(enum_state):
         4: "SDEV_DEL",
         5: "SDEV_QUIESCE",
         6: "SDEV_OFFLINE",
-        7: "SDEV_BLOCK",
-        8: "SDEV_CREATED_BLOCK",
+        7: "SDEV_TRANSPORT_OFFLINE",
+        8: "SDEV_BLOCK",
+        9: "SDEV_CREATED_BLOCK",
     }[enum_state]
 
 
