@@ -180,3 +180,17 @@ Print information about DLKMs
 rprog("modinfo", "Print information about DLKMs",
         "-h   - list available options",
         help)
+
+help = '''
+Print information about MD devices aka Linux Software RAID
+usage: mdadm.py [-h] [-m] [-d]
+
+optional arguments:
+  -h, --help     show this help message and exit
+  -m, --mddev    show mdamd_crash_format
+  -d, --details  show mdadm_-D_format
+'''
+
+rprog("mdadm", "Print information about MD devices",
+        "-h   - list available options",
+        help)

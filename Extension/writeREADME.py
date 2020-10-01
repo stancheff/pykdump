@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2019 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -75,7 +75,7 @@ print("\n   --- PyKdump API Version: {} ----".format(__version__))
 print("\n   --- Programs Included ------")
 
 __commands = ["xportshow", "crashinfo", "taskinfo", "nfsshow", "hanginfo",
-       "scsi", "fregs", "tslog", "scsishow", "dmshow"]
+       "scsi", "fregs", "tslog", "scsishow", "dmshow", "mdadm"]
 
 for c in __commands:
     try:
