@@ -2,7 +2,7 @@
 # module LinuxDump.scsi
 #
 # --------------------------------------------------------------------
-# (C) Copyright 2013-2017 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2013-2020 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -42,26 +42,31 @@ Host: scsi2 Channel: 00 Id: 00 Lun: 00
 '''
 
 scsi_device_types = None
+enum_shost_state = None
+
 try:
     scsi_device_types = readSymbol("scsi_device_types")
+    enum_shost_state = EnumInfo("enum scsi_host_state")
 except TypeError:
     loadModule("scsi_mod")
     loadModule("scsi_transport_fc")
     try:
         scsi_device_types = readSymbol("scsi_device_types")
+        enum_shost_state = EnumInfo("enum scsi_host_state")
     except TypeError:
         pass
 
 # A pathological case on some SLES kernel - something is built
-# in way that even after loading debuginfo we cannot find
+# in a way that even after loading debuginfo we cannot find
 # the type of scsi_device_types:
 # <data variable, no debug info> scsi_device_types;
 
 
 def scsi_debuginfo_OK(printwarn=True):
-    if (scsi_device_types is None):
+    if (scsi_device_types is None or enum_shost_state is None):
         if (printwarn):
-            print("+++Cannot find symbolic info for <scsi_device_types>\n"
+            print("+++Cannot find symbolic info for <scsi_device_types>"
+                " or <enum scsi_host_state>\n"
                 "   Put 'scsi_mod' debuginfo file into current directory\n"
                 "   and then re-run the command adding --reload option")
         return False
@@ -75,7 +80,6 @@ def scsi_debuginfo_OK(printwarn=True):
 
 # The following enums exists on all kernels we support
 if (scsi_debuginfo_OK(printwarn=False)):
-    enum_shost_state = EnumInfo("enum scsi_host_state")
     enum_st_state = EnumInfo("enum scsi_target_state")
 
 try:

@@ -960,6 +960,10 @@ if ( __name__ == '__main__'):
 
     verbose = args.Verbose
 
+    # Before doing anything else, check whether debuginfo is available!
+    if (not scsi_debuginfo_OK()):
+        sys.exit(0)
+
     if (args.runcheck):
         run_scsi_checks()
 
