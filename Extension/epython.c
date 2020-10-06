@@ -130,7 +130,8 @@ call_sys_enterepython(void)
     PyObject *res;
     Py_INCREF(enterfunc);
     //PySys_SetObject("enterepython", (PyObject *)NULL);
-    res = PyEval_CallObject(enterfunc, (PyObject *)NULL);
+    //res = PyEval_CallObject(enterfunc, (PyObject *)NULL);
+    res = PyObject_CallObject(enterfunc, (PyObject *)NULL);
     if (res == NULL) {
       if (!PyErr_ExceptionMatches(PyExc_SystemExit)) {
         PySys_WriteStderr("Error in sys.enterepython:\n");
@@ -153,7 +154,8 @@ call_sys_exitepython(void)
     Py_INCREF(exitfunc);
     //PySys_SetObject("exitepython", (PyObject *)NULL);
     //connect2fp();
-    res = PyEval_CallObject(exitfunc, (PyObject *)NULL);
+    //res = PyEval_CallObject(exitfunc, (PyObject *)NULL);
+    res = PyObject_CallObject(exitfunc, (PyObject *)NULL);
     if (res == NULL) {
       if (!PyErr_ExceptionMatches(PyExc_SystemExit)) {
         PySys_WriteStderr("Error in sys.exitepython:\n");
