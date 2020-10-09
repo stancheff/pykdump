@@ -31,10 +31,6 @@ __version__ = "0.0.2"
 
 from pykdump.API import *
 
-import importlib.util
-if importlib.util.find_spec("pykdump.wrapcrash"):
-    from pykdump.wrapcrash import StructResult, tPtr
-
 from LinuxDump.Tasks import (TaskTable, Task, tasksSummary, ms2uptime,
      decode_tflags, print_namespaces_info, print_memory_stats, TASK_STATE)
 
