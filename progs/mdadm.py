@@ -122,7 +122,7 @@ def get_mddev():
         mddevp = StructResult("struct mddev", mddev)
         mddevp = format(mddevp, 'x')
         if (mddev.pers):
-            mp = StructResult("struct mddev", mddev)
+            mp = StructResult("struct md_personality", mddev.pers)
             mp = format(mp, 'x')
         else:
             mp = "Not Available"
