@@ -20,8 +20,6 @@ __version__ = "0.0.1"
 from pykdump.API import *
 
 import importlib.util
-if importlib.util.find_spec("pykdump.wrapcrash"):
-    from pykdump.wrapcrash import StructResult, tPtr
 
 def get_device_list(mddev):
     devlist = []
@@ -49,7 +47,7 @@ def get_rdev_dev(mddev):
     disksize_rdev = {}
     rdevl =  []
     for rdev in readSUListFromHead(mddev.disks, 'same_set', 'struct md_rdev'):
-        rdevp = StructResult("struct md_rdev", rdev)
+        rdevp = readSU("struct md_rdev", rdev)
         rdevp = format(rdevp, 'x')
         rdevl.append(rdevp)
         dev_rdev[rdevp] = rdev.kobj.name
@@ -119,14 +117,14 @@ def get_mddev():
     mdlist = get_mdlist()
     for mddev in mdlist:
         disk_name = mddev.gendisk.disk_name
-        mddevp = StructResult("struct mddev", mddev)
+        mddevp = readSU("struct mddev", mddev)
         mddevp = format(mddevp, 'x')
         if (mddev.pers):
-            mp = StructResult("struct md_personality", mddev.pers)
+            mp = readSU("struct md_personality", mddev.pers)
             mp = format(mp, 'x')
         else:
             mp = "Not Available"
-        gd = StructResult("struct gendisk", mddev.gendisk)
+        gd = readSU("struct gendisk", mddev.gendisk)
         gd = format(gd, 'x')
         #is_active = atomic_t(mddev.active)
         size = get_md_size(mddev)
