@@ -47,6 +47,8 @@ debug = API_options.debug
 _PIDTYPE = EnumInfo("enum pid_type")
 pointersize = sys_info.pointersize
 
+# Maximum number of tasks we process
+_MAXTASKS = 1000000
 
 # We have a global variable 'struct task_struct init_task;',
 # loop using 'struct list_head tasks;' field
@@ -115,7 +117,7 @@ class Task:
     def __get_threads_fast(self):
         saddr = Addr(self.ts) + Task.tgoffset
         threads = []
-        for a in readList(saddr, maxel=200000, inchead = False):
+        for a in readList(saddr, maxel=_MAXTASKS, inchead = False):
             addr = a-Task.tgoffset
             # Can we read from this addr?
             # This can be due to corruption or missing pages
@@ -237,7 +239,7 @@ class Task:
     # Get children
     def taskChildren(self):
         clist = readSUListFromHead(self.ts.children, "sibling",
-                                  "struct task_struct", maxel=200000)
+                                  "struct task_struct", maxel=_MAXTASKS)
         return [Task(c, self.ttable) for c in clist]
     # Check whether we have children (not threads!)
     def hasChildren(self):
@@ -263,7 +265,7 @@ class _TaskTable:
         tt = readSUListFromHead(init_task_saddr,
                                 'tasks',
                                 'struct task_struct',
-                                inchead = True, maxel=200000)
+                                inchead = True, maxel=_MAXTASKS)
 
         # On 2.4, we have in this list both thread group leaders
         # and threads. Leave only tg leaders, attach threads to
