@@ -22,7 +22,7 @@
 #  GNU General Public License for more details.
 
 
-# Programs from prog/ ro include
+# Programs from prog/ to include
 PROGS := crashinfo.py xportshow.py taskinfo.py nfsshow.py hanginfo.py \
 	fregs.py server.py tslog.py scsi.py scsishow.py dmshow.py \
 	pyctl.py repl.py \
@@ -60,7 +60,8 @@ VPATH := $(SRCDIR)
 
 MIN_PYLIST := $(SRCDIR)/$(MINPYLIB_FILES)
 
-# This is a pure C extension. It can be used with Python2 as it is for testing.
+# This is a pure C extension. It was possible to use it with Python2
+# for testing as it is.
 # This is not so with Python3 - it needs some subroutines from its STDLIB
 # for proper codecs initialization
 EXT_C := pykdump_c.so
