@@ -50,6 +50,85 @@ pointersize = sys_info.pointersize
 # Maximum number of tasks we process
 _MAXTASKS = 1000000
 
+# -------------------------------------------------------------------
+#           == TASK STATES from C definitions ==
+# -------------------------------------------------------------------
+
+# Kernels from 2.6 and later (last entries are for 5.x kernels).
+# This code should be reworked, as some bits have different meanings
+# in recent kernels.
+
+# We do not support 2.4 kernels anymore!
+# TASK_STATE_c_24 = '''
+# #define TASK_RUNNING            0
+# #define TASK_INTERRUPTIBLE      1
+# #define TASK_UNINTERRUPTIBLE    2
+# #define TASK_STOPPED            4
+# #define TASK_ZOMBIE             8
+# #define TASK_DEAD               16
+# '''
+
+# TASK_STATE_24 = CDefine(TASK_STATE_c_24)
+
+
+TASK_STATE_c_26 = '''
+#define TASK_RUNNING            0
+#define TASK_INTERRUPTIBLE      1
+#define TASK_UNINTERRUPTIBLE    2
+#define TASK_STOPPED            4
+#define TASK_TRACED             8
+#define EXIT_DEAD			0x0010
+#define EXIT_ZOMBIE			0x0020
+#define TASK_ZOMBIE                     0x0040
+'''
+
+__T = TASK_STATE_26 = CDefine(TASK_STATE_c_26)
+__T.TASK_IDLE = 0x2000
+
+
+# For 5.x kernels
+TASK_STATE_c_4n = '''
+#define TASK_RUNNING			0x0000
+#define TASK_INTERRUPTIBLE		0x0001
+#define TASK_UNINTERRUPTIBLE		0x0002
+#define __TASK_STOPPED			0x0004
+#define __TASK_TRACED			0x0008
+/* Used in tsk->exit_state: */
+#define EXIT_DEAD			0x0010
+#define EXIT_ZOMBIE			0x0020
+/* #define EXIT_TRACE			(EXIT_ZOMBIE | EXIT_DEAD) */
+/* Used in tsk->state again: */
+#define TASK_PARKED			0x0040
+#define TASK_DEAD			0x0080
+#define TASK_WAKEKILL			0x0100
+#define TASK_WAKING			0x0200
+#define TASK_NOLOAD			0x0400
+#define TASK_NEW			0x0800
+#define TASK_STATE_MAX			0x1000
+'''
+
+#/* Convenience macros for the sake of set_current_state: */
+#define TASK_KILLABLE			(TASK_WAKEKILL | TASK_UNINTERRUPTIBLE)
+#define TASK_STOPPED			(TASK_WAKEKILL | __TASK_STOPPED)
+#define TASK_TRACED			(TASK_WAKEKILL | __TASK_TRACED)
+#define TASK_IDLE			(TASK_UNINTERRUPTIBLE | TASK_NOLOAD)
+
+__T = TASK_STATE_4n = CDefine(TASK_STATE_c_4n)
+__T.TASK_IDLE = (__T.TASK_UNINTERRUPTIBLE | __T.TASK_NOLOAD)
+
+try:
+    tsarray = readSymbol("task_state_array")
+    print(len(tsarray))
+except:
+    tsarray = None
+
+if (tsarray is not None and len(tsarray) > 7):
+    TASK_STATE = TASK_STATE_4n
+else:
+    TASK_STATE = TASK_STATE_26
+
+# -------------------------------------------------------------------
+
 # We have a global variable 'struct task_struct init_task;',
 # loop using 'struct list_head tasks;' field
 # For 2.4 'union task_union init_task_union;'
@@ -404,30 +483,6 @@ def TaskTable():
 #}
 
 
-TASK_STATE_c_26 = '''
-#define TASK_RUNNING            0
-#define TASK_INTERRUPTIBLE      1
-#define TASK_UNINTERRUPTIBLE    2
-#define TASK_STOPPED            4
-#define TASK_TRACED             8
-#define EXIT_ZOMBIE             16
-#define EXIT_DEAD               32
-#define TASK_NONINTERACTIVE     64
-'''
-
-TASK_STATE_c_24 = '''
-#define TASK_RUNNING            0
-#define TASK_INTERRUPTIBLE      1
-#define TASK_UNINTERRUPTIBLE    2
-#define TASK_STOPPED            4
-#define TASK_ZOMBIE             8
-#define TASK_DEAD               16
-'''
-
-TASK_STATE_24 = CDefine(TASK_STATE_c_24)
-TASK_STATE_26 = CDefine(TASK_STATE_c_26)
-TASK_STATE = TASK_STATE_26
-
 # Get states from "task_state_array" if available
 __sstates = '''running
 sleeping
@@ -454,9 +509,7 @@ TASK_WAKING
 TASK_PARKING'''.splitlines()
 
 def __get_states_from_array():
-    try:
-        tsarray = readSymbol("task_state_array")
-    except:
+    if (tsarray is None):
         return None
     class _CDefine(CDefine):
         def __init__(self):
@@ -493,8 +546,11 @@ __TASK_STATE = sorted([(v, name) for name, v in TASK_STATE.items()])
 # Put names matching lower bits first!
 @memoize_cond(CU_PYMOD)
 def task_state2str(state):
+    # Special cases
     if (state == TASK_STATE.TASK_RUNNING):
         return "TASK_RUNNING"
+    elif (state == TASK_STATE.TASK_IDLE):
+        return "TASK_IDLE"
 
     out = []
 
@@ -669,7 +725,7 @@ def tasksSummary():
 
     n_of_ns_pids = 0
     for mt in tt.allTasks():
-        #print mt.pid, mt.comm, mt.state
+        #print(mt.pid, mt.comm, mt.state)
         state = mt.state
         comm = mt.comm
         counts[state] = counts.setdefault(state, 0) + 1
@@ -683,7 +739,7 @@ def tasksSummary():
             if (nsproxy and nsproxy != init_nsproxy):
                 n_of_ns_pids += 1
         for t in mt.threads:
-            #print "\t", t.pid, t.state
+            #print(t.pid, t.state)
             state = t.state
             counts[state] = counts.setdefault(state, 0) + 1
             d_counts[(comm, state)] = d_counts.setdefault((comm, state), 0)+1
