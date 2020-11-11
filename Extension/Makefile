@@ -26,7 +26,7 @@
 PROGS := crashinfo.py xportshow.py taskinfo.py nfsshow.py hanginfo.py \
 	fregs.py server.py tslog.py scsi.py scsishow.py dmshow.py \
 	pyctl.py repl.py \
-	modinfo.py mountshow.py pstree.py mdadm.py
+	modinfo.py mountshow.py pstree.py mdadm.py nvme.py
 
 ZIPPROGS := $(addprefix progs/, $(PROGS))
 FULLPROGS =  $(addprefix ../progs/, $(PROGS))
