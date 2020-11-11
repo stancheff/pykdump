@@ -118,7 +118,7 @@ __T.TASK_IDLE = (__T.TASK_UNINTERRUPTIBLE | __T.TASK_NOLOAD)
 
 try:
     tsarray = readSymbol("task_state_array")
-    print(len(tsarray))
+    #print(len(tsarray))
 except:
     tsarray = None
 
