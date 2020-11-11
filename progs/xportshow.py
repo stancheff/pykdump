@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2019 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -10,7 +10,7 @@
 
 # Print info about connections and sockets
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 from pykdump.API import *
@@ -334,7 +334,7 @@ def print_TCP_tw(tw):
     print (pstr)
 
     if (details):
-        print ("\ttw_timeout=%d, ttd=%d" % (pstr.tw_timeout, pstr.ttd))
+        print ("\ttw_timeout={}, ttd={}".format(pstr.tw_timeout, pstr.ttd))
 
 # Print "struct request_sock"
 def print_TCP_rqs(rqs):

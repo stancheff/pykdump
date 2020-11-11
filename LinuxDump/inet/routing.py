@@ -779,6 +779,10 @@ else:
 sn = "struct rtable"
 structSetAttr("struct rtable", "Dst", ["u.dst", "dst"])
 
+sn = "struct fib_nh"
+structSetAttr(sn, "nh_dev", ["nh_dev", "nh_common.nhc_dev"])
+structSetAttr(sn, "nh_gw", ["nh_gw", "nh_common.nhc_gw.ipv4"])
+
 # Next is defined as:
 # r->u.rt_next     (2.6.18)
 # r->u.dst.rt_next (2.6.24)

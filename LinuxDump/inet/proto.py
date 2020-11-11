@@ -3,7 +3,7 @@
 # module LinuxDump.inet.proto
 
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2019 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -378,7 +378,10 @@ class IP_conn_tw(IP_sock):
         if (not details):
             return
 
-        self.tw_timeout = tw.Timeout
+        try:
+            self.tw_timeout = tw.Timeout
+        except KeyError:
+            self.tw_timeout = None
         jiffies = readSymbol("jiffies")
         self.ttd = tw.Ttd - jiffies
         if (self.ttd < 0):
