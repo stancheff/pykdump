@@ -194,3 +194,33 @@ optional arguments:
 rprog("mdadm", "Print information about MD devices",
         "-h   - list available options",
         help)
+
+help = '''
+Show various addresses at different layers in the nvme*
+modules.
+
+usage: nvme.py [-h] [-l [NS]] [-c [CTRL]] [-n [NS]] [-d [CTRL]] [-q [CTRL]]
+               [-i [QID]] [-s [SUB]] [-k]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -l [NS], --list [NS]  list nvme namespaces vpd data and capacity
+  -c [CTRL], --ctrl [CTRL]
+                        show nvme controller information (nvme_ctrl)
+  -n [NS], --ns [NS]    show nvme namespace information (nvme_ns)
+  -d [CTRL], --dev [CTRL]
+                        show nvme device information (nvme_dev,
+                        nvme_loop_ctrl, nvme_rdma_ctrl, nvme_fc_ctrl)
+  -q [CTRL], --queue [CTRL]
+                        show nvme queue information (nvme_queue,
+                        nvme_loop_queue, nvme_rdma_queue, nvme_fc_queue)
+  -i [QID], --qid [QID]
+                        limit output by QID. for use with -q
+  -s [SUB], --subsystem [SUB]
+                        show nvme subsystem information (nvme_subsystem)
+  -k, --check           check for common NVMe issues
+'''
+
+rprog("nvme", "Print information about NVME",
+        "-h   - list available options",
+        help)
