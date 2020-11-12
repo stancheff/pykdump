@@ -38,6 +38,8 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+__version__ = "1.0.0"
+
 import math, traceback
 from collections import defaultdict
 from pykdump.API import *
