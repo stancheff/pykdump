@@ -379,19 +379,12 @@ def print_hpsa_shost_info(shost):
     print("   reset_in_progress   : {}".format(ctlr_info.reset_in_progress))
 
 def print_shost_info():
-    use_atomic_counters = -1
-
     enum_shost_state = EnumInfo("enum scsi_host_state")
 
     hosts = get_scsi_hosts()
     mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic", "hpsa"]
     verbose_info_logged = 0
     verbose_info_available = 0
-
-    try:
-        use_atomic_counters = readSU("struct Scsi_Host", long(hosts[0].host_busy.counter))
-    except:
-        use_atomic_counters = -1
 
     for shost in hosts:
         print("\n============================================================="
@@ -410,12 +403,9 @@ def print_shost_info():
             print("   Driver version      : {}".format("Error in checking "
                                                              "'Scsi_Host->hostt->module->version'"))
 
-        if (use_atomic_counters != -1):
-            print("   host_busy           : {}".format(shost.host_busy.counter))
-            print("   host_blocked        : {}".format(shost.host_blocked.counter))
-        else:
-            print("   host_busy           : {}".format(shost.host_busy))
-            print("   host_blocked        : {}".format(shost.host_blocked))
+        if (member_size("struct Scsi_Host", "host_busy") != -1):
+            print("\n   HOST BUSY           : {}".format(atomic_t(shost.host_busy)), end="")
+        print("\n   HOST BLOCKED        : {}".format(atomic_t(shost.host_blocked)), end="")
 
         print("   host_failed         : {}".format(shost.host_failed))
         print("   host_self_blocked   : {}".format(shost.host_self_blocked))
@@ -692,7 +682,6 @@ def display_command_time(cmnd):
 def run_scsi_checks():
     warnings = 0
     errors = 0
-    use_atomic_counters = -1
     gendev_q_sdev_q_mismatch = 0
     retry_delay_bug = 0
     qla_cmd_abort_bug = 0
@@ -701,68 +690,38 @@ def run_scsi_checks():
     # host checks
     hosts = get_scsi_hosts()
 
-    try:
-        use_atomic_counters = readSU("struct Scsi_Host", long(hosts[0].host_busy.counter))
-    except:
-        use_atomic_counters = -1
-
     for host in hosts:
-        if (use_atomic_counters == -1):
-            if (host.host_failed):
-                warnings += 1
-                if (host.host_failed == host.host_busy):
+        if (host.host_failed):
+            warnings += 1
+            if (member_size("struct Scsi_Host", "host_busy") != 1):
+                if (host.host_failed == atomic_t(host.host_busy)):
                     print("WARNING: Scsi_Host {:#x} ({}) is running error recovery!".format(host,
-                           host.shost_gendev.kobj.name))
+                        host.shost_gendev.kobj.name))
                 else:
                     print("WARNING: Scsi_Host {:#x} ({}) has timed out commands, but has not started error recovery!".format(host,
-                           host.shost_gendev.kobj.name))
+                        host.shost_gendev.kobj.name))
+            else:
+                print("WARNING: Scsi_Host {:#x} ({}) has timed out commands!".format(host, host.shost_gendev.kobj.name))
 
-            if (host.host_blocked):
+            if (atomic_t(host.host_blocked)):
                 warnings += 1
                 print("WARNING: Scsi_Host {:#x} ({}) is blocked! HBA driver refusing all commands with SCSI_MLQUEUE_HOST_BUSY?".format(host,
-                       host.shost_gendev.kobj.name))
-
-        elif (use_atomic_counters != -1):
-            if (host.host_failed):
-                warnings += 1
-                if (host.host_failed == host.host_busy.counter):
-                    print("WARNING: Scsi_Host {:#x} ({}) is running error recovery!".format(host,
-                           host.shost_gendev.kobj.name))
-                else:
-                    print("WARNING: Scsi_Host {:#x} ({}) has timed out commands, but has not started error recovery!".format(host,
-                           host.shost_gendev.kobj.name))
-
-            if (host.host_blocked.counter):
-                warnings += 1
-                print("WARNING: Scsi_Host {:#x} ({}) is blocked! HBA driver refusing all commands with SCSI_MLQUEUE_HOST_BUSY?".format(host,
-                       host.shost_gendev.kobj.name))
+                    host.shost_gendev.kobj.name))
 
     # device checks
     gendev_dict = get_gendev()
 
     for sdev in get_SCSI_devices():
-        if (use_atomic_counters == -1):
-            if (sdev.device_blocked):
-                warnings += 1
-                print("WARNING: scsi_device {:#x} ({}) is blocked! HBA driver returning "
-                      "SCSI_MLQUEUE_DEVICE_BUSY or device returning SAM_STAT_BUSY?".format(sdev,
-                      get_scsi_device_id(sdev)))
-            if (sdev.device_busy < 0):
-                print("ERROR:   scsi_device {:#x} ({}) device_busy count is: {}".format(sdev,
-                       get_scsi_device_id(sdev), sdev.device_busy))
-                if (sdev.host.hostt.name in "qla2xxx"):
-                    qla_cmd_abort_bug += 1
-        elif (use_atomic_counters != -1):
-            if (sdev.device_blocked.counter):
-                warnings += 1
-                print("WARNING: scsi_device {:#x} ({}) is blocked! HBA driver returning "
-                      "SCSI_MLQUEUE_DEVICE_BUSY or device returning SAM_STAT_BUSY?".format(sdev,
-                      get_scsi_device_id(sdev)))
-            if (sdev.device_busy.counter < 0):
-                print("ERROR:   scsi_device {:#x} ({}) device_busy count is: {}".format(sdev,
-                       get_scsi_device_id(sdev), sdev.device_busy.counter))
-                if (sdev.host.hostt.name in "qla2xxx"):
-                    qla_cmd_abort_bug += 1
+        if (atomic_t(sdev.device_blocked)):
+            warnings += 1
+            print("WARNING: scsi_device {:#x} ({}) is blocked! HBA driver returning "
+                    "SCSI_MLQUEUE_DEVICE_BUSY or device returning SAM_STAT_BUSY?".format(sdev,
+                    get_scsi_device_id(sdev)))
+        if (atomic_t(sdev.device_busy) < 0):
+            print("ERROR:   scsi_device {:#x} ({}) device_busy count is: {}".format(sdev,
+                get_scsi_device_id(sdev), atomic_t(sdev.device_busy)))
+            if (sdev.host.hostt.name in "qla2xxx"):
+                qla_cmd_abort_bug += 1
 
         # Check if scsi_device->request_queue is same as corresponding gendisk->queue.
         name = scsi_device_type(sdev.type)
@@ -832,42 +791,21 @@ def run_scsi_checks():
                 warnings += 1
 
     # scsi_target checks
-    stgt_busy_block_cnt = -1
     for shost in get_scsi_hosts():
         if (shost.__targets.next != shost.__targets.next.next):
             for starget in readSUListFromHead(shost.__targets, "siblings", "struct scsi_target"):
                 if (member_size("struct scsi_target", "target_busy") != -1):
                     try:
-                        stgt_busy_block_cnt = readSU("struct scsi_target", long(starget.target_busy.counter))
-                    except:
-                        stgt_busy_block_cnt = -1
-
-                    try:
-                        if (stgt_busy_block_cnt != -1):
-                            if (starget.target_busy.counter > 0):
-                                print("WARNING: scsi_target {:10s} {:x} is having non-zero "
-                                      "target_busy count: {:d}".format(starget.dev.kobj.name,
-                                      int(starget), starget.target_busy.counter))
-                                warnings += 1
-                            if (starget.target_blocked.counter > 0):
-                                print("WARNING: scsi_target {:10s} {:x} is blocked "
-                                      "(target_blocked count: {:d})".format(starget.dev.kobj.name,
-                                      int(starget), starget.target_blocked.counter))
-                                warnings += 1
-
-                        elif (stgt_busy_block_cnt == -1 and
-                              member_size("struct scsi_target", "target_busy") != -1):
-                            if (starget.target_busy > 0):
-                                print("WARNING: scsi_target {:10s} {:x} is having non-zero "
-                                      "target_busy count: {:d}".format(starget.dev.kobj.name,
-                                      int(starget), starget.target_busy))
-                                warnings += 1
-                            if (starget.target_blocked > 0):
-                                print("WARNING: scsi_target {:10s} {:x} is blocked "
-                                      "(target_blocked count: {:d})".format(starget.dev.kobj.name,
-                                      int(starget), starget.target_blocked))
-                                warnings += 1
-
+                        if (atomic_t(starget.target_busy) > 0):
+                            print("WARNING: scsi_target {:10s} {:x} is having non-zero "
+                                "target_busy count: {:d}".format(starget.dev.kobj.name,
+                                int(starget), atomic_t(starget.target_busy)))
+                            warnings += 1
+                        if (atomic_t(starget.target_blocked) > 0):
+                            print("WARNING: scsi_target {:10s} {:x} is blocked "
+                                "(target_blocked count: {:d})".format(starget.dev.kobj.name,
+                                int(starget), atomic_t(starget.target_blocked)))
+                            warnings += 1
                     except KeyError:
                         pylog.warning("Error in processing scsi_target {:x},"
                                       "please check manually".format(int(starget)))
