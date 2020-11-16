@@ -592,9 +592,10 @@ def print_request_queue():
     opcode_table = {'0x00':'TUR', '0x03':'REQ-SENSE', '0x08':'READ(6)',\
                     '0x0a':'WRITE(6)', '0x12':'INQUIRY', '0x16':'RESERVE(6)',\
                     '0x17':'RELEASE(6)', '0x25':'READ-CAP(10)', '0x28':'READ(10)',\
-                    '0x2a':'WRITE(10)', '0x41':'WR SAME', '0x56':'RESERVE(10)',\
-                    '0x57':'RELEASE(10)', '0x88':'READ(16)', '0x8a':'WRITE(16)',\
-                    '0xa0':'REPORT LUNS', '0xa8':'READ(12)', '0xaa':'WRITE (12)'}
+                    '0x2a':'WRITE(10)', '0x35':'SYNC CACHE', '0x41':'WR SAME',\
+                    '0x56':'RESERVE(10)', '0x57':'RELEASE(10)', '0x88':'READ(16)',\
+                    '0x8a':'WRITE(16)','0xa0':'REPORT LUNS', '0xa8':'READ(12)',\
+                    '0xaa':'WRITE (12)'}
 
     for sdev in get_SCSI_devices():
         name = scsi_device_type(sdev.type)
@@ -642,8 +643,11 @@ def print_request_queue():
                for cmnd in cmnds:
                    cmnd_requests.append(cmnd.request)
 
-               requests = get_queue_requests(sdev.request_queue)
-               requests = list(set(requests + cmnd_requests))
+               if (member_size("struct request_queue", "queue_head") != -1):
+                   requests = get_queue_requests(sdev.request_queue)
+                   requests = list(set(requests + cmnd_requests))
+               else:
+                   requests = cmnd_requests
 
                print("\n     {:10s}{:20s} {:20s} {:18s} {:10s} {:20s} {:10s}".format("NO.", "request",
                      "bio", "scsi_cmnd", "OPCODE", "COMMAND AGE", "SECTOR"))
@@ -653,7 +657,10 @@ def print_request_queue():
                counter = 0
                for req in requests:
                    counter = counter + 1
-                   cmnd = StructResult("struct scsi_cmnd", req.special)
+                   if (member_size("struct scsi_cmnd", "special") != -1):
+                       cmnd = StructResult("struct scsi_cmnd", long(req.special))
+                   else:
+                       cmnd = StructResult("struct scsi_cmnd", long(Addr(req) + struct_size("struct request")))
                    try:
                        time = (long(jiffies) - long(cmnd.jiffies_at_alloc))
                        opcode = StructResult("struct scsi_cmnd", long(cmnd.cmnd[0]))
@@ -665,7 +672,10 @@ def print_request_queue():
                        print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:10} {:8d} ms ".format(counter, "",
                              req, req.bio, cmnd, opcode, long(time)), end="")
                        if (req.bio):
-                           print("{:15d}".format(req.bio.bi_sector))
+                           if (member_size("struct bio", "bi_sector") != -1):
+                               print("{:15d}".format(req.bio.bi_sector))
+                           else:
+                               print("{:15d}".format(req.bio.bi_iter.bi_sector))
                        else:
                            print("       ---NA---")
                    except:
