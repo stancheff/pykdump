@@ -81,15 +81,19 @@ def display_requests(fields, usehex):
     for sdev in get_SCSI_devices():
         cmnd_requests = []
         cmnds = get_scsi_commands(sdev)
-        for cmnd in cmnds:
-            cmnd_requests.append(cmnd.request)
+        if (member_size("struct request_queue", "queue_head") != -1):
+            for cmnd in cmnds:
+                cmnd_requests.append(cmnd.request)
 
-        requests = get_queue_requests(sdev.request_queue)
-        requests = list(set(requests + cmnd_requests))
-        for req in requests:
-            print_request_header(req, get_scsi_device_id(sdev))
-            display_fields(req, fields, usehex=usehex)
-
+            requests = get_queue_requests(sdev.request_queue)
+            requests = list(set(requests + cmnd_requests))
+            for req in requests:
+                print_request_header(req, get_scsi_device_id(sdev))
+                display_fields(req, fields, usehex=usehex)
+        else:
+            for cmnd in cmnds:
+                print_request_header(cmnd.request, get_scsi_device_id(sdev))
+                display_fields(cmnd.request, "timeout,deadline", usehex=usehex)
 
 def get_scsi_hosts():
     shost_class = readSymbol("shost_class")
