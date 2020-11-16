@@ -78,6 +78,7 @@ def get_queue_requests(rqueue):
     return out
 
 def display_requests(fields, usehex):
+    num_requests = 0
     for sdev in get_scsi_devices():
         cmnd_requests = []
         cmnds = get_scsi_commands(sdev)
@@ -87,13 +88,24 @@ def display_requests(fields, usehex):
 
             requests = get_queue_requests(sdev.request_queue)
             requests = list(set(requests + cmnd_requests))
-            for req in requests:
-                print_request_header(req, get_scsi_device_id(sdev))
-                display_fields(req, fields, usehex=usehex)
+
+            if (requests):
+                if (member_size("struct request", "start_time") == -1):
+                    fields = fields.replace("start_time", "deadline")
+                if (member_size("struct request", "special") == -1):
+                    fields = fields.replace("special", "timeout")
+                for req in requests:
+                    print_request_header(req, get_scsi_device_id(sdev))
+                    display_fields(req, fields, usehex=usehex)
+                    num_requests += 1
         else:
-            for cmnd in cmnds:
-                print_request_header(cmnd.request, get_scsi_device_id(sdev))
-                display_fields(cmnd.request, "timeout,deadline", usehex=usehex)
+            if (cmnds):
+                for cmnd in cmnds:
+                    print_request_header(cmnd.request, get_scsi_device_id(sdev))
+                    display_fields(cmnd.request, "timeout,deadline", usehex=usehex)
+                    num_requests += 1
+
+    print("\nRequests found: {}".format(num_requests))
 
 def get_scsi_hosts():
     shost_class = readSymbol("shost_class")
