@@ -33,6 +33,9 @@ from pykdump.API import *
 
 from LinuxDump.scsi import *
 
+def test_bit(nbit, val):
+    return ((val >> nbit) == 1)
+
 def get_sdev_state(enum_state):
     if not isinstance(enum_state, long):
         return enum_state
@@ -48,10 +51,24 @@ def get_sdev_state(enum_state):
         9: "SDEV_CREATED_BLOCK",
     }[enum_state]
 
-
 def print_request_header(request, devid):
     print("{:x} {:<13}".format(int(request), "({})".format(devid)), end='')
 
+SCMD_STATE_COMPLETE = 0
+SCMD_STATE_INFLIGHT = 1
+
+def get_host_busy(shost):
+    cmds_in_flight = 0
+    cmds = []
+
+    sdevs = get_scsi_devices(shost)
+    for sdev in sdevs:
+        cmds += get_scsi_commands(sdev)
+
+    for cmd in cmds:
+        if (test_bit(SCMD_STATE_INFLIGHT, cmd.state)):
+            cmds_in_flight += 1
+    return cmds_in_flight
 
 def get_queue_requests(rqueue):
     out = []
@@ -98,6 +115,17 @@ def get_scsi_hosts():
         for hostclass in readSUListFromHead(shost_class.children, "node", "struct class_device"):
             out.append(container_of(hostclass, "struct Scsi_Host", "shost_classdev"))
         return out
+
+def get_scsi_devices(shost=0):
+    out = []
+
+    if (shost):
+        out = readSUListFromHead(shost.__devices, "siblings", "struct scsi_device")
+    else:
+        for host in get_scsi_hosts():
+            out += readSUListFromHead(host.__devices, "siblings", "struct scsi_device")
+
+    return out
 
 def is_scsi_queue(queue):
     if (member_size("struct request_queue", "mq_ops") == -1 or not queue.mq_ops):
@@ -499,7 +527,9 @@ def print_shost_info():
 
         if (member_size("struct Scsi_Host", "host_busy") != -1):
             print("\n   HOST BUSY           : {}".format(atomic_t(shost.host_busy)), end="")
-        print("\n   HOST BLOCKED        : {}".format(atomic_t(shost.host_blocked)), end="")
+        else:
+            print("\n   HOST BUSY           : {}".format(get_host_busy(shost)), end="")
+        print("\n   HOST BLOCKED        : {}".format(atomic_t(shost.host_blocked)))
 
         print("   host_failed         : {}".format(shost.host_failed))
         print("   host_self_blocked   : {}".format(shost.host_self_blocked))
