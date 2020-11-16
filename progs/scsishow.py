@@ -82,6 +82,7 @@ def display_requests(fields, usehex):
     for sdev in get_scsi_devices():
         cmnd_requests = []
         cmnds = get_scsi_commands(sdev)
+
         if (member_size("struct request_queue", "queue_head") != -1):
             for cmnd in cmnds:
                 cmnd_requests.append(cmnd.request)
@@ -102,10 +103,13 @@ def display_requests(fields, usehex):
             if (cmnds):
                 for cmnd in cmnds:
                     print_request_header(cmnd.request, get_scsi_device_id(sdev))
-                    display_fields(cmnd.request, "timeout,deadline", usehex=usehex)
-                    num_requests += 1
+                    if (cmnd.request):
+                        display_fields(cmnd.request, "timeout,deadline", usehex=usehex)
+                        num_requests += 1
+                    else:
+                        print("request member of scsi_cmnd {:#x} is null".format(cmnd))
 
-    print("\nRequests found: {}".format(num_requests))
+    print("\nRequests found in SCSI layer: {}".format(num_requests))
 
 def get_scsi_hosts():
     shost_class = readSymbol("shost_class")
