@@ -256,8 +256,11 @@ def get_scsi_device_id(sdev):
                                         sdev.channel, sdev.id, sdev.lun)
 
 def print_cmnd_header(cmnd):
-    print("scsi_cmnd {:x} {:<13}".format(int(cmnd),
+    if (cmnd.device):
+        print("scsi_cmnd {:x} {:<13}".format(int(cmnd),
               "on scsi_device {:#x} ({})".format(cmnd.device, get_scsi_device_id(cmnd.device))), end='')
+    else:
+        print("device member for scsi_cmnd {:x} is null".format(int(cmnd)), end='')
 
 def print_sdev_header(sdev):
     print("{:x}  {:<12}".format(int(sdev),
