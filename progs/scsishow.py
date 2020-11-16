@@ -775,7 +775,7 @@ def display_command_time(cmnd, use_start_time_ns):
     # get time request allocated/started
     if (rq_start_time):
         if use_start_time_ns:
-            jiffies_ns = (jiffies - ((-300 * get_hz()) & 0xffffffff)) * 1000000000 / get_hz()
+            jiffies_ns = (jiffies - ((-300 * HZ) & 0xffffffff)) * 1000000000 / HZ
             rq_start_time = int((rq_start_time - jiffies_ns) * HZ / 1000000000)
         else:
             rq_start_time -= jiffies
