@@ -1026,7 +1026,13 @@ if ( __name__ == '__main__'):
         run_scsi_checks()
 
     if (args.proc_info):
-        print_SCSI_devices()
+        if (member_size("struct Scsi_Host", "host_busy") != -1):
+            try:
+                print_SCSI_devices()
+            except crash.error as errval:
+                print("print_SCSI_devices() failed: {}".format(errval))
+        else:
+            print("ERROR: command not supported without Scsi_Host->host_busy")
 
     if (args.commands or args.time):
         cmndcount = 0
