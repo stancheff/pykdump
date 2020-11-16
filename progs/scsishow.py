@@ -78,7 +78,7 @@ def get_queue_requests(rqueue):
     return out
 
 def display_requests(fields, usehex):
-    for sdev in get_SCSI_devices():
+    for sdev in get_scsi_devices():
         cmnd_requests = []
         cmnds = get_scsi_commands(sdev)
         if (member_size("struct request_queue", "queue_head") != -1):
@@ -597,7 +597,7 @@ def print_request_queue():
                     '0x8a':'WRITE(16)','0xa0':'REPORT LUNS', '0xa8':'READ(12)',\
                     '0xaa':'WRITE (12)'}
 
-    for sdev in get_SCSI_devices():
+    for sdev in get_scsi_devices():
         name = scsi_device_type(sdev.type)
         if (name):
             if ((name in 'Direct-Access    ') or
@@ -858,7 +858,7 @@ def run_scsi_checks():
     # device checks
     gendev_dict = get_gendev()
 
-    for sdev in get_SCSI_devices():
+    for sdev in get_scsi_devices():
         if (atomic_t(sdev.device_blocked)):
             warnings += 1
             print("WARNING: scsi_device {:#x} ({}) is blocked! HBA driver returning "
@@ -1060,7 +1060,7 @@ if ( __name__ == '__main__'):
     if (args.commands or args.time):
         cmndcount = 0
         use_start_time_ns = member_size("struct request", "start_time") == -1
-        for sdev in get_SCSI_devices():
+        for sdev in get_scsi_devices():
             cmndlist = get_scsi_commands(sdev)
             for cmnd in cmndlist:
                 print_cmnd_header(cmnd)
