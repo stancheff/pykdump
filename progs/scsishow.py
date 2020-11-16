@@ -124,7 +124,11 @@ def get_scsi_hosts():
     out = []
     if (klist_devices):
         for knode in klistAll(klist_devices):
-            dev = container_of(knode, "struct device", "knode_class")
+            if (member_size("struct device", "knode_class") != -1):
+                dev = container_of(knode, "struct device", "knode_class")
+            else:
+                devp = container_of(knode, "struct device_private", "knode_class")
+                dev = devp.device
             out.append(container_of(dev, "struct Scsi_Host", "shost_dev"))
         return out
     else:
@@ -264,7 +268,8 @@ def get_gendev():
     gendev_dict = {}
     klist_devices = 0
 
-    if (member_size("struct device", "knode_class") != -1):
+    if ((member_size("struct device", "knode_class") != -1) or
+        (member_size("struct device_private", "knode_class") != -1)):
         block_class = readSymbol("block_class")
 
         try:
@@ -280,7 +285,11 @@ def get_gendev():
 
         if (klist_devices):
             for knode in klistAll(klist_devices):
-                dev = container_of(knode, "struct device", "knode_class")
+                if (member_size("struct device", "knode_class") != -1):
+                    dev = container_of(knode, "struct device", "knode_class")
+                else:
+                    devp = container_of(knode, "struct device_private", "knode_class")
+                    dev = devp.device
                 hd_temp = container_of(dev, "struct hd_struct", "__dev")
                 gendev = container_of(hd_temp, "struct gendisk", "part0")
                 gendev_q = format(gendev.queue, 'x')
