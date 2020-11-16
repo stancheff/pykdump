@@ -744,12 +744,13 @@ def is_kernel_address(addr):
         return 1
     return 0
 
-def display_command_time(cmnd):
+def display_command_time(cmnd, use_start_time_ns):
     rq_start_time = 0
     start_time = 0
     deadline = 0
     jiffies = readSymbol("jiffies")
     state = "unknown"
+    HZ = sys_info.HZ
 
     # get time scsi_cmnd allocated/started
     try:
@@ -763,13 +764,21 @@ def display_command_time(cmnd):
         start_time = "Err"
 
     try:
-        rq_start_time = cmnd.request.start_time
+        if use_start_time_ns:
+            rq_start_time = cmnd.request.start_time_ns
+        else:
+            rq_start_time = cmnd.request.start_time
+
     except KeyError:
         pass
 
     # get time request allocated/started
     if (rq_start_time):
-        rq_start_time -= jiffies
+        if use_start_time_ns:
+            jiffies_ns = (jiffies - ((-300 * get_hz()) & 0xffffffff)) * 1000000000 / get_hz()
+            rq_start_time = int((rq_start_time - jiffies_ns) * HZ / 1000000000)
+        else:
+            rq_start_time -= jiffies
     else:
         rq_start_time = "Err"
 
@@ -1050,12 +1059,13 @@ if ( __name__ == '__main__'):
 
     if (args.commands or args.time):
         cmndcount = 0
+        use_start_time_ns = member_size("struct request", "start_time") == -1
         for sdev in get_SCSI_devices():
             cmndlist = get_scsi_commands(sdev)
             for cmnd in cmndlist:
                 print_cmnd_header(cmnd)
                 if (args.time):
-                    display_command_time(cmnd)
+                    display_command_time(cmnd, use_start_time_ns)
 
                 if (args.commands):
                     display_fields(cmnd, args.commands, 
