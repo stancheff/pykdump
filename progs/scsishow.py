@@ -260,7 +260,7 @@ def print_cmnd_header(cmnd):
         print("scsi_cmnd {:x} {:<13}".format(int(cmnd),
               "on scsi_device {:#x} ({})".format(cmnd.device, get_scsi_device_id(cmnd.device))), end='')
     else:
-        print("device member for scsi_cmnd {:x} is null".format(int(cmnd)), end='')
+        print("Warning: device member for scsi_cmnd {:x} is null".format(int(cmnd)), end='')
 
 def print_sdev_header(sdev):
     print("{:x}  {:<12}".format(int(sdev),
@@ -941,7 +941,7 @@ def run_scsi_checks():
                 except KeyError:
                     timeout = -1
             else:
-                print("Error: cmnd.request is null for scsi_cmnd {:#x}".format(cmnd))
+                print("Warning: cmnd.request is null for scsi_cmnd {:#x}".format(cmnd))
 
             if(timeout == -1):
                 try:
@@ -1098,7 +1098,10 @@ if ( __name__ == '__main__'):
             for cmnd in cmndlist:
                 print_cmnd_header(cmnd)
                 if (args.time):
-                    display_command_time(cmnd, use_start_time_ns)
+                    if (cmnd.request):
+                        display_command_time(cmnd, use_start_time_ns)
+                    else:
+                        print("\nWarning: cmnd.request is null for scsi_cmnd {:#x}. Skipping...".format(cmnd))
 
                 if (args.commands):
                     display_fields(cmnd, args.commands, 
