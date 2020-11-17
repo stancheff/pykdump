@@ -934,16 +934,21 @@ def run_scsi_checks():
 
         # command checks
         for cmnd in get_scsi_commands(sdev):
-            try:
-                timeout = cmnd.request.timeout
-            except KeyError:
-                timeout = 0
+            timeout = 0
+            if (cmnd.request):
+                try:
+                    timeout = cmnd.request.timeout
+                except KeyError:
+                    timeout = -1
+            else:
+                print("Error: cmnd.request is null for scsi_cmnd {:#x}".format(cmnd))
 
-            if(not timeout):
+            if(timeout == -1):
                 try:
                     timeout = cmnd.timeout_per_command
                 except KeyError:
                     print("Error: cannot determine timeout!")
+                    timeout = 0
 
             # Check for large timeout values
             if (timeout > 300000):
