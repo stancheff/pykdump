@@ -95,6 +95,45 @@ Some constants:
 When a new version of ``crash`` is released, it is possible that some
 of these subroutines change or become unavailable (happened at least once)
 
+An example: recent versions of crash-7 have a set_error() subroutine
+that can be used for to redirect/suppress internal crash/GDB errors messages.
+
+This subroutine is used in PyKdump C-module. As a result, if you try
+to load mpykdump.so with crash as shipped e.g. on RHEL7, you will see::
+
+  extend: /usr/local/lib/mpykdump64.so: undefined symbol: set_error
+
+To workaround this we can use weak symbols (a feature of *GCC*), like that:
+
+.. code-block:: c
+
+    // Weak symbols as needed for compatibility with older versions of crash
+   extern FILE * set_error(char *target) __attribute__ ((weak));
+
+   <snip>
+   // Python bindings to crash internal subroutine set_error()
+   // You provide a single argument - a string with target name, and
+   // subroutine returns old target name
+
+   static PyObject *
+   py_crash_set_error(PyObject *self, PyObject *pyargs) {
+     char *target;
+     PyObject *rc;
+
+     // If set_error() is unavailable, do nothing and return None
+     if (!set_error) {
+       Py_INCREF(Py_None);
+       return Py_None;
+     }
+
+
+Logic is as follows: if 'set_error' cannot be resolved when loading
+.so, it will be NULL.
+
+After that, we check whether it is NULL and if yes, return None
+without doing anything (in more complex cases, we'll might use our own
+subroutine instead, or print warning).
+
 Signal Handlers and Executing ``crash`` Commands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
