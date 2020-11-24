@@ -262,9 +262,6 @@ Working with Hash-Lists
 
    See :func:`crash.getFullBuckets`
 
-.. function:: getFullBuckets(Hstart, bsize, items, chain_off)
-
-   See :func:`crash.getFullBucketsH`
 
 Struct Lists and Arrays
 -----------------------
@@ -284,3 +281,25 @@ Struct Lists and Arrays
 .. function:: readSUListFromHead(headaddr, listfieldname, mystruct, maxel=None, inchead = False, warn = True)
 
 .. function:: readStructNext(shead, nextname, maxel=None, inchead = True)
+
+Suppressing Internal Crash/GDB Messages
+---------------------------------------
+
+When you execute crash/GDB commands, they migh display errors. For
+example, you try to execute an invalid command, or page is missing in
+vmcore. Sometimes you want to suppress displaying this errors. This
+can be dome using the following context manager:
+
+.. class:: SuppressCrashErrors(outfile="/dev/null")
+
+   A context manager to redirect or suppress internal crash/GDB errors
+   display
+
+   An example::
+
+     with SuppressCrashErrors():
+        try:
+            print("test", exec_crash_command("set scope st_create"))
+        except:
+            print("Exception caught")
+
