@@ -34,6 +34,9 @@
 // for FD_ISSET
 #include <sys/select.h>
 
+// Weak symbols as needed for compatibility with older versions of crash
+extern FILE * set_error(char *target) __attribute__ ((weak));
+
 
 extern struct extension_table *epython_curext;
 extern int epython_execute_prog(int argc, char *argv[], int);
@@ -317,6 +320,12 @@ static PyObject *
 py_crash_set_error(PyObject *self, PyObject *pyargs) {
   char *target;
   PyObject *rc;
+
+  // If set_error() is unavailable, do nothing
+  if (!set_error) {
+    Py_INCREF(Py_None);
+    return Py_None;
+  }
 
   if (!PyArg_ParseTuple(pyargs, "s", &target)) {
     PyErr_SetString(crashError, "invalid parameter type");
