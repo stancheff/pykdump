@@ -224,7 +224,7 @@ def get_scsi_commands_mq(queue):
                              queue.queue_hw_ctx[i].sched_tags.static_rqs)
 
     for rq in out:
-        cmd = StructResult("struct scsi_cmnd",
+        cmd = readSU("struct scsi_cmnd",
             long(Addr(rq) + struct_size("struct request")))
         cmds.append(cmd)
 
@@ -358,7 +358,7 @@ def print_sdev_shost():
                         name = "CTRL"
                     elif ((name in 'Direct-Access    ') or
                           (name in 'CD-ROM           ')):
-                         sdev_q = StructResult("struct request_queue", sdev.request_queue)
+                         sdev_q = readSU("struct request_queue", sdev.request_queue)
                          sdev_q = format(sdev_q, 'x')
                          try:
                              gendev = gendev_dict[sdev_q]
@@ -634,7 +634,7 @@ def print_request_queue():
         if (name):
             if ((name in 'Direct-Access    ') or
                 (name in 'CD-ROM           ')):
-               sdev_q = StructResult("struct request_queue", sdev.request_queue)
+               sdev_q = readSU("struct request_queue", sdev.request_queue)
                if (sdev_q.elevator):
                    if (member_size("struct elevator_queue", "elevator_type") != -1):
                        elevator_name = sdev_q.elevator.elevator_type.elevator_name
@@ -690,12 +690,12 @@ def print_request_queue():
                for req in requests:
                    counter = counter + 1
                    if (member_size("struct scsi_cmnd", "special") != -1):
-                       cmnd = StructResult("struct scsi_cmnd", long(req.special))
+                       cmnd = readSU("struct scsi_cmnd", long(req.special))
                    else:
-                       cmnd = StructResult("struct scsi_cmnd", long(Addr(req) + struct_size("struct request")))
+                       cmnd = readSU("struct scsi_cmnd", long(Addr(req) + struct_size("struct request")))
                    try:
                        time = (long(jiffies) - long(cmnd.jiffies_at_alloc))
-                       opcode = StructResult("struct scsi_cmnd", long(cmnd.cmnd[0]))
+                       opcode = readSU("struct scsi_cmnd", long(cmnd.cmnd[0]))
                        opcode = hex(opcode)
                        try:
                            opcode = opcode_table[opcode]
@@ -906,7 +906,7 @@ def run_scsi_checks():
         name = scsi_device_type(sdev.type)
         if (name):
             if (name in 'Direct-Access    '):
-                sdev_q = StructResult("struct request_queue", sdev.request_queue)
+                sdev_q = readSU("struct request_queue", sdev.request_queue)
                 sdev_q = format(sdev_q, 'x')
                 try:
                     gendev = gendev_dict[sdev_q]
