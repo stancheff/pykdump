@@ -558,10 +558,10 @@ def print_shost_info():
                                                              "'Scsi_Host->hostt->module->version'"))
 
         if (member_size("struct Scsi_Host", "host_busy") != -1):
-            print("\n   HOST BUSY           : {}".format(atomic_t(shost.host_busy)), end="")
+            print("\n   host_busy           : {}".format(atomic_t(shost.host_busy)), end="")
         else:
-            print("\n   HOST BUSY           : {}".format(get_host_busy(shost)), end="")
-        print("\n   HOST BLOCKED        : {}".format(atomic_t(shost.host_blocked)))
+            print("\n   host_busy           : {}".format(get_host_busy(shost)), end="")
+        print("\n   host_blocked        : {}".format(atomic_t(shost.host_blocked)))
 
         print("   host_failed         : {}".format(shost.host_failed))
         print("   host_self_blocked   : {}".format(shost.host_self_blocked))
