@@ -231,7 +231,7 @@ def show_table_mpath_priogroup(prio):
     print(" {} 0 {} 1".format(prio.ps.type.name, prio.nr_pgpaths), end="")
 
     for path in readSUListFromHead(prio.pgpaths, "list", "struct pgpath"):
-        path_info = StructResult("struct path_info", path.path.pscontext)
+        path_info = readSU("struct path_info", path.path.pscontext)
 
         print(" {}:{} [{}] {}".format(path.path.dev.bdev.bd_dev >> 20,
             path.path.dev.bdev.bd_dev & 0xfffff,
@@ -239,12 +239,12 @@ def show_table_mpath_priogroup(prio):
 
 def show_mpath_info(prio, path_ops):
     for path in readSUListFromHead(prio.pgpaths, "list", "struct pgpath"):
-        block_device = StructResult("struct block_device", path.path.dev.bdev)
+        block_device = readSU("struct block_device", path.path.dev.bdev)
         if "sd_fops" in path_ops:
-            path_dev = StructResult("struct scsi_device", long(block_device.bd_disk.queue.queuedata))
+            path_dev = readSU("struct scsi_device", long(block_device.bd_disk.queue.queuedata))
             kobj_name = path_dev.sdev_gendev.kobj.name
         elif "nvme" in path_ops:
-            path_dev = StructResult("struct nvme_ns", long(block_device.bd_disk.queue.queuedata))
+            path_dev = readSU("struct nvme_ns", long(block_device.bd_disk.queue.queuedata))
             path_ctrl = path_dev.ctrl
             if (member_size("struct nvme_ctrl", "subsys") != -1):
                 path_subsys = "nvme_subsystem: {:#x} ".format(path_dev.ctrl.subsys)
@@ -290,7 +290,7 @@ def show_mpath_info(prio, path_ops):
 
 def show_multipath_list(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", md.map)
+    dm_table_map = readSU("struct dm_table", md.map)
 
     if (dm_table_exists(dm_table_map) is False):
         pylog.info("{}: table not found".format(name))
@@ -300,24 +300,24 @@ def show_multipath_list(dev):
         return 0
     print("------------------------------------------------------------------------------------------")
 
-    mpath = StructResult("struct multipath", dm_table_map.targets.private)
+    mpath = readSU("struct multipath", dm_table_map.targets.private)
     prio_groups = readSUListFromHead(mpath.priority_groups, "list", "struct priority_group")
 
     temp_prio_groups_list = readSU("struct list_head", mpath.priority_groups)
-    temp_priority_group = StructResult("struct priority_group", temp_prio_groups_list.next)
+    temp_priority_group = readSU("struct priority_group", temp_prio_groups_list.next)
     temp_pgpath_list = readSU("struct list_head", temp_priority_group.pgpaths)
-    temp_pgpath = StructResult("struct pgpath", temp_pgpath_list.next)
+    temp_pgpath = readSU("struct pgpath", temp_pgpath_list.next)
 
     scope_set = set_multipath_scope()
     path_ops = addr2sym(temp_pgpath.path.dev.bdev.bd_disk.fops)
 
     try:
         if "sd_fops" in path_ops:
-            temp_path = StructResult("struct scsi_device", temp_pgpath.path.dev.bdev.bd_disk.queue.queuedata)
+            temp_path = readSU("struct scsi_device", temp_pgpath.path.dev.bdev.bd_disk.queue.queuedata)
             vendor = temp_path.vendor[:8]
             model = temp_path.model[:16]
         elif "nvme" in path_ops:
-            temp_path = StructResult("struct nvme_ns", temp_pgpath.path.dev.bdev.bd_disk.queue.queuedata)
+            temp_path = readSU("struct nvme_ns", temp_pgpath.path.dev.bdev.bd_disk.queue.queuedata)
             vendor = "NVME"
             model = temp_path.ctrl.model
         else:
@@ -328,7 +328,7 @@ def show_multipath_list(dev):
         pylog.warning("Use 'dmshow --table|grep <mpath-device-name>' to manually verify sub paths.")
         return
 
-    hash_cell = StructResult("struct hash_cell", md.interface_ptr)
+    hash_cell = readSU("struct hash_cell", md.interface_ptr)
     scsi_id = hash_cell.uuid
     scsi_id = scsi_id.partition("-")
 
@@ -371,12 +371,12 @@ def show_multipath_list(dev):
 
 def show_dmsetup_table_multipath(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", md.map)
+    dm_table_map = readSU("struct dm_table", md.map)
     print("{}: {} {} multipath".format(name, dm_table_map.targets.begin,
         dm_table_map.targets.len),end="")
     if (not context_struct_exists("multipath", name)):
             return
-    mpath = StructResult("struct multipath", dm_table_map.targets.private)
+    mpath = readSU("struct multipath", dm_table_map.targets.private)
 
     # general parameters
     params = []
@@ -430,7 +430,7 @@ def show_dmsetup_table_multipath(dev):
 
 def show_basic_mpath_info(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", md.map)
+    dm_table_map = readSU("struct dm_table", md.map)
 
     if (dm_table_exists(dm_table_map) is False):
         pylog.info("{}: table not found".format(name))
@@ -438,7 +438,7 @@ def show_basic_mpath_info(dev):
 
     if (not (dm_table_map.targets.type.name == "multipath")):
         return 0
-    mpath = StructResult("struct multipath", dm_table_map.targets.private)
+    mpath = readSU("struct multipath", dm_table_map.targets.private)
 
     print("dm-{:<4d}  {:<38} {:#x} ".format(md.disk.first_minor, name, mpath), end="")
 
@@ -487,7 +487,7 @@ def get_vg_lv_names(string):
     return temp
 
 def get_md_mpath_from_gendisk(pv_gendisk, devlist):
-    tmp_mapped_device = StructResult("struct mapped_device", pv_gendisk.queue.queuedata)
+    tmp_mapped_device = readSU("struct mapped_device", pv_gendisk.queue.queuedata)
     for temp_dev in devlist:
         if (tmp_mapped_device == temp_dev[0]):
             return temp_dev
@@ -514,14 +514,14 @@ def get_lvm_context(target, name):
     context_string = type_context.get(target.type.name)
     if (not context_struct_exists(context_string.replace("struct ", ""), name)):
         return None
-    context = StructResult(context_string, long(target.private))
+    context = readSU(context_string, long(target.private))
     return context
 
 def get_origin_context(context_dev, name):
 
-    origin_md = StructResult("struct mapped_device",
+    origin_md = readSU("struct mapped_device",
             long(context_dev.bdev.bd_disk.queue.queuedata))
-    origin_table = StructResult("struct dm_table", long(origin_md.map))
+    origin_table = readSU("struct dm_table", long(origin_md.map))
     origin_context = get_lvm_context(origin_table.targets, name)
 
     return origin_context
@@ -529,31 +529,31 @@ def get_origin_context(context_dev, name):
 def get_pv_blockdev_from_lvm_context(target, context, leg_index, name):
 
     if target.type.name == "linear":
-        bdev = StructResult("struct block_device", long(context.dev.bdev))
+        bdev = readSU("struct block_device", long(context.dev.bdev))
     elif target.type.name == "thin-pool":
-        bdev = StructResult("struct block_device", long(context.data_dev.bdev))
+        bdev = readSU("struct block_device", long(context.data_dev.bdev))
     elif target.type.name == "thin":
-        bdev = StructResult("struct block_device", long(context.pool_dev.bdev))
+        bdev = readSU("struct block_device", long(context.pool_dev.bdev))
     elif target.type.name == "cache":
-        bdev = StructResult("struct block_device", long(context.origin_dev.bdev))
+        bdev = readSU("struct block_device", long(context.origin_dev.bdev))
     elif target.type.name == "mirror":
-        bdev = StructResult("struct block_device", long(context.mirror[leg_index].dev.bdev))
+        bdev = readSU("struct block_device", long(context.mirror[leg_index].dev.bdev))
     elif target.type.name == "striped":
-        bdev = StructResult("struct block_device", long(context.stripe[leg_index].dev.bdev))
+        bdev = readSU("struct block_device", long(context.stripe[leg_index].dev.bdev))
     elif target.type.name == "raid":
-        bdev = StructResult("struct block_device", long(context.dev[leg_index].rdev.bdev))
+        bdev = readSU("struct block_device", long(context.dev[leg_index].rdev.bdev))
     elif target.type.name == "crypt":
-        bdev = StructResult("struct block_device", long(context.dev.bdev))
+        bdev = readSU("struct block_device", long(context.dev.bdev))
     elif target.type.name == "snapshot-origin":
         real_context = get_origin_context(context.dev, name)
         if (real_context is None):
             return None
-        bdev = StructResult("struct block_device", long(real_context.dev.bdev))
+        bdev = readSU("struct block_device", long(real_context.dev.bdev))
     elif target.type.name == "snapshot":
         origin_context = get_origin_context(context.origin, name)
         if (origin_context is None):
             return None
-        bdev = StructResult("struct block_device", long(origin_context.dev.bdev))
+        bdev = readSU("struct block_device", long(origin_context.dev.bdev))
     return bdev
 
 def get_leg_count(target, context):
@@ -595,8 +595,8 @@ def show_lvm_lvs(dev, devlist, name, md, dm_table_map):
         context = get_lvm_context(target, name)
         if (context is None):
             return
-        gendisk = StructResult("struct gendisk", md.disk)
-        hash_cell = StructResult("struct hash_cell", md.interface_ptr)
+        gendisk = readSU("struct gendisk", md.disk)
+        hash_cell = readSU("struct hash_cell", md.interface_ptr)
 
         try:
             if ('LVM-' not in hash_cell.uuid):
@@ -626,8 +626,8 @@ def show_lvm_uuid(dev, devlist, name, md, dm_table_map):
 
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
-        gendisk = StructResult("struct gendisk", md.disk)
-        hash_cell = StructResult("struct hash_cell", md.interface_ptr)
+        gendisk = readSU("struct gendisk", md.disk)
+        hash_cell = readSU("struct hash_cell", md.interface_ptr)
         try:
             if ('LVM-' not in hash_cell.uuid):
                 return
@@ -661,8 +661,8 @@ def show_lvm_pvs(dev, devlist, name, md, dm_table_map):
         context = get_lvm_context(target, name)
         if (context is None):
             return
-        gendisk = StructResult("struct gendisk", md.disk)
-        hash_cell = StructResult("struct hash_cell", md.interface_ptr)
+        gendisk = readSU("struct gendisk", md.disk)
+        hash_cell = readSU("struct hash_cell", md.interface_ptr)
         try:
             if ('LVM-' not in hash_cell.uuid):
                 return
@@ -685,7 +685,7 @@ def show_lvm_pvs(dev, devlist, name, md, dm_table_map):
 
 def show_lvm(dev, devlist, spec):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
 
     type_name = get_dm_target_name(dm_table_map)
     if (not type_name):
@@ -708,12 +708,12 @@ def show_lvm(dev, devlist, spec):
 
 def show_dmsetup_table_striped(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("stripe_c", name)):
                 return
-        stripe_c = StructResult("struct stripe_c", long(target.private))
+        stripe_c = readSU("struct stripe_c", long(target.private))
         if (member_size("struct stripe_c", "chunk_shift") != -1):
             c_size = stripe_c.chunk_shift + 1
         else:
@@ -722,7 +722,7 @@ def show_dmsetup_table_striped(dev):
             stripe_c.stripes, c_size), end='')
 
         for stripe_num in range(stripe_c.stripes):
-            dm_dev = StructResult("struct dm_dev", long(stripe_c.stripe[stripe_num].dev))
+            dm_dev = readSU("struct dm_dev", long(stripe_c.stripe[stripe_num].dev))
             start = stripe_c.stripe[stripe_num].physical_start
             if stripe_num == (stripe_c.stripes - 1):
                 print(" {} [{}] {}".format(dm_dev.name,
@@ -733,21 +733,21 @@ def show_dmsetup_table_striped(dev):
 
 def show_dmsetup_table_thinpool(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("pool_c", name)):
             return
-        pool_c = StructResult("struct pool_c", long(target.private))
+        pool_c = readSU("struct pool_c", long(target.private))
         print("{}: {} {} thin-pool {} [{}] {} [{}] {} {}".format(name, target.begin, target.len,
             pool_c.metadata_dev.name, bdev_name(pool_c.metadata_dev.bdev), pool_c.data_dev.name,
             bdev_name(pool_c.data_dev.bdev), pool_c.pool.sectors_per_block,
             pool_c.pool.low_water_blocks), end='')
 
         if (member_size("struct pool_c", "requested_pf") != -1):
-            feature_loc = StructResult("struct pool_features", pool_c.requested_pf)
+            feature_loc = readSU("struct pool_features", pool_c.requested_pf)
         else:
-            feature_loc = StructResult("struct pool_features", pool_c.pf)
+            feature_loc = readSU("struct pool_features", pool_c.pf)
         member_names = ["mode", "zero_new_blocks", "discard_enabled", "discard_passdown", "error_if_no_space"]
         feature_names = ["read_only", "skip_block_zeroing", "ignore_discard", "no_discard_passdown", "error_if_no_space"]
         feature_string = []
@@ -776,41 +776,41 @@ def show_dmsetup_table_thinpool(dev):
 
 def show_dmsetup_table_thin(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("thin_c", name)):
             return
-        thin_c = StructResult("struct thin_c", long(target.private))
+        thin_c = readSU("struct thin_c", long(target.private))
 
         print("{}: {} {} thin {} [{}] {}".format(name, target.begin, target.len,
             thin_c.pool_dev.name, bdev_name(thin_c.pool_dev.bdev), thin_c.dev_id))
 
 def show_dmsetup_table_snap_origin(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (struct_exists("struct dm_origin")):
-            origin = StructResult("struct dm_origin", long(target.private))
+            origin = readSU("struct dm_origin", long(target.private))
             origin_dev = origin.dev
         elif ("dm_snapshot" not in lsModules()):
             print("{}: error: dm_origin does not exist. dm_snapshot not loaded".format(name))
             return
         else:
-            origin_dev = StructResult("struct dm_dev", long(target.private))
+            origin_dev = readSU("struct dm_dev", long(target.private))
 
         print("{}: {} {} snapshot-origin {} [{}]".format(name, target.begin,
             target.len, origin_dev.name, bdev_name(origin_dev.bdev)))
 
 def show_dmsetup_table_snap(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("dm_snapshot", name)):
             return
-        dm_snapshot = StructResult("struct dm_snapshot", long(target.private))
+        dm_snapshot = readSU("struct dm_snapshot", long(target.private))
 
         if (member_size("struct dm_snapshot", "type") != -1):
             type = chr(dm_snapshot.type)
@@ -838,12 +838,12 @@ def show_dmsetup_table_snap(dev):
 
 def show_dmsetup_table_cache(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("cache", name)):
             return
-        cache = StructResult("struct cache", long(target.private))
+        cache = readSU("struct cache", long(target.private))
 
         print("{}: {} {} cache {} [{}] {} [{}] {} [{}]".format(name, target.begin, target.len,
             cache.metadata_dev.name, bdev_name(cache.metadata_dev.bdev), cache.cache_dev.name,
@@ -934,7 +934,7 @@ def show_raid_ctr_table(raid_set, raid_disks, rebuild_disks, write_mostly_params
     if (raid_set.ctr_flags & (1 << flags['__CTR_FLAG_STRIPE_CACHE'])):
         max_nr_stripes = 0
         if (raid_set.md.private != 0):
-            r5conf = StructResult("struct r5conf", long(raid_set.md.private))
+            r5conf = readSU("struct r5conf", long(raid_set.md.private))
             max_nr_stripes = r5conf.max_nr_stripes
         print(" {} {}".format("stripe_cache", max_nr_stripes), end='')
 
@@ -1032,7 +1032,7 @@ def show_raid_dmpf_table(raid_set, raid_disks, srdev_flags_bits):
     if (raid_set.print_flags & dmpf_flags['DMPF_STRIPE_CACHE']):
         max_nr_stripes = 0
         if (raid_set.md.private != 0):
-            r5conf = StructResult("struct r5conf", long(raid_set.md.private))
+            r5conf = readSU("struct r5conf", long(raid_set.md.private))
             max_nr_stripes = r5conf.max_nr_stripes
         print(" stripe_cache {}".format(max_nr_stripes * 2), end='')
     if (raid_set.print_flags & dmpf_flags['DMPF_REGION_SIZE']):
@@ -1044,12 +1044,12 @@ def show_raid_dmpf_table(raid_set, raid_disks, srdev_flags_bits):
 
 def show_dmsetup_table_raid(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("raid_set", name)):
             return
-        raid_set = StructResult("struct raid_set", long(target.private))
+        raid_set = readSU("struct raid_set", long(target.private))
         print("{}: {} {} raid".format(name, target.begin, target.len), end='')
 
         if (member_size("struct raid_set", "raid_disks") != -1):
@@ -1113,7 +1113,7 @@ def show_dirty_log_sync(log_c, enum_sync_state):
                 pylog.info("{} unknown sync status".format(log_c.ti.table.md.name))
 
 def show_dirty_log_status(status_fn, dirty_log):
-    log_c = StructResult("struct log_c", long(dirty_log.context))
+    log_c = readSU("struct log_c", long(dirty_log.context))
     dmlog_ioerr_const = '''
     #define DMLOG_IOERR_IGNORE 0
     #define DMLOG_IOERR_BLOCK  1
@@ -1161,12 +1161,12 @@ def show_dirty_log_status(status_fn, dirty_log):
 
 def show_dmsetup_table_raid45(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("raid_set", name)):
             return
-        raid_set = StructResult("struct raid_set", long(target.private))
+        raid_set = readSU("struct raid_set", long(target.private))
 
         print("{}: {} {} raid45".format(name, target.begin, target.len), end='')
 
@@ -1197,7 +1197,7 @@ def show_dmsetup_table_raid45(dev):
 
 def show_dmsetup_table_mirror(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     _handle_err = '''
     #define DM_RAID1_HANDLE_ERRORS 0x01
     '''
@@ -1207,7 +1207,7 @@ def show_dmsetup_table_mirror(dev):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("mirror_set", name)):
             return
-        mirror_set = StructResult("struct mirror_set", long(target.private))
+        mirror_set = readSU("struct mirror_set", long(target.private))
 
         print("{}: {} {} mirror".format(name, target.begin, target.len), end='')
         status_fn = addr2sym(mirror_set.rh.log.type.status)
@@ -1225,12 +1225,12 @@ def show_dmsetup_table_mirror(dev):
 
 def show_dmsetup_table_crypt(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("crypt_config", name)):
             return
-        crypt_c = StructResult("struct crypt_config", long(target.private))
+        crypt_c = readSU("struct crypt_config", long(target.private))
         print("{}: {} {} crypt".format(name, target.begin, target.len), end='')
 
         if (member_size("struct crypt_config", "tfm") != -1):
@@ -1304,12 +1304,12 @@ def show_dmsetup_table_crypt(dev):
 
 def show_dmsetup_table_delay(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("delay_c", name)):
             return
-        delay_c = StructResult("struct delay_c", long(target.private))
+        delay_c = readSU("struct delay_c", long(target.private))
 
         print("{}: {} {} delay".format(name, target.begin, target.len), end='')
         print(" {} [{}] {} {}".format(delay_c.dev_read.name, bdev_name(delay_c.dev_read.bdev),
@@ -1322,7 +1322,7 @@ def show_dmsetup_table_delay(dev):
 
 def show_dmsetup_table_generic(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         print("{}: {} {} {}".format(name, target.begin, target.len,
@@ -1330,12 +1330,12 @@ def show_dmsetup_table_generic(dev):
 
 def show_dmsetup_table_switch(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("switch_ctx", name)):
             return
-        switch_ctx = StructResult("struct switch_ctx", long(target.private))
+        switch_ctx = readSU("struct switch_ctx", long(target.private))
         print("{}: {} {} switch".format(name, target.begin, target.len), end='')
         print(" {} {} 0".format(switch_ctx.nr_paths, switch_ctx.region_size), end='')
 
@@ -1347,12 +1347,12 @@ def show_dmsetup_table_switch(dev):
 
 def show_dmsetup_table_flakey(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("flakey_c", name)):
             return
-        flakey_c = StructResult("struct flakey_c", long(target.private))
+        flakey_c = readSU("struct flakey_c", long(target.private))
         print("{}: {} {} flakey".format(name, target.begin, target.len), end='')
         print(" {} [{}] {} {} {}".format(flakey_c.dev.name,
             bdev_name(flakey_c.dev.bdev), flakey_c.start,
@@ -1394,12 +1394,12 @@ def show_dmsetup_table_flakey(dev):
 
 def show_dmsetup_table_era(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("era", name)):
             return
-        era = StructResult("struct era", long(target.private))
+        era = readSU("struct era", long(target.private))
         print("{}: {} {} era".format(name, target.begin, target.len), end='')
 
         print(" {}:{} [{}] {}:{} [{}] {}".format(era.metadata_dev.bdev.bd_dev >> 20,
@@ -1409,12 +1409,12 @@ def show_dmsetup_table_era(dev):
 
 def show_dmsetup_table_verity(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("dm_verity", name)):
             return
-        verity = StructResult("struct dm_verity", long(target.private))
+        verity = readSU("struct dm_verity", long(target.private))
         print("{}: {} {} verity".format(name, target.begin, target.len), end='')
 
         data_bits = 1 << verity.data_dev_block_bits
@@ -1453,12 +1453,12 @@ def show_dmsetup_table_verity(dev):
 
 def show_dmsetup_table_linear(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", md.map)
+    dm_table_map = readSU("struct dm_table", md.map)
     for target_id in range(dm_table_map.num_targets):
         target = dm_table_map.targets.__getitem__(target_id)
         if (not context_struct_exists("linear_c", name)):
                 return
-        linear_c = StructResult("struct linear_c", target.private)
+        linear_c = readSU("struct linear_c", target.private)
 
         print("{}: {} {} linear {}:{} [{}] {}".format(name, target.begin,
             target.len, linear_c.dev.bdev.bd_dev >> 20,
@@ -1467,7 +1467,7 @@ def show_dmsetup_table_linear(dev):
 
 def show_dmsetup_table(dev):
     md, name = dev
-    dm_table_map = StructResult("struct dm_table", long(md.map))
+    dm_table_map = readSU("struct dm_table", long(md.map))
     if (dm_table_exists(dm_table_map) is False):
         pylog.info("{}: table not found".format(name))
     elif (dm_table_map.num_targets == 0):
@@ -1568,7 +1568,7 @@ def run_check_on_multipath(devlist):
     # Checks for dm devices
     for dev in devlist:
         md, name = dev
-        dm_table_map = StructResult("struct dm_table", md.map)
+        dm_table_map = readSU("struct dm_table", md.map)
         # Check if there is any multipath device present in device-mapper table
         if (dm_table_map.targets.type.name == "multipath"):
             mpath_present += 1
