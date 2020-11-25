@@ -594,15 +594,19 @@ def print_shost_info():
                     pylog.warning("Error in processing fc_host_attrs {:x}".format(fc_host_attrs))
 
         if (verbose):
-            if (('lpfc' in shost.hostt.module.name) and struct_exists("struct lpfc_hba")):
-                print_lpfc_shost_info(shost)
-                verbose_info_logged += 1
-            elif (('qla2xxx' in shost.hostt.module.name) and struct_exists("struct qla_hw_data")):
-                print_qla2xxx_shost_info(shost)
-                verbose_info_logged += 1
-            elif (('hpsa' in shost.hostt.module.name) and struct_exists("struct ctlr_info")):
-                print_hpsa_shost_info(shost)
-                verbose_info_logged += 1
+            try:
+                if (('lpfc' in shost.hostt.module.name) and struct_exists("struct lpfc_hba")):
+                    print_lpfc_shost_info(shost)
+                    verbose_info_logged += 1
+                elif (('qla2xxx' in shost.hostt.module.name) and struct_exists("struct qla_hw_data")):
+                    print_qla2xxx_shost_info(shost)
+                    verbose_info_logged += 1
+                elif (('hpsa' in shost.hostt.module.name) and struct_exists("struct ctlr_info")):
+                    print_hpsa_shost_info(shost)
+                    verbose_info_logged += 1
+            except:
+                pylog.warning("Error in processing verbose details for Scsi_Host: "
+                              "{} ({:x})".format(shost.shost_gendev.kobj.name, shost))
 
         if (shost.hostt.module.name in mod_with_verbose_info):
             verbose_info_available += 1
