@@ -46,7 +46,7 @@ from pykdump.API import *
 from LinuxDump.kobjects import *
 import importlib.util
 if importlib.util.find_spec("pykdump.wrapcrash"):
-    from pykdump.wrapcrash import StructResult, readSUListFromHead
+    from pykdump.wrapcrash import readSUListFromHead
 
 use_linuxdump_idr = 1
 try:
@@ -67,7 +67,7 @@ def get_gendisk(bdev):
 
 def nvme_rq_to_gendisk(queue):
 
-    nvme_kobject = StructResult("struct kobject", queue.kobj.parent)
+    nvme_kobject = readSU("struct kobject", queue.kobj.parent)
 
     if nvme_kobject:
         device = container_of(nvme_kobject, "struct device", "kobj")
@@ -202,7 +202,7 @@ def get_nvme_subqueues(rq_list):
         for queue in rq_list:
 
             if queue.make_request_fn == sym2addr("nvme_ns_head_make_request"):
-                ns_head = StructResult("struct nvme_ns_head", queue.queuedata)
+                ns_head = readSU("struct nvme_ns_head", queue.queuedata)
                 head_list.append(queue)
 
                 if ns_head:
@@ -211,7 +211,7 @@ def get_nvme_subqueues(rq_list):
                         if ns.queue not in rq_list:
                             rq_list.append(ns.queue)
                 else:
-                    ns_head = StructResult("struct nvme_ns_head", disk.private_data)
+                    ns_head = readSU("struct nvme_ns_head", disk.private_data)
                     if ns_head:
                         for ns in readSUListFromHead(ns_head.list, "siblings", "struct nvme_ns"):
                             rq_names[ns.queue] = str(ns.disk.disk_name)
@@ -223,7 +223,7 @@ def get_nvme_subqueues(rq_list):
             disk = nvme_rq_to_gendisk(queue)
             if disk:
                 if disk.fops == sym2addr("nvme_ns_head_ops"):
-                    ns_head = StructResult("struct nvme_ns_head", disk.private_data)
+                    ns_head = readSU("struct nvme_ns_head", disk.private_data)
                     head_list.append(queue)
 
                     if ns_head:
@@ -362,7 +362,7 @@ def get_nvme_ctrls():
 
     for rq in rq_list:
 
-        ns = StructResult("struct nvme_ns", rq.queuedata)
+        ns = readSU("struct nvme_ns", rq.queuedata)
         if ns.ctrl != 0 and ns.ctrl not in ctrl_list:
             ctrl_list.append(ns.ctrl)
 
