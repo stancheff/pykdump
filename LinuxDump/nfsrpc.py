@@ -166,7 +166,11 @@ def finalize_Structures():
     # A strange problem: sometimes after module is loaded, crash.gdb_typeinfo
     # returns a stub only. Using crash 'struct' command replaces the stub
     # with real info
-    exec_crash_command("struct nfs_server")
+    with SuppressCrashErrors():
+        try:
+            exec_crash_command("struct nfs_server")
+        except crash.error:
+            pass
     __init_attrs()
     
 def __init_attrs():
