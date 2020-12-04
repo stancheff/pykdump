@@ -190,7 +190,8 @@ def find_used_tags(queue, tags, offset, rqs):
                     elif (rq == 0):
                         print("WARNING: no rq? tag {} map {} offset {}".format(tags, i, offset))
                 elif rq:
-                    out.append(rq)
+                    if rq.q == queue:
+                        out.append(rq)
                 else:
                     print("WARNING: bit set but no request? {} {} map {} rqs {} offset {}".format(queue, tags, i, rqs, offset))
             offset += 1
