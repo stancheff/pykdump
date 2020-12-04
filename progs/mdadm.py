@@ -99,7 +99,7 @@ def get_array_state(mddev):
 
 def get_mdlist():
     mdlist = []
-    if (symbol_exists('all_mddevs')):
+    if (symbol_exists('all_mddevs') and struct_exists('struct mddev')):
         for md in readSUListFromHead(sym2addr('all_mddevs'),
                         'all_mddevs', 'struct mddev'):
             mdlist.append(md)
