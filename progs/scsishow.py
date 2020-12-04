@@ -195,7 +195,8 @@ def find_used_tags(queue, tags, offset, rqs):
                 else:
                     print("WARNING: bit set but no request? {} {} map {} rqs {} offset {}".format(queue, tags, i, rqs, offset))
             offset += 1
-            bitmap /= 2
+            bitmap = bitmap >> 1
+
     return out
 
 def get_scsi_commands_mq(queue):
