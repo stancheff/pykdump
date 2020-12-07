@@ -691,11 +691,13 @@ def print_request_queue():
                counter = 0
                for req in requests:
                    counter = counter + 1
-                   if (member_size("struct scsi_cmnd", "special") != -1):
-                       cmnd = readSU("struct scsi_cmnd", long(req.special))
-                   else:
-                       cmnd = readSU("struct scsi_cmnd", long(Addr(req) + struct_size("struct request")))
                    try:
+                       if (req.q.mq_ops):
+                           cmnd = readSU("struct scsi_cmnd",
+                               long(Addr(req) + struct_size("struct request")))
+                       else:
+                           cmnd = readSU("struct scsi_cmnd", long(req.special))
+
                        time = (long(jiffies) - long(cmnd.jiffies_at_alloc))
                        opcode = readSU("struct scsi_cmnd", long(cmnd.cmnd[0]))
                        opcode = hex(opcode)
