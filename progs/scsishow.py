@@ -269,9 +269,14 @@ def print_sdev_header(sdev):
               get_scsi_device_id(sdev)), end='')
 
 def print_shost_header(shost):
-        print("{:8s}  {:32s}   {:12x} {:24x} {:24x}\n".format(shost.shost_gendev.kobj.name,
-            shost.hostt.module.name, shost, shost.shost_data,
-            shost.hostdata[0]))
+    print("HOST      DRIVER")
+    print("{:10s}{:22s} {:24s} {:24s} {:24s}".format("NAME", "NAME", "Scsi_Host",
+          "shost_data", "hostdata"))
+    print("--------------------------------------------------"
+          "-------------------------------------------------")
+    print("{:9s} {:22s} {:12x} {:24x} {:24x}\n".format(shost.shost_gendev.kobj.name,
+        shost.hostt.module.name, shost, shost.shost_data,
+        shost.hostdata))
 
 def get_gendev():
     gendev_dict = {}
@@ -330,23 +335,16 @@ def print_sdev_shost():
 
     for shost in get_scsi_hosts():
         if (shost.__devices.next != shost.__devices.next.next):
-            print("\n=============================================================================="
-                  "===============================================================================")
-            print("HOST      DRIVER")
-            print("NAME      NAME                               {:24s} {:24s} {:24s}".format("Scsi_Host",
-                  "shost_data", "&.hostdata[0]"))
-            print("--------------------------------------------------------"
-                  "-------------------------------------------------------")
+            print("\n===================================================================="
+                  "====================================================================")
 
             print_shost_header(shost)
 
-            print("{:17s} {:23s} {:16s} {:25s} {:24s}   {}  {}    {}".format("DEV NAME",
-                  "scsi_device", "H:C:T:L", "VENDOR/MODEL",
-                  "DEVICE STATE", "IOREQ-CNT", "IODONE-CNT",
-                  "           IOERR-CNT"))
-            print("-----------------------------------------------------"
-                  "-----------------------------------------------------"
-                  "---------------------------------------------------")
+            print("{:12s} {:19s} {:12s} {:26s} {:22s} {}  {}    {}".format("DEV NAME",
+                  "scsi_device", "H:C:T:L", "VENDOR/MODEL", "DEVICE STATE",
+                  "IOREQ-CNT", "IODONE-CNT", "      IOERR-CNT"))
+            print("--------------------------------------------------------------------"
+                  "--------------------------------------------------------------------")
 
             for sdev in readSUListFromHead(shost.__devices, "siblings", "struct scsi_device"):
                 name = scsi_device_type(sdev.type)
@@ -378,11 +376,10 @@ def print_sdev_shost():
                         sdev_state = "SDEV_TRANSPORT_OFFLINE"
                     else:
                         sdev_state = "<Error in processing sdev_state>"
-
-                print("{:17s} {:x} {:6s} {:16} {} {} {:22s}"
-                      "{:14d} {:11}  ({:3d})\t{:10d}".format(name,
-                      int(sdev), "", get_scsi_device_id(sdev),
-                      sdev.vendor[:8], sdev.model[:16], sdev_state,
+                vendor_str = sdev.vendor[:8].strip() + " " + sdev.model[:16].strip()
+                print("{:12s} {:x}    {:12} {:26s} {:20s}"
+                      "{:12d} {:11d}  ({:3d}){:12d}".format(name.strip(),
+                      sdev, get_scsi_device_id(sdev), vendor_str, sdev_state,
                       sdev.iorequest_cnt.counter, sdev.iodone_cnt.counter,
                       sdev.iorequest_cnt.counter-sdev.iodone_cnt.counter,
                       sdev.ioerr_cnt.counter))
@@ -395,11 +392,6 @@ def print_starget_shost():
         if (shost.__targets.next != shost.__targets.next.next):
             print("\n======================================================="
                   "========================================================")
-            print("HOST      DRIVER")
-            print("NAME      NAME                               {:24s} {:24s} {:24s}".format("Scsi_Host",
-                  "shost_data", "&.hostdata[0]"))
-            print("--------------------------------------------------------"
-                  "-------------------------------------------------------")
 
             print_shost_header(shost)
 
@@ -446,11 +438,6 @@ def print_fcrports():
             print("\n==================================================="
                   "====================================================="
                   "==================================================")
-            print("HOST      DRIVER")
-            print("NAME      NAME                               {:24s} {:24s} {:24s}".format("Scsi_Host",
-                  "shost_data", "&.hostdata[0]"))
-            print("--------------------------------------------------------"
-                  "-------------------------------------------------------")
 
             print_shost_header(shost)
 
@@ -545,11 +532,6 @@ def print_shost_info():
     for shost in hosts:
         print("\n============================================================="
               "============================================================")
-        print("HOST      DRIVER")
-        print("NAME      NAME                               {:24s} {:24s} {:24s}".format("Scsi_Host",
-              "shost_data", "&.hostdata[0]"))
-        print("-------------------------------------------------------------"
-              "------------------------------------------------------------")
 
         print_shost_header(shost)
 
