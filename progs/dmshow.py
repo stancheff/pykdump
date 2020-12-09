@@ -1529,6 +1529,7 @@ def run_check_on_multipath(devlist):
     print("\n\nChecking for device-mapper issues...\n")
 
     # No need to continue if we can't pull the TaskTable
+    blah = TaskTable()
     try:
         tt = TaskTable()
     except:

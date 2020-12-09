@@ -1099,43 +1099,45 @@ def main():
             if (len(sys.argv) == 1):
                 show_nvme_ctrl(nvme_ctrls, "None")
 
-            if (args.ctrl):
-                show_nvme_ctrl(nvme_ctrls, args.ctrl)
+            else:
 
-            if (args.list or args.ns):
-                ns_list = build_list(nvme_ctrls, "ns")
+                if (args.ctrl):
+                    show_nvme_ctrl(nvme_ctrls, args.ctrl)
 
-                if (ns_list):
-                    if (args.list):
-                        show_nvme_list(ns_list, args.list)
-                    if (args.ns):
-                        show_nvme_ns(ns_list, args.ns)
-                else:
-                    pylog.info("ERROR: No nvme_ns structs found. Required for arguments"
-                        "{-l,--list} and {-n,--ns}.")
+                if (args.list or args.ns):
+                    ns_list = build_list(nvme_ctrls, "ns")
 
-            if (args.dev or args.queue):
-                dev_list = build_list(nvme_ctrls, "dev")
+                    if (ns_list):
+                        if (args.list):
+                            show_nvme_list(ns_list, args.list)
+                        if (args.ns):
+                            show_nvme_ns(ns_list, args.ns)
+                    else:
+                        pylog.info("ERROR: No nvme_ns structs found. Required for arguments"
+                            "{-l,--list} and {-n,--ns}.")
 
-                if (dev_list):
-                    if (args.dev):
-                        show_nvme_devs(dev_list, args.dev)
-                    if (args.queue and args.qid):
-                        show_nvme_queues(dev_list, args.queue, args.qid)
-                    elif (args.queue):
-                        show_nvme_queues(dev_list, args.queue, -1)
-                else:
-                    pylog.info("ERROR: No nvme_dev structs found. Required for arguments"
-                        "{-d,--dev} and {-q,--queue}.")
+                if (args.dev or args.queue):
+                    dev_list = build_list(nvme_ctrls, "dev")
 
-            if (args.sub):
-                sub_list = build_list(nvme_ctrls, "sub")
+                    if (dev_list):
+                        if (args.dev):
+                            show_nvme_devs(dev_list, args.dev)
+                        if (args.queue and args.qid):
+                            show_nvme_queues(dev_list, args.queue, args.qid)
+                        elif (args.queue):
+                            show_nvme_queues(dev_list, args.queue, -1)
+                    else:
+                        pylog.info("ERROR: No nvme_dev structs found. Required for arguments"
+                            "{-d,--dev} and {-q,--queue}.")
 
-                if (sub_list):
-                    show_nvme_subsystems(sub_list, args.sub)
+                if (args.sub):
+                    sub_list = build_list(nvme_ctrls, "sub")
 
-            if (args.check):
-                nvme_check(nvme_ctrls)
+                    if (sub_list):
+                        show_nvme_subsystems(sub_list, args.sub)
+
+                if (args.check):
+                    nvme_check(nvme_ctrls)
 
     except:
 
