@@ -354,12 +354,18 @@ class _TaskTable:
         self.tt = []
         self.comms = defaultdict(list)
         pidnamespaces = defaultdict(list)
+        pid_max = readSymbol("pid_max")
 
         for t in tt:
             # In case we get a corrupted list
             try:
                 pid = t.pid
                 tgid = t.tgid
+                if (pid not in range(0, pid_max) or
+                        tgid not in range(0, pid_max)):
+                    pylog.warning("pid({})/tgid({}) not in range pid_max({})"
+                                  " {}".format(pid, tgid, pid_max, t))
+                    break
             except:
                 pylog.warning("corrupted task-list")
                 break
