@@ -22,6 +22,22 @@ from LinuxDump.scsi import *
 
 from LinuxDump.kobjects import *
 
+from LinuxDump import crashcolor as ttyc
+
+__obsoleted = '''
+***** This command is not under active development/maintenance anymore ****
+Please use 'scsishow' instead.
+'''
+
+def bg_colored(s, color):
+    if (s == ''):
+        return s
+    return(ttyc.bg_color_list[color] + s + \
+           ttyc.bg_color_list[ttyc.RESET])
+
+
+print(bg_colored(__obsoleted, ttyc.RED))
+
 
 # Before doing anything else, check whether debuginfo is available!
 if (not scsi_debuginfo_OK()):
@@ -229,6 +245,7 @@ op.add_option("-a", "--all", dest="All", default = 0,
 verbose = o.Verbose
 all = o.All
 
+
 if (o.Hosts):
     print_Scsi_Hosts(verbose, not all)
     sys.exit(0)
@@ -243,5 +260,4 @@ if (o.Iscsi):
 
 
 print_summary(verbose, all)
-
 sys.exit(0)
