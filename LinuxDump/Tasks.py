@@ -361,8 +361,8 @@ class _TaskTable:
             try:
                 pid = t.pid
                 tgid = t.tgid
-                if (pid not in range(0, pid_max) or
-                        tgid not in range(0, pid_max)):
+                if not((pid >= 0 and pid <= pid_max) and
+                        (tgid >= 0 and tgid <= pid_max)):
                     pylog.warning("pid({})/tgid({}) not in range pid_max({})"
                                   " {}".format(pid, tgid, pid_max, t))
                     break
