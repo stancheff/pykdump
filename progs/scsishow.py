@@ -601,12 +601,16 @@ def print_shost_info():
 
 def get_sdev_elevator(sdev):
     if (sdev.request_queue.elevator):
-        if (member_size("struct elevator_queue", "elevator_type") != -1):
-            elevator_name = sdev.request_queue.elevator.elevator_type.elevator_name
-        elif(member_size("struct elevator_queue", "type") != -1):
-            elevator_name = sdev.request_queue.elevator.type.elevator_name
-        else:
+        try:
+            if (member_size("struct elevator_queue", "elevator_type") != -1):
+                elevator_name = sdev.request_queue.elevator.elevator_type.elevator_name
+            elif(member_size("struct elevator_queue", "type") != -1):
+                elevator_name = sdev.request_queue.elevator.type.elevator_name
+            else:
+                elevator_name = "<Unknown>"
+        except Exception as e:
             elevator_name = "<Unknown>"
+            pylog.info("Error getting elevator name for {} {}".format(sdev, e))
     else:
         elevator_name = "<none>"
 
