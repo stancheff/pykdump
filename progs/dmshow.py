@@ -195,23 +195,28 @@ def get_dm_target_name(dm_table_map):
         return 0
     return dm_table_map.targets.type.name
 
+def __set_multipath_scope(symbol):
+    command = "set scope " + symbol
+    with SuppressCrashErrors():
+        exec_crash_command(command)
+
 def set_multipath_scope():
     try:
         if ("dm_round_robin" in lsModules()):
             if (symbol_exists(".rr_create")):
-                exec_crash_command("set scope .rr_create")
+                __set_multipath_scope(".rr_create")
             else:
-                exec_crash_command("set scope rr_create")
+                __set_multipath_scope("rr_create")
         elif ("dm_service_time" in lsModules()):
             if (symbol_exists(".st_create")):
-                exec_crash_command("set scope .st_create")
+                __set_multipath_scope(".st_create")
             else:
-                exec_crash_command("set scope st_create")
+                __set_multipath_scope("st_create")
         elif ("dm_queue_length" in lsModules()):
             if (symbol_exists(".ql_create")):
-                exec_crash_command("set scope .ql_create")
+                __set_multipath_scope(".ql_create")
             else:
-                exec_crash_command("set scope ql_create")
+                __set_multipath_scope("ql_create")
         return 1
     except:
         pylog.info("Error setting multipath scope")
