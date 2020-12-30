@@ -199,9 +199,10 @@ def get_nvme_subqueues(rq_list):
 
     if symbol_exists("nvme_ns_head_make_request"):
 
+        nvme_ns_head_make_request_sym_addr = sym2addr("nvme_ns_head_make_request")
         for queue in rq_list:
 
-            if queue.make_request_fn == sym2addr("nvme_ns_head_make_request"):
+            if queue.make_request_fn == nvme_ns_head_make_request_sym_addr:
                 ns_head = readSU("struct nvme_ns_head", queue.queuedata)
                 head_list.append(queue)
 
@@ -219,10 +220,13 @@ def get_nvme_subqueues(rq_list):
                                 rq_list.append(ns.queue)
     else:
 
+        nvme_ns_head_ops_sym_addr = sym2addr("nvme_ns_head_ops")
+        nvme_fops_sym_addr = sym2addr("nvme_fops")
+
         for queue in rq_list:
             disk = nvme_rq_to_gendisk(queue)
             if disk:
-                if disk.fops == sym2addr("nvme_ns_head_ops"):
+                if disk.fops == nvme_ns_head_ops_sym_addr:
                     ns_head = readSU("struct nvme_ns_head", disk.private_data)
                     head_list.append(queue)
 
@@ -232,7 +236,7 @@ def get_nvme_subqueues(rq_list):
                             if ns.queue not in rq_list:
                                 rq_list.append(ns.queue)
 
-                elif disk.fops == sym2addr("nvme_fops"):
+                elif disk.fops == nvme_fops_sym_addr:
                     rq_names[queue] = disk.disk_name
                     if queue not in rq_list:
                         rq_list.append(queue)
