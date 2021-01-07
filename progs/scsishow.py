@@ -692,7 +692,9 @@ def print_request_queue():
             name = gendev.disk_name
         except:
             name = scsi_device_type(sdev.type)
-            if (name in 'Sequential-Access'):
+            if (not name):
+                name = "null"
+            elif (name in 'Sequential-Access'):
                 name = "Tape"
             elif (name in 'Medium Changer   '):
                 name = "Chngr"
