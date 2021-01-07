@@ -618,6 +618,7 @@ def get_sdev_elevator(sdev):
 
 def print_request_queue():
     counter = 0
+    gendev = 0
     cmnd_requests = []
     gendev_dict = get_gendev()
     jiffies = readSymbol("jiffies")
@@ -631,90 +632,93 @@ def print_request_queue():
                     '0xaa':'WRITE(12)'}
 
     for sdev in get_scsi_devices():
-        name = scsi_device_type(sdev.type)
-        if (name):
-            if ((name in 'Direct-Access    ') or
-                (name in 'CD-ROM           ')):
-               elevator_name = get_sdev_elevator(sdev)
-               sdev_q = readSU("struct request_queue", sdev.request_queue)
-               sdev_q = format(sdev_q, 'x')
-               try:
-                   gendev = gendev_dict[sdev_q]
-                   gendev = readSU("struct gendisk", long (gendev, 16))
-                   name = gendev.disk_name
-               except:
-                   name = "Disk"
+        elevator_name = get_sdev_elevator(sdev)
+        sdev_q = readSU("struct request_queue", sdev.request_queue)
+        sdev_q = format(sdev_q, 'x')
+        try:
+            gendev = gendev_dict[sdev_q]
+            gendev = readSU("struct gendisk", long (gendev, 16))
+            name = gendev.disk_name
+        except:
+            name = scsi_device_type(sdev.type)
+            if (name in 'Sequential-Access'):
+                name = "Tape"
+            elif (name in 'Medium Changer   '):
+                name = "Chngr"
+            elif (name in 'RAID             '):
+                name = "CTRL"
 
-               print("\n==========================================================="
-                     "============================================================")
-               print("    ### DEVICE : {}\n".format(name))
+        print("\n==========================================================="
+              "============================================================")
+        print("    ### DEVICE : {}\n".format(name))
 
-               print("        ----------------------------------------------------"
-                     "-----------------------------------")
-               if (name == "Disk"):
-                   print("\tgendisk        \t:  {} |"
-                         "\tscsi_device \t:  {:x}".format("<Can't find gendisk>", int(sdev)))
-               else:
-                   print("\tgendisk        \t:  {:x}\t|\tscsi_device \t:  {:x}".format(int(gendev), int(sdev)))
-               print("\trequest_queue  \t:  {}\t|\tH:C:T:L       \t:  {}".format(sdev_q,
-                     sdev.sdev_gendev.kobj.name))
-               print("\televator_name  \t:  {}    \t\t|\tVENDOR/MODEL\t:  {} {}".format(elevator_name,
-                     sdev.vendor[:8], sdev.model[:16]))
-               print("        ----------------------------------------------------"
-                     "-----------------------------------")
+        print("        ----------------------------------------------------"
+              "-----------------------------------")
 
-               cmnd_requests = []
-               cmnds = get_scsi_commands(sdev)
-               for cmnd in cmnds:
-                   cmnd_requests.append(cmnd.request)
+        name = name.strip()
+        if (name in "Disk_Tape_Chngr_CTRL_Enclosure"):
+            print("\tgendisk        \t:  {} |"
+                  "\tscsi_device \t:  {:x}".format("<Can't find gendisk>", int(sdev)))
+        else:
+            print("\tgendisk        \t:  {:x}\t|\tscsi_device \t:  {:x}".format(int(gendev), int(sdev)))
+        print("\trequest_queue  \t:  {}\t|\tH:C:T:L       \t:  {}".format(sdev_q,
+              sdev.sdev_gendev.kobj.name))
+        print("\televator_name  \t:  {}    \t\t|\tVENDOR/MODEL\t:  {} {}".format(elevator_name,
+              sdev.vendor[:8], sdev.model[:16]))
+        print("        ----------------------------------------------------"
+              "-----------------------------------")
 
-               if (member_size("struct request_queue", "queue_head") != -1):
-                   requests = get_queue_requests(sdev.request_queue)
-                   requests = list(set(requests + cmnd_requests))
-               else:
-                   requests = cmnd_requests
+        cmnd_requests = []
+        cmnds = get_scsi_commands(sdev)
+        for cmnd in cmnds:
+            cmnd_requests.append(cmnd.request)
 
-               print("\n     {:10s}{:20s} {:20s} {:18s} {:14s} {:20s} {:10s}".format("NO.", "request",
-                     "bio", "scsi_cmnd", "OPCODE", "COMMAND AGE", "SECTOR"))
-               print("     ---------------------------------------------------------"
-                     "--------------------------------------------------------")
+        if (member_size("struct request_queue", "queue_head") != -1):
+            requests = get_queue_requests(sdev.request_queue)
+            requests = list(set(requests + cmnd_requests))
+        else:
+            requests = cmnd_requests
 
-               counter = 0
-               for req in requests:
-                   counter = counter + 1
-                   try:
-                       if ((member_size("struct request_queue", "mq_ops") != -1) and req.q.mq_ops):
-                           cmnd = readSU("struct scsi_cmnd",
-                               long(Addr(req) + struct_size("struct request")))
-                       else:
-                           cmnd = readSU("struct scsi_cmnd", long(req.special))
-                   except:
-                       cmnd = 0
+        print("\n     {:10s}{:20s} {:20s} {:18s} {:14s} {:20s} {:10s}".format("NO.", "request",
+              "bio", "scsi_cmnd", "OPCODE", "COMMAND AGE", "SECTOR"))
+        print("     ---------------------------------------------------------"
+              "--------------------------------------------------------")
 
-                   if (cmnd):
-                       time = (long(jiffies) - long(cmnd.jiffies_at_alloc))
-                       opcode = readSU("struct scsi_cmnd", long(cmnd.cmnd[0]))
-                       opcode = hex(opcode)
-                       try:
-                           opcode = opcode_table[opcode]
-                       except:
-                           pass
-                       print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:14} {:8d} ms ".format(counter, "",
-                             req, req.bio, cmnd, opcode, long(time)), end="")
-                   else:
-                       print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:14} {:12}".format(counter, "",
-                             req, req.bio, cmnd, "-NA-", "-NA-"), end="")
+        counter = 0
+        for req in requests:
+            counter = counter + 1
+            try:
+                if ((member_size("struct request_queue", "mq_ops") != -1) and req.q.mq_ops):
+                    cmnd = readSU("struct scsi_cmnd",
+                        long(Addr(req) + struct_size("struct request")))
+                else:
+                    cmnd = readSU("struct scsi_cmnd", long(req.special))
+            except:
+                cmnd = 0
 
-                   if (req.bio):
-                       if (member_size("struct bio", "bi_sector") != -1):
-                           print("{:15d}".format(req.bio.bi_sector))
-                       else:
-                           print("{:15d}".format(req.bio.bi_iter.bi_sector))
-                   else:
-                           print("       ---NA---")
-               if (counter == 0):
-                   print("\t\t<<< NO I/O REQUESTS FOUND ON THE DEVICE! >>>")
+            if (cmnd):
+                time = (long(jiffies) - long(cmnd.jiffies_at_alloc))
+                opcode = readSU("struct scsi_cmnd", long(cmnd.cmnd[0]))
+                opcode = hex(opcode)
+                try:
+                    opcode = opcode_table[opcode]
+                except:
+                    pass
+                print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:14} {:8d} ms ".format(counter, "",
+                      req, req.bio, cmnd, opcode, long(time)), end="")
+            else:
+                print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:14} {:12}".format(counter, "",
+                      req, req.bio, cmnd, "-NA-", "-NA-"), end="")
 
+            if (req.bio):
+                if (member_size("struct bio", "bi_sector") != -1):
+                    print("{:15d}".format(req.bio.bi_sector))
+                else:
+                    print("{:15d}".format(req.bio.bi_iter.bi_sector))
+            else:
+                    print("       ---NA---")
+        if (counter == 0):
+            print("\t\t<<< NO I/O REQUESTS FOUND ON THE DEVICE! >>>")
 
 def lookup_field(obj, fieldname):
     segments = fieldname.split("[")
