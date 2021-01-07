@@ -684,6 +684,7 @@ def print_request_queue():
 
     for sdev in get_scsi_devices():
         elevator_name = get_sdev_elevator(sdev)
+        vendor_str = sdev.vendor[:8].strip() + " " + sdev.model[:16].strip()
         sdev_q = readSU("struct request_queue", sdev.request_queue)
         sdev_q = format(sdev_q, 'x')
         try:
@@ -716,8 +717,8 @@ def print_request_queue():
             print("\tgendisk        \t:  {:x}\t|\tscsi_device \t:  {:x}".format(int(gendev), int(sdev)))
         print("\trequest_queue  \t:  {}\t|\tH:C:T:L       \t:  {}".format(sdev_q,
               sdev.sdev_gendev.kobj.name))
-        print("\televator_name  \t:  {}    \t\t|\tVENDOR/MODEL\t:  {} {}".format(elevator_name,
-              sdev.vendor[:8], sdev.model[:16]))
+        print("\televator_name  \t:  {}    \t\t|\tVENDOR/MODEL\t:  {}".format(elevator_name,
+              vendor_str))
         print("        ----------------------------------------------------"
               "-----------------------------------")
 
