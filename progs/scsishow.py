@@ -616,11 +616,7 @@ def get_sdev_elevator(sdev):
 
     return elevator_name
 
-def print_request_queue():
-    counter = 0
-    gendev = 0
-    cmnd_requests = []
-    gendev_dict = get_gendev()
+def print_queue(sdev):
     jiffies = readSymbol("jiffies")
 
     opcode_table = {'0x00':'TUR', '0x03':'REQ-SENSE', '0x08':'READ(6)',\
@@ -630,6 +626,61 @@ def print_request_queue():
                     '0x56':'RESERVE(10)', '0x57':'RELEASE(10)', '0x88':'READ(16)',\
                     '0x8a':'WRITE(16)','0xa0':'REPORT LUNS', '0xa8':'READ(12)',\
                     '0xaa':'WRITE(12)'}
+
+    cmnd_requests = []
+    cmnds = get_scsi_commands(sdev)
+    for cmnd in cmnds:
+        cmnd_requests.append(cmnd.request)
+
+    if (member_size("struct request_queue", "queue_head") != -1):
+        requests = get_queue_requests(sdev.request_queue)
+        requests = list(set(requests + cmnd_requests))
+    else:
+        requests = cmnd_requests
+
+    print("\n     {:10s}{:20s} {:20s} {:18s} {:14s} {:20s} {:10s}".format("NO.", "request",
+          "bio", "scsi_cmnd", "OPCODE", "COMMAND AGE", "SECTOR"))
+    print("     ---------------------------------------------------------"
+          "--------------------------------------------------------")
+
+    counter = 0
+    for req in requests:
+        counter = counter + 1
+        try:
+            if ((member_size("struct request_queue", "mq_ops") != -1) and req.q.mq_ops):
+                cmnd = readSU("struct scsi_cmnd",
+                    long(Addr(req) + struct_size("struct request")))
+            else:
+                cmnd = readSU("struct scsi_cmnd", long(req.special))
+        except:
+            cmnd = 0
+
+        if (cmnd):
+            time = (long(jiffies) - long(cmnd.jiffies_at_alloc))
+            opcode = readSU("struct scsi_cmnd", long(cmnd.cmnd[0]))
+            opcode = hex(opcode)
+            try:
+                opcode = opcode_table[opcode]
+            except:
+                pass
+            print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:14} {:8d} ms ".format(counter, "",
+                  req, req.bio, cmnd, opcode, long(time)), end="")
+        else:
+            print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:14} {:12}".format(counter, "",
+                  req, req.bio, cmnd, "-NA-", "-NA-"), end="")
+
+        if (req.bio):
+            if (member_size("struct bio", "bi_sector") != -1):
+                print("{:15d}".format(req.bio.bi_sector))
+            else:
+                print("{:15d}".format(req.bio.bi_iter.bi_sector))
+        else:
+                print("       ---NA---")
+    if (counter == 0):
+        print("\t\t<<< NO I/O REQUESTS FOUND ON THE DEVICE! >>>")
+
+def print_request_queue():
+    gendev_dict = get_gendev()
 
     for sdev in get_scsi_devices():
         elevator_name = get_sdev_elevator(sdev)
@@ -668,57 +719,7 @@ def print_request_queue():
         print("        ----------------------------------------------------"
               "-----------------------------------")
 
-        cmnd_requests = []
-        cmnds = get_scsi_commands(sdev)
-        for cmnd in cmnds:
-            cmnd_requests.append(cmnd.request)
-
-        if (member_size("struct request_queue", "queue_head") != -1):
-            requests = get_queue_requests(sdev.request_queue)
-            requests = list(set(requests + cmnd_requests))
-        else:
-            requests = cmnd_requests
-
-        print("\n     {:10s}{:20s} {:20s} {:18s} {:14s} {:20s} {:10s}".format("NO.", "request",
-              "bio", "scsi_cmnd", "OPCODE", "COMMAND AGE", "SECTOR"))
-        print("     ---------------------------------------------------------"
-              "--------------------------------------------------------")
-
-        counter = 0
-        for req in requests:
-            counter = counter + 1
-            try:
-                if ((member_size("struct request_queue", "mq_ops") != -1) and req.q.mq_ops):
-                    cmnd = readSU("struct scsi_cmnd",
-                        long(Addr(req) + struct_size("struct request")))
-                else:
-                    cmnd = readSU("struct scsi_cmnd", long(req.special))
-            except:
-                cmnd = 0
-
-            if (cmnd):
-                time = (long(jiffies) - long(cmnd.jiffies_at_alloc))
-                opcode = readSU("struct scsi_cmnd", long(cmnd.cmnd[0]))
-                opcode = hex(opcode)
-                try:
-                    opcode = opcode_table[opcode]
-                except:
-                    pass
-                print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:14} {:8d} ms ".format(counter, "",
-                      req, req.bio, cmnd, opcode, long(time)), end="")
-            else:
-                print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:14} {:12}".format(counter, "",
-                      req, req.bio, cmnd, "-NA-", "-NA-"), end="")
-
-            if (req.bio):
-                if (member_size("struct bio", "bi_sector") != -1):
-                    print("{:15d}".format(req.bio.bi_sector))
-                else:
-                    print("{:15d}".format(req.bio.bi_iter.bi_sector))
-            else:
-                    print("       ---NA---")
-        if (counter == 0):
-            print("\t\t<<< NO I/O REQUESTS FOUND ON THE DEVICE! >>>")
+        print_queue(sdev)
 
 def lookup_field(obj, fieldname):
     segments = fieldname.split("[")
