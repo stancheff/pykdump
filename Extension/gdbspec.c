@@ -210,11 +210,16 @@ do_ftype(struct type *ftype, PyObject *item) {
       if (fname == NULL && !ptr)
 	do_SU(ftype, item);
     } else {
+      // this seems to be an anonymous/embedded struct, that is without
+      // a name. We will assign a fake name for it later (to be used for
+      // caching) but we need to expand its body right now
       if  (codetype == TYPE_CODE_STRUCT)
 	sprintf(buf, "struct");
       else
 	sprintf(buf, "union");
-      if (!ptr)
+      // Expand even if this is a pointer. Before refactoring done last year,
+      // logic was different. Do not fully remove the test yet, just disable it
+      if (TRUE || !ptr)
 	do_SU(ftype, item);
     }
     myDict_SetCharChar(item, "basetype", buf);
