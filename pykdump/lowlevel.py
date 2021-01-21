@@ -39,7 +39,7 @@ readIntN = crash.readInt
 
 from .datatypes import \
     (TypeInfo,VarInfo, PseudoVarInfo,
-     _SUInfo, SUInfo, ArtStructInfo, EnumInfo,
+     SUInfo, ArtStructInfo, EnumInfo,
      TYPE_CODE_PTR, TYPE_CODE_SU, TYPE_CODE_FUNC, TYPE_CODE_INT,
      TYPE_CODE_ENUM,
      type_length
@@ -989,51 +989,3 @@ class tPtrDimensionlessArray(object):
     def __getitem__(self, key):
         addr = readPtr(self.addr + pointersize * key)
         return tPtr(addr, self.ptype)
-
-
-
-# --------- Create a struct-like obect from C definition ------
-#
-#   This is probably not needed and will be eventually removed
-
-# We cannot subclass from ArtStructInfo as signature is different
-
-def sdef2ArtSU(sdef):
-    sname, finfo = parseSUDef(sdef)
-    uas = ArtStructInfo(sname)
-    uas.__init__(sname)
-    for ftype, fn in finfo:
-        #print ftype, fn
-        try:
-            ti = TypeInfo(ftype)
-        except crash.error:
-            #print "  Cannot get typeinfo for %s" % ftype
-            sp = ftype.find('*')
-            if (sp != -1):
-                btype = ftype[:sp].strip()
-                #print "    btype=<%s>" % btype
-                # Check whether StructInfo exists for btype
-                #si = getStructInfo(btype)
-                #print si
-                # Yes, replace the name with something existing and try again
-                newftype = ftype.replace(btype, "struct list_head", 1)
-                #print "     new ftype=<%s>" % newftype
-                ti = TypeInfo(newftype)
-                # Force the evaluation of lazy eval attributes
-                ti.tcodetype
-                ti.elements
-                ti.stype = btype
-                #ti.dump()
-
-        vi = VarInfo(fn)
-        vi.ti = ti
-        vi.offset = uas.PYT_size
-        vi.bitoffset = vi.offset * 8
-
-        SUInfo.append(uas, fn, vi)
-        # Adjust the size
-        uas.PYT_size += vi.size
-        uas.size = uas.PYT_size
-    return uas
-
-
