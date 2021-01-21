@@ -63,7 +63,7 @@ __all = '''
      getSizeOf, container_of, whatis, funcargs, printObject,
      exec_gdb_command, exec_crash_command, exec_crash_command_bg,
      exec_crash_command_bg2, exec_command,
-     structSetAttr, structSetProcAttr, sdef2ArtSU, AttrSetter,
+     structSetAttr, structSetProcAttr, AttrSetter,
      getCurrentModule, registerObjAttrHandler, registerModuleAttr,
 
      atomic_t, SuppressCrashErrors
