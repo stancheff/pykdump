@@ -42,6 +42,10 @@ class MemoizeTI(type):
             rc =  super(MemoizeTI, cls).__call__(*args)
             MemoizeTI.__cache[sname] = rc
             return rc
+    @staticmethod
+    def purge_TI_cache():
+        MemoizeTI.__cache.clear()
+
 
 class MemoizeSU(type):
     def __call__(cls, *args):
@@ -80,6 +84,7 @@ def memoize_typeinfo(fn):
 def purge_typeinfo(sn = None):
     if (sn is None):
         _typeinfo_cache.clear()
+        MemoizeTI.purge_TI_cache()
         return
     for k in list(_typeinfo_cache.keys()):
         if (k[0] == sn):
