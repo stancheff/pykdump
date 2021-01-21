@@ -7,7 +7,7 @@
 #
 #
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2021 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -24,6 +24,7 @@
 # GNU General Public License for more details.
 
 from functools import reduce
+import inspect
 
 from .memocaches import *
 from .Generic import LazyEval
@@ -78,20 +79,77 @@ def type_length(tname):
 #    fake name to them, to be able to retrieve this information later
 
 
-# The constructor can be called either with string (type name) or with
+# The constructor iis usually called with with string (type name). In cases
+# when typename is not known yet (e.g. in 'whatis'), we can specify
 # output of gdb_typeinfo()
+# Possible cases:
+# (a) we call this subroutine from whatis(symbol). In that case, we know
+#     variable name and get gdb_typeinfo
+# (b) function prototypes, recursively from TypeInfo (used for printing)
+# (c) update_SUI() - in this case we know embedding struct name
 
 class TypeInfo(object):
     def __init__(self, info):
-        self.stype = None       # Will be set to real thing later
+        if (isinstance(info, str)):
+            e = gdb_typeinfo(info)
+            stype = info            # Requested typename
+        else:
+            e = info
+            stype = None            # Unknown yet
+
+
+        # Dummy/default values, real initialization done later
+        self.stype = stype      # Will be set to real thing later
         self.size = -1
         self.dims = None        # for arrays
         self.ptrlev = None      # number of * in pointers
         self.typedef = None     # used for typedefs
         # For integer types
         self.integertype = None # used for integers
+        self.fake_SU = False    # Does this file refer to a fake SU?
 
-        update_TI(self, info)
+        # Compute values based on gdb_typeinfo
+
+        # These fields are always set
+        t_size = e["typelength"]
+        self.codetype = e["codetype"]
+
+        # For embedded structs without name, we generate a fake name
+        # For typedefs, we change name to typedef
+        self.stype, fake = e_to_tagname(e)
+        self.size = t_size
+
+        if ("dims" in e):
+            self.dims = e["dims"]
+
+        if ("stars" in e):
+            self.ptrlev = e["stars"]
+
+        if ("uint" in e):
+            self.uint = e["uint"]
+        else:
+            self.uint = None
+
+        if ("typedef" in e):
+            self.typedef = e["typedef"]        # The initial type
+
+        if ("ptrbasetype" in e):
+            self.ptrbasetype = e["ptrbasetype"] # The base type of pointer
+
+        # This object has 'body' - it is struct/union
+        if ("body" in e):
+            # Create SUInfo object for this SU
+            tag, fake  = e_to_tagname(e)
+            ff = SUInfo(tag, e)
+            ff.PYT_fake = fake
+            self.fake_SU = fake
+        # (b) function prototypes
+        elif ("prototype" in e):
+            prototype = self.prototype = []
+            for ee in e["prototype"]:
+                fname = ee["fname"]
+                ti = TypeInfo(ee)
+                prototype.append(ti)
 
     def getElements(self):
         if (self.dims):
@@ -143,13 +201,15 @@ class TypeInfo(object):
     # Check whether we need to expand (used for embedded structs/unions)
     # and return either string or None
     def _s_expand(self, indent = 0):
-        if ("fake-" in self.stype):
-            return _SUInfo(self.stype).shortstr(indent=indent)
+        if (self.fake_SU):
+            suinfo = SUInfo(self.stype)
+            return suinfo.shortstr(indent=indent)
         else:
             return None
     def _f_expand(self, indent = 0):
-        if ("fake-" in self.stype):
-            return _SUInfo(self.stype).fullstr(indent=indent)
+        if (self.fake_SU):
+            suinfo = SUInfo(self.stype)
+            return suinfo.fullstr(indent=indent)
         else:
             return None
 
@@ -181,10 +241,9 @@ class TypeInfo(object):
 # This is unstubbed struct representation - showing all its fields.
 # Each separate field is represented as SFieldInfo and access to fields
 # is possible both via attibutes and dictionary
-class _SUInfo(dict, metaclass = MemoizeSU):
-#class _SUInfo(dict):
+class _SUInfo(dict):
     def __init__(self, sname):
-        #self.parentstype = None
+        self.PYT_fake = False
         #dict.__init__(self, {})
 
         # These three attributes will not be accessible via dict
@@ -200,7 +259,8 @@ class _SUInfo(dict, metaclass = MemoizeSU):
         dict.__setitem__(self, name, value)
         object.__setattr__(self, name, value)
 
-    def append(self, name, value):
+    # Used by ArtStruct and while processing GDB typeinfo
+    def _append(self, name, value):
         # A special case: empty name. We can meet this while
         # adding internal union w/o fname, e.g.
         # union {int a; char *b;}
@@ -275,10 +335,36 @@ class _SUInfo(dict, metaclass = MemoizeSU):
         return [e[0] for e in self.PYT_body]
 
 class SUInfo(_SUInfo, metaclass = MemoizeSU):
-#class SUInfo(_SUInfo):
-    def __init__(self, sname):
+    def __init__(self, sname, gdbinfo = None):
         super().__init__(sname)
-        update_SUI(self, sname)
+        if (not gdbinfo):
+            try:
+                e = gdb_typeinfo(sname)
+            except crash.error:
+                raise TypeError("no type " + sname)
+            # This can be a typedef to struct
+            if (not "body" in e):
+                e = gdb_typeinfo(e["basetype"])
+        else:
+            e = gdbinfo
+
+        f = self
+        f.PYT_size = f.size = e["typelength"]
+        if (not "body" in e):
+            # This is not a struct, bail out
+            return
+        for ee in e["body"]:
+            fname = ee["fname"]
+            f1 = VarInfo(fname)
+            ee['parentname'] = sname
+            ti = TypeInfo(ee)
+            f1.ti = ti
+            f1.bitoffset = ee["bitoffset"]
+            f1.offset = f1.bitoffset//8
+            if ("bitsize" in ee):
+                f1.bitsize = ee["bitsize"]
+
+            f._append(fname, f1)
 
 class ArtStructInfo(SUInfo):
     def __init__(self, sname):
@@ -290,7 +376,7 @@ class ArtStructInfo(SUInfo):
         vi.offset = self.PYT_size
         vi.bitoffset = vi.offset * 8
 
-        SUInfo.append(self, fname, vi)
+        SUInfo._append(self, fname, vi)
         # Adjust the size
         self.PYT_size += vi.size
         self.size = self.PYT_size
@@ -467,69 +553,6 @@ class VarInfo(object):
 class PseudoVarInfo(VarInfo):
     pass
 
-# --------------- updating our types using crash/GDB subroutines ---------
-
-# 'f' is a TypeInfo to update
-
-# 'info' is either output from gdb_typeinfo, or a string (type name), then
-# we call gdb_typeinfo
-
-def update_TI(f, info):
-
-    if (isinstance(info, str)):
-        e = gdb_typeinfo(info)
-    else:
-        e = info
-
-    # These fields are always set
-    t_size = e["typelength"]
-    f.codetype = e["codetype"]
-
-    # Our initial stype, as passed to TypeInfo constructor
-    stype_init = f.stype
-
-    # For embedded structs without name, we generate a fake name
-    # For typedefs, we change name to typedef
-    f.stype = e_to_tagname(e)
-
-    f.size = t_size
-
-    if ("dims" in e):
-        f.dims = e["dims"]
-
-    if ("stars" in e):
-        f.ptrlev = e["stars"]
-
-    if ("uint" in e):
-        f.uint = e["uint"]
-    else:
-        f.uint = None
-
-    if ("typedef" in e):
-        f.typedef = e["typedef"]        # The initial type
-
-    if ("ptrbasetype" in e):
-        f.ptrbasetype = e["ptrbasetype"] # The base type of pointer
-
-    # A special case is a struct/union without tag. In this case
-    # we create an artifical (fake) name for it
-
-    # (a) embedded structs without name
-    if ("body" in e):
-        tag = e_to_tagname(e)
-        # Add this typeinfo to cache
-        ff = _SUInfo(tag)
-        if (not ff.PYT_body):
-            update_SUI(ff, e)
-        #f.embedded = ff
-    # (b) function prototypes
-    elif ("prototype" in e):
-        prototype = f.prototype = []
-        for ee in e["prototype"]:
-            fname = ee["fname"]
-            ti = TypeInfo(ee)
-            #update_TI(ti, ee)
-            prototype.append(ti)
 
 def update_EI_fromgdb(f, sname):
     # If sname does not start from 'enum', we are trying to get
@@ -553,41 +576,26 @@ def update_EI_fromgdb(f, sname):
 # - otherwise, use the real type
 # - if the tag is non-descriptive (e.g. embedded structs), create a fakename
 def e_to_tagname(e):
+    fake = False
     if ("typedef" in e):
         tag = e["typedef"]        # The initial type
     else:
         tag = e["basetype"]
     # Do we have just one word in basetype? If yes, create a proper tag
-    if (tag in ('struct', 'union')):
-        tag = tag + " fake-" + str(id(e))
+    if (tag in {'struct', 'union'}):
+        parentname = e.get("parentname")
+        fname = e["fname"]
+        offset =  e["bitoffset"]//8
+        if (fname):
+            extra = "{}:{}/{}".format(parentname, offset, fname)
+        else:
+            extra = "{}:{}".format(parentname, offset)
+        tag = "{}->{}".format(extra, tag)
+        fake = True
 
-    return tag
+    return tag, fake
 
-# 'info' is either output from gdb_typeinfo, or a string (type name), then
-# we call gdb_typeinfo
 
-def update_SUI(f, info):
-    if (isinstance(info, str)):
-        try:
-            e = gdb_typeinfo(info)
-        except crash.error:
-            raise TypeError("no type " + info)
-        # This can be a typedef to struct
-        if (not "body" in e):
-            e = gdb_typeinfo(e["basetype"])
-    else:
-        e = info
 
-    f.PYT_size = f.size = e["typelength"]
-    for ee in e["body"]:
-        fname = ee["fname"]
-        f1 = VarInfo(fname)
-        ti = TypeInfo(ee)
-        f1.ti = ti
-        f1.bitoffset = ee["bitoffset"]
-        f1.offset = f1.bitoffset//8
-        if ("bitsize" in ee):
-            f1.bitsize = ee["bitsize"]
-
-        f.append(fname, f1)
-
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
