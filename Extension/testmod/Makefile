@@ -11,6 +11,6 @@ clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 
 run:
-	-rmmod testmod
 	insmod ./testmod.ko
 	crash64 $(DBGSYM)
+	-rmmod testmod
