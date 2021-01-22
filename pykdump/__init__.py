@@ -6,13 +6,13 @@
 It is now Python-3 based
 """
 # Version number
-__version__ = '3.5.1'
+__version__ = '3.5.2'
 
 import sys
 
 # Copyright notice string
 __copyright__ = """\
-(C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
+(C) Copyright 2006-2021 Hewlett Packard Enterprise Development LP
 Author: Alex Sidorenko <asid@hpe.com>
 """
 

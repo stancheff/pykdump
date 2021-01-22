@@ -115,7 +115,8 @@ class TypeInfo(object):
         self.codetype = e["codetype"]
 
         # For embedded structs without name, we generate a fake name
-        # For typedefs, we change name to typedef
+        # For typedefs, we change name to real type, e.g. for "ulong"
+        # "typedef unsigned long ulong" -> "unsigned long"
         self.stype, fake = e_to_tagname(e)
         self.size = t_size
 
@@ -136,7 +137,7 @@ class TypeInfo(object):
         if ("ptrbasetype" in e):
             self.ptrbasetype = e["ptrbasetype"] # The base type of pointer
 
-        # This object has 'body' - it is struct/union
+        # This object has 'body' - it is a struct/union
         if ("body" in e):
             # Create SUInfo object for this SU
             tag, fake  = e_to_tagname(e)
@@ -199,13 +200,18 @@ class TypeInfo(object):
         return rc
 
     # Check whether we need to expand (used for embedded structs/unions)
-    # and return either string or None
+    # and return either string or None.
+    # By default we print a field such as "struct some a" as it is, but for
+    # struct without tag we need to expand their definition
+    #
+    # This is a short version
     def _s_expand(self, indent = 0):
         if (self.fake_SU):
             suinfo = SUInfo(self.stype)
             return suinfo.shortstr(indent=indent)
         else:
             return None
+    # And this is the full version
     def _f_expand(self, indent = 0):
         if (self.fake_SU):
             suinfo = SUInfo(self.stype)
@@ -241,6 +247,10 @@ class TypeInfo(object):
 # This is unstubbed struct representation - showing all its fields.
 # Each separate field is represented as SFieldInfo and access to fields
 # is possible both via attibutes and dictionary
+#
+# This class is intended for framework internal purposes only.
+# Real class that can be used by application developers is SUInfo(), a subclass
+# of this one
 class _SUInfo(dict):
     def __init__(self, sname):
         self.PYT_fake = False
@@ -334,6 +344,14 @@ class _SUInfo(dict):
     def getFnames(self):
         return [e[0] for e in self.PYT_body]
 
+# Instances of this class represent Struct/Union, with memoization
+# implemented via metaclass.
+# Application developers can use it if they need to inspect struct/union
+# definition for a give name. For example, to get information about
+# 'struct request' you use SUInfo("struct request").
+#
+# The 2nd argument is needed for framework itself, normal users should
+# not specify it.
 class SUInfo(_SUInfo, metaclass = MemoizeSU):
     def __init__(self, sname, gdbinfo = None):
         super().__init__(sname)
@@ -417,7 +435,7 @@ class EnumInfo(dict):
 
 
 # A global Variable or a struct/union field
-# This is TypeInfo plus name plus addr.
+# This is TypeInfo plus variable/field name plus addr.
 # For SU we add manually two attributes: offset and parent
 # Finally, we prepare 'reader' for this variable so reading it will be
 # faster
@@ -596,6 +614,6 @@ def e_to_tagname(e):
     return tag, fake
 
 
-
+# Useful for developers when they add temporarily a debugging print
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
