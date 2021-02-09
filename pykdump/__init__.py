@@ -6,7 +6,7 @@
 It is now Python-3 based
 """
 # Version number
-__version__ = '3.5.2'
+__version__ = '3.5.3'
 
 import sys
 
