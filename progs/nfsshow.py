@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2021 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -9,7 +9,7 @@
 
 # Print info about NFS/RPC
 
-__version__ = "1.1.3"
+__version__ = "1.1.4"
 
 from collections import (Counter, OrderedDict, defaultdict)
 import itertools
@@ -1188,6 +1188,14 @@ def print_all_svc_xprt(v = 0):
     else:
         sn = "struct svc_sock"          # RHEL5
         lnk = "sk_list"
+    # Check whether we can get the pointers or they are corrupted
+    try:
+        _dummy = nfsd_serv.sv_permsocks.next
+    except:
+        print(f"{nfsd_serv} looks corrupted, cannot continue")
+        print("It is also possible that nfsshow does not implement"
+            " a correct algorithm \nfor this kernel")
+        return
     for st, lst in (
         ("sv_permsocks", ListHead(nfsd_serv.sv_permsocks, sn)),
         ("sv_tempsocks", ListHead(nfsd_serv.sv_tempsocks, sn ))):
