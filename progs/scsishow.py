@@ -871,6 +871,7 @@ def run_scsi_checks():
     errors = 0
     gendev_q_sdev_q_mismatch = 0
     retry_delay_bug = 0
+    fc_rport_warnings = 0
     qla_cmd_abort_bug = 0
     jiffies = readSymbol("jiffies")
 
@@ -983,6 +984,7 @@ def run_scsi_checks():
                 warnings += 1
 
     # scsi_target checks
+    enum_starget_state = EnumInfo("enum scsi_target_state")
     for shost in get_scsi_hosts():
         if (shost.__targets.next != shost.__targets.next.next):
             for starget in readSUListFromHead(shost.__targets, "siblings", "struct scsi_target"):
@@ -996,18 +998,34 @@ def run_scsi_checks():
                         if (atomic_t(starget.target_blocked) > 0):
                             print("WARNING: scsi_target {:10s} {:x} is blocked "
                                 "(target_blocked count: {:d})".format(starget.dev.kobj.name,
-                                int(starget), atomic_t(starget.target_blocked)))
+                                starget, atomic_t(starget.target_blocked)))
                             warnings += 1
+                        if (enum_starget_state.getnam(starget.state) != 'STARGET_RUNNING'):
+                            print("WARNING: scsi_target {:10s} {:x} not in RUNNING "
+                                  "state".format(starget.dev.kobj.name, starget))
+                            warnings += 1
+                            if (shost.hostt.module.name in "lpfc_qla2xxx_fnic"):
+                                enum_fcrport_state = EnumInfo("enum fc_port_state")
+                                dev_parent = readSU("struct device", starget.dev.parent)
+                                fc_rport = container_of(dev_parent, "struct fc_rport", "dev")
+                                if (enum_fcrport_state.getnam(fc_rport.port_state) != 'FC_PORTSTATE_ONLINE'):
+                                    print("         FC rport (WWPN: {:x}) on {:10s} is not "
+                                          "online".format(fc_rport.port_name, starget.dev.kobj.name))
+                                    errors += 1
+                                    fc_rport_warnings += 1
                     except KeyError:
                         pylog.warning("Error in processing scsi_target {:x},"
                                       "please check manually".format(int(starget)))
 
+    if (fc_rport_warnings):
+        print("\n\t Couple of FC remote port(s) are NOT in ONLINE state, use '-f' to check detailed information.\n")
+
     if (retry_delay_bug):
-        print("\t HBA driver returning 'SCSI_MLQUEUE_TARGET_BUSY' due to a large retry_delay.\n"
+        print("\n\t HBA driver returning 'SCSI_MLQUEUE_TARGET_BUSY' due to a large retry_delay.\n"
               "\t See https://patchwork.kernel.org/patch/10450567/")
 
     if (qla_cmd_abort_bug):
-        print("\t scsi_device.device_busy count is negative, this could be caused due to"
+        print("\n\t scsi_device.device_busy count is negative, this could be caused due to"
               " double completion of scsi_cmnd from qla2xxx_eh_abort.\n"
               "\t See https://patchwork.kernel.org/patch/10587997/")
 
