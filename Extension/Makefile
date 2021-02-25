@@ -112,20 +112,29 @@ PYCOMPILE = pycompile
 BASE_CFLAGS := $(CFLAGS)
 CFLAGS += $(DEBUG) $(DEFINES) $(INCLUDES)
 vpath %.c ..
+vpath %.C ..
 
-%o: %c pykdump.h  $(PYTHON) $(MK)
+%.o: %.c pykdump.h  $(PYTHON) $(MK)
 	$(CC) -c $(CFLAGS) $< -o $@
+
+# C++ sources are for GDB10 part only
+%.o: %.C pykdump.h gdbspec.h $(PYTHON) $(MK)
+	$(CXX) -c $(BASE_CFLAGS) $(GDBINCL) $(EXTRA) $(PYINCLUDE)  $< -o $@
 
 gdbspec.o: gdbspec.c $(PYTHON) $(MK)
 	$(CC) -c $(BASE_CFLAGS) $(GDBINCL) $(EXTRA) $(PYINCLUDE)  $< -o $@
 
+gdbtest.o: gdbtest.c gdbspec.h $(PYTHON) $(MK)
+	$(CC) -c $(CFLAGS)  $(EXTRA) $(PYINCLUDE)  $< -o $@
 
-OBJS :=  epython.o functions.o gdbspec.o
+gdbtest.so: gdbtest.o gdbspec10.o
+	$(GDBLD) -shared  $(LINKFLAGS) gdbtest.o  gdbspec10.o -o $@ $(LIBS)
 
+OBJS :=  epython.o functions.o $(GDBOBJ)
 
 
 $(EXT_C): $(OBJS) $(PYTHON)
-	$(CC) -shared  $(LINKFLAGS) $(OBJS) -o $@  $(LIBS)
+	$(GDBLD) -shared  $(LINKFLAGS) $(OBJS) -o $@  $(LIBS)
 
 # A minimal Python library
 PYLIB = pylib.zip

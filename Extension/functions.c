@@ -1614,11 +1614,7 @@ py_setprocname(PyObject *self, PyObject *args) {
     return Py_None;
 };
 
-
-PyObject * py_gdb_typeinfo(PyObject *self, PyObject *args);
-PyObject * py_gdb_whatis(PyObject *self, PyObject *args);
-void py_gdb_register_enums(PyObject *m);
-
+#include "gdbspec.h"
 
 static PyMethodDef crashMethods[] = {
   {"symbol_exists",  py_crash_symbol_exists, METH_VARARGS},

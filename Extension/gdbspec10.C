@@ -1,15 +1,11 @@
 /* Python extension to interact with CRASH - GDB-specific subroutines
 
-   This file works with versions of crash that are written in C, such
-   as GDB-7.X
-
-   Eventually crash will be based on GDB10 and later that is written
-   in C++. We will be using gdbspec10.C instead of this file for
-   these new versions
+   This is C++-code, intended to be used with crash based on GDB10
+   and later
 
 
 // --------------------------------------------------------------------
-// (C) Copyright 2006-2021 Hewlett-Packard Enterprise Development LP
+// (C) Copyright 2021 Hewlett-Packard Enterprise Development LP
 //
 // Author: Alex Sidorenko <asid@hpe.com>
 //
@@ -26,76 +22,42 @@
   GNU General Public License for more details.
 */
 
-#include <Python.h>
-
+#define __CONFIG_H__ 1
 #include "defs.h"
-#include "pykdump.h"
-
-#include "gdb_obstack.h"
-#include "bfd.h"		/* Binary File Description */
-#include "symtab.h"
 #include "gdbtypes.h"
 #include "expression.h"
 #include "value.h"
-#include "gdbcore.h"
-#include "target.h"
-#include "language.h"
-#include "demangle.h"
-#include "c-lang.h"
-#include "typeprint.h"
-#include "cp-abi.h"
 
-//#include "gdb_string.h"
-#include <errno.h>
-#include <setjmp.h>
+// For debugging. We cannot include "defs.h" from top-level crash directory
+// as it conflicts witg gdb/defs.h
+extern FILE *fp; 
 
-#if defined(ATTR_NORETURN)
-typedef NORETURN void (*ERROR_HOOK_TYPE) (void) ATTR_NORETURN;
-#else
-typedef void (*ERROR_HOOK_TYPE)(void);
-#endif
+#include <Python.h>
+#include "gdbspec.h"
 
-/* GDB-7 specific stuff */
-#if defined(GDB7)
-ERROR_HOOK_TYPE error_hook;
-#define VALUE_TYPE value_type
-#endif
+#define TYPE_CODE(t)	(t->code ())
+#define TYPE_TAG_NAME(t) (TYPE_MAIN_TYPE(t)->name)
+#define TYPE_NFIELDS(t) (t->num_fields ())
+#define TYPE_NAME(t) (t->name ())
+#define TYPE_FIELD_TYPE(t, i) (t->field (i).type ())
+#define CHECK_TYPEDEF(TYPE)                     \
+  do {                                          \
+    (TYPE) = check_typedef (TYPE);              \
+  } while (0)
+
 
 
 extern int debug;
-
 extern PyObject *crashError;
-//static void ptype_command (char *typename, int from_tty);
-//static void whatis_exp (char *exp, int show);
 
-static sigjmp_buf eenv;
-
-//static ERROR_HOOK_TYPE old_error_hook;
-
-static FILE *nullfp = NULL;
-
-static void my_cleanups(void) {
-  error_hook = NULL; \
-  //printf("mycleanups\n");
-
-}
-
-// crash 6.X uses GDB version where we do do_cleanups(NULL);
-// crash 7.X uses a newer GDB which needs do_cleanups(all_cleanups())
-
-#if defined(GDB76)
-#define PY_DO_CLEANUPS (do_cleanups(all_cleanups()))
-#else
-#define PY_DO_CLEANUPS (do_cleanups((struct cleanup *)0))
-#endif
+static void do_SU(struct type *type, PyObject *dict);
+static void do_func(struct type *type, PyObject *dict);
+static void do_enum(struct type *type, PyObject *pitem);
+static void do_ftype(struct type *ftype, PyObject *item);
 
 static void
 my_error_hook(void)  {
   //printf("Error hook\n");
-
-  PY_DO_CLEANUPS;
-  my_cleanups();
-  longjmp(eenv, 1);
 }
 
 int
@@ -110,57 +72,6 @@ myDict_SetCharChar(PyObject *v, const char *key, const char *item) {
 	return err;
 }
 
-
-/* If GDB error was caught, raise Python exception. Cleanup is
-   already done in my_error_hook
-*/
-
-/* Prepare to run a function calling directly GDB internals. We substitute
- */
-
-extern void replace_ui_file_FILE(struct ui_file *, FILE *);
-
-#define GDB2PY_ENTER \
-  do { \
-    if (!nullfp) \
-      nullfp = fopen("/dev/null", "w+");		\
-    error_hook = (ERROR_HOOK_TYPE) my_error_hook;	\
-    replace_ui_file_FILE(gdb_stdout, nullfp); \
-    replace_ui_file_FILE(gdb_stderr, nullfp); \
-    PY_DO_CLEANUPS; \
-    \
-    if (setjmp(eenv)) { \
-      PyErr_SetString(crashError, "PyKdump/GDB error");\
-      return NULL; \
-    } \
-  } while (0)
-
-
-#define GDB2PY_EXIT \
-  do { \
-    my_cleanups(); \
-  } while (0)
-
-
-# define X_GDB2PY_ENTER while(0)
-# define X_GDB2PY_EXIT while(0)
-
-static struct type *
-ptype_eval (struct expression *exp)
-{
-  if (exp->elts[0].opcode == OP_TYPE)
-    {
-      return (exp->elts[1].type);
-    }
-  else
-    {
-      return (NULL);
-    }
-}
-
-static void do_SU(struct type *type, PyObject *dict);
-static void do_func(struct type *type, PyObject *dict);
-static void do_enum(struct type *type, PyObject *pitem);
 
 static void
 do_ftype(struct type *ftype, PyObject *item) {
@@ -179,20 +90,14 @@ do_ftype(struct type *ftype, PyObject *item) {
   int ndim = 0;
 
   int codetype = TYPE_CODE(ftype);
-  const char *typename = TYPE_NAME(ftype);
+  const char *_typename = TYPE_NAME(ftype);
   PyObject *fname;
   PyObject *ptr;
+  PyObject *pdims;
 
   if(TYPE_STUB(ftype) && tagname) {
-#if defined(GDB7)
-    struct symbol *sym = lookup_symbol(tagname,
-				       0, STRUCT_DOMAIN,
-				       0);
-#else
-    struct symbol *sym = lookup_symbol(tagname,
-				       0, STRUCT_DOMAIN,
-				       0, (struct symtab **) NULL);
-#endif
+    struct symbol *sym = lookup_symbol(tagname, NULL, STRUCT_DOMAIN,
+                                       NULL).symbol;
     if(sym) {
       ftype=sym->type;
     }
@@ -246,7 +151,8 @@ do_ftype(struct type *ftype, PyObject *item) {
     tmptype = ftype;
     do {
       stars++;
-    } while (TYPE_CODE(tmptype = TYPE_TARGET_TYPE(tmptype)) == TYPE_CODE_PTR);
+      tmptype = TYPE_TARGET_TYPE(tmptype);
+    } while (TYPE_CODE(tmptype) == TYPE_CODE_PTR);
 
     if (TYPE_CODE(tmptype) == TYPE_CODE_TYPEDEF) {
       const char *ttypename = TYPE_NAME(tmptype);
@@ -272,8 +178,8 @@ do_ftype(struct type *ftype, PyObject *item) {
   case TYPE_CODE_TYPEDEF:
     /* Add extra tag - typedef name. This is useful
        in struct/union case as we can cache info based on it */
-    if (typename)
-      myDict_SetCharChar(item, "typedef", typename);
+    if (_typename)
+      myDict_SetCharChar(item, "typedef", _typename);
     CHECK_TYPEDEF(ftype);
     do_ftype(ftype, item);
     break;
@@ -314,7 +220,7 @@ do_ftype(struct type *ftype, PyObject *item) {
     }
 
     do_ftype(ftype, item);
-    PyObject *pdims = PyList_New(0);
+    pdims = PyList_New(0);
     for (i=0; i < ndim; i++) {
       v = PyLong_FromLong(dims[i]);
       PyList_Append(pdims, v);
@@ -326,7 +232,7 @@ do_ftype(struct type *ftype, PyObject *item) {
     break;
   default:
     myDict_SetCharChar(item, "basetype", TYPE_NAME(ftype));
-   break;
+    //break;
   }
   /* Set CODE_TYPE. For arrays and typedefs it should already be
      reduced (we detect array by dims, and we are not interested
@@ -342,36 +248,6 @@ do_ftype(struct type *ftype, PyObject *item) {
   PyDict_SetItemString(item, "typelength", v);
   Py_DECREF(v);
 
-}
-
-static void
-do_func(struct type *type, PyObject *pitem) {
-  int nfields =   TYPE_NFIELDS(type);
-  int i;
-  char buf[256];
-
-  PyObject *body = PyList_New(0);
-  PyDict_SetItemString(pitem, "prototype", body);
-
-  /* Function return type */
-  struct type *return_type= TYPE_TARGET_TYPE(type);
-  PyObject *item = PyDict_New();
-  PyList_Append(body, item);
-  myDict_SetCharChar(item, "fname", "returntype");
-  do_ftype(return_type, item);
-  Py_DECREF(item);
-
-  for (i=0; i < nfields; i++) {
-    struct type *ftype = TYPE_FIELD_TYPE(type, i);
-    PyObject *item = PyDict_New();
-    PyList_Append(body, item);
-    sprintf(buf, "arg%d", i);
-    myDict_SetCharChar(item, "fname", buf);
-
-    do_ftype(ftype, item);
-    Py_DECREF(item);
-  }
-  Py_DECREF(body);
 }
 
 static void
@@ -410,6 +286,7 @@ do_SU(struct type *type, PyObject *pitem) {
 
 }
 
+
 static void
 do_enum(struct type *type, PyObject *pitem) {
   int nfields =   TYPE_NFIELDS(type);
@@ -438,82 +315,110 @@ do_enum(struct type *type, PyObject *pitem) {
   Py_DECREF(edef);
 }
 
-PyObject * py_gdb_typeinfo(PyObject *self, PyObject *args) {
-  char *typename;
-  struct type *type;
-  struct expression *expr;
-  struct cleanup *old_chain;
+static void
+do_func(struct type *type, PyObject *pitem) {
+  int nfields =   TYPE_NFIELDS(type);
+  int i;
+  char buf[256];
 
-  if (!PyArg_ParseTuple(args, "s", &typename)) {
-    PyErr_SetString(crashError, "invalid parameter type");	\
+  PyObject *body = PyList_New(0);
+  PyDict_SetItemString(pitem, "prototype", body);
+
+  /* Function return type */
+  struct type *return_type= TYPE_TARGET_TYPE(type);
+  PyObject *item = PyDict_New();
+  PyList_Append(body, item);
+  myDict_SetCharChar(item, "fname", "returntype");
+  do_ftype(return_type, item);
+  Py_DECREF(item);
+
+  for (i=0; i < nfields; i++) {
+    struct type *ftype = TYPE_FIELD_TYPE(type, i);
+    PyObject *item = PyDict_New();
+    PyList_Append(body, item);
+    sprintf(buf, "arg%d", i);
+    myDict_SetCharChar(item, "fname", buf);
+
+    do_ftype(ftype, item);
+    Py_DECREF(item);
+  }
+  Py_DECREF(body);
+}
+
+PyObject * py_gdb_typeinfo(PyObject *self, PyObject *args) {
+  char *_typename;
+  struct type *type;
+  expression_up expr;
+  struct value *val;
+
+  if (!PyArg_ParseTuple(args, "s", &_typename)) {
+    PyErr_SetString(crashError, "invalid parameter type"); 
     return NULL;
   }
   if (debug > 1)
-    printf("gdb_typeinfo(%s)\n", typename);
+    printf("gdb_typeinfo(%s)\n", _typename);
 
-  GDB2PY_ENTER;
 
   // ----------------------------------------------
   //printf("GDB: %s\n", typename);
-  expr = parse_expression (typename);
-  //printf("expr=%p\n", expr);
-  old_chain = make_cleanup (free_current_contents, &expr);
-  type = ptype_eval (expr);
-  //printf("codetype=%p\n", TYPE_CODE(type));
+  try {
+    expr = parse_expression (_typename);
+    val = evaluate_type (expr.get());
 
-  if (type == NULL)
-    my_error_hook();
+    type = value_type(val);
 
-  PyObject *topdict =  PyDict_New();
-  do_ftype(type, topdict);
+    if (type == NULL)
+      my_error_hook();
 
-  do_cleanups (old_chain);
+    PyObject *topdict =  PyDict_New();
+    do_ftype(type, topdict);
+    return topdict;
+  } catch (const gdb_exception_error &ex) {
+    PyErr_SetString(crashError, "PyKdump/GDB error");
+    return NULL;
+  }
+
+
   // ----------------------------------------------
 
-  GDB2PY_EXIT;
-  return topdict;
 }
-
 
 PyObject * py_gdb_whatis(PyObject *self, PyObject *args) {
   char *varname;
 
-  struct expression *expr;
+  expression_up expr;
   struct value *val;
-  struct cleanup *old_chain = NULL;
   struct type *type;
 
   if (!PyArg_ParseTuple(args, "s", &varname)) {
-    PyErr_SetString(crashError, "invalid parameter type");	\
+    //PyErr_SetString(crashError, "invalid parameter type");
+    fprintf(fp, "invalid parameter type\n");
     return NULL;
   }
 
   if (debug > 1)
     printf("gdb_whatis(%s)\n", varname);
 
-  GDB2PY_ENTER;
+  try {
 
-  expr = parse_expression (varname);
-  old_chain = make_cleanup (free_current_contents, &expr);
-  val = evaluate_type (expr);
+    expr = parse_expression (varname);
+    val = evaluate_type (expr.get());
 
-  type = VALUE_TYPE (val);
+    type = value_type(val);
 
-  //printf("vartype=%d\n", TYPE_CODE(type));
+    //printf("vartype=%d\n", TYPE_CODE(type));
 
-  PyObject *item = PyDict_New();
-  myDict_SetCharChar(item, "fname", varname);
+    PyObject *item = PyDict_New();
+    myDict_SetCharChar(item, "fname", varname);
 
 
-  do_ftype(type, item);
-
-  do_cleanups (old_chain);
-  // ----------------------------------------------
-
-  GDB2PY_EXIT;
-  return item;
+    do_ftype(type, item);
+    return item;
+  } catch (const gdb_exception_error &ex) {
+    PyErr_SetString(crashError, "PyKdump/GDB error");
+    return NULL;
+  }
 }
-
 
 // Register enums needed to be used for type-analysis
 #define REGISTER_ENUM(name) PyModule_AddObject(m, #name, PyLong_FromLong(name))
@@ -531,14 +436,47 @@ void py_gdb_register_enums(PyObject *m) {
   REGISTER_ENUM(TYPE_CODE_BOOL);
 }
 
-// Some of GDB-6 values
-//    TYPE_CODE_PTR = 1           #/* Pointer type */
-//    TYPE_CODE_ARRAY = 2         #/* Array type with lower & upper bounds. */
-//    TYPE_CODE_STRUCT = 3        #/* C struct or Pascal record */
-//    TYPE_CODE_UNION = 4         #/* C union or Pascal variant part */
-//    TYPE_CODE_ENUM = 5          #/* Enumeration type */
-//    TYPE_CODE_FUNC = 6          #/* Function type */
-//    TYPE_CODE_INT = 7           #/* Integer type */
-//    TYPE_CODE_FLT = 8
-//    TYPE_CODE_VOID = 9
 //
+// --------------- Basic testing -------------------------------
+//
+// This is need on debugging stage only, Python is not used here
+
+extern "C" {
+void basic_test() {
+  expression_up expr;
+  struct value *val;
+  struct type *type;
+  const char *fname;
+  int idx;
+  int stars = 0;
+
+  printf("Before parse_expression\n");
+  try {
+    expr = parse_expression ("struct device");
+    //type = expr->elts[1].type;
+    val = evaluate_type (expr.get());
+    type = value_type(val);
+    printf("Numer of fields: %d\n", type->num_fields ());
+    for (idx = 0; idx < type->num_fields (); idx++) {
+      struct type *ftype = type->field (idx).type ();
+      stars = 0;
+      if ((ftype->code () == TYPE_CODE_PTR) || TYPE_IS_REFERENCE (ftype)) {
+        while (TYPE_CODE(ftype) == TYPE_CODE_PTR) {
+          stars++;
+          ftype = TYPE_TARGET_TYPE(ftype);
+        }
+        fname = TYPE_NAME(ftype);
+      } else
+        fname= TYPE_NAME(ftype);
+
+      fprintf(fp, "  %3d %20s type=%2d %25s ptrlev=%d\n", idx,
+              TYPE_FIELD_NAME(type, idx), TYPE_CODE(ftype),
+              fname, stars);
+    }
+
+  } catch (const gdb_exception_error &ex) {
+    printf("Error caught\n");
+  }
+  printf("test\n");
+}
+}

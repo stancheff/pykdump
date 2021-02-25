@@ -1,7 +1,7 @@
 # Find different python locations that we need to use in Makefile
 
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2021 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -53,7 +53,7 @@ for o, a in opts:
 # Check whether crash sourcetree is installed and compiled at this location
 try:
     re_target = re.compile(r'^TARGET=(\w+)$')
-    re_gdb = re.compile(r'^GDB=gdb-(\d)\.(\d)+.*$')
+    re_gdb = re.compile(r'^GDB=gdb-(\d+)\.(\d+).*$')
     target = None
     gdb_major = None
     for l in open(os.path.join(crashdir, "Makefile"), "r"):
@@ -64,13 +64,13 @@ try:
         if (m):
             gdb_major = int(m.group(1))
             gdb_minor = int(m.group(2))
-                
+
 except:
     print("Cannot find Makefile in the specified CRASHDIR", crashdir)
     sys.exit(0)
 
 try:
-    re_crashvers = re.compile(r'^char \*build_version = "([.\d]+)";\s*$')
+    re_crashvers = re.compile(r'^char \*build_version = "([.\d+]+)";\s*$')
     crash_vers = None
     for l in open(os.path.join(crashdir, "build_data.c"), "r"):
         m = re_crashvers.match(l)
@@ -90,25 +90,49 @@ print("target=%s" % target)
 
 if (not debug):
     fd = open(cmk, "w+")
-    
+
 ol = []
 ol.append("# Configuration options for 'crash' tree")
 ol.append("CRASHDIR := %s" % crashdir)
 try:
+    # We use this match
     gdbdir = glob.glob("%s/gdb*/gdb" % crashdir)[0]
+    gdbdir = os.path.dirname(gdbdir)
 except:
     print("Cannot find GDB directory in crash sourcetree")
     sys.exit(2)
+
 ol.append("GDBDIR := %s" % gdbdir)
-ol.append("GDBINCL =  -I$(GDBDIR)  -I$(GDBDIR)/config  -I$(GDBDIR)/../bfd \\")
-ol.append("  -I$(GDBDIR)/../include -I$(GDBDIR)/../intl")
+
+# Includes as needed to use GDB7 API
+GDB7INCL='''
+GDBINCL = -I$(GDBDIR)/gdb -I$(GDBDIR)/gdb/config -I$(GDBDIR)/bfd \\
+  -I$(GDBDIR)/include -I$(GDBDIR)/intl -I$(GDBDIR)/gdb/common
+'''
+
+# Includes as needed to use GDB10 API
+GDB10INCL='''
+GDBINCL = -I$(GDBDIR) -I$(GDBDIR)/bfd -I$(GDBDIR)/include \\
+ -I$(GDBDIR)/gdb -I$(GDBDIR)/gnulib/import
+'''
+
+
 # We need to use different includes and prototypes for GDB6 and GDB7
 if (gdb_major == 7):
     if (gdb_minor >= 6):
         extra = " -DGDB76"
     else:
         extra = ""
-    ol.append("EXTRA := -DGDB7 -I$(GDBDIR)/common" + extra)
+    ol.append(GDB7INCL)
+    ol.append("EXTRA := -DGDB7" + extra)
+    ol.append("GDBOBJ := gdbspec.o")
+    ol.append("GDBLD := $(CC)")
+elif (gdb_major == 10):
+    # GDB10 is C++ based
+    ol.append(GDB10INCL)
+    ol.append("GDBLD := $(CXX)")
+    ol.append("GDBOBJ := gdbspec10.o")
+
 ol.append("TARGET := %s" % target)
 ol.append("CRASHVERS := %s" % crash_vers)
 fd.write("\n".join(ol))
