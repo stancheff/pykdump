@@ -29,11 +29,14 @@
 #include "value.h"
 
 // For debugging. We cannot include "defs.h" from top-level crash directory
-// as it conflicts witg gdb/defs.h
-extern FILE *fp; 
+// as it conflicts with gdb/defs.h
+extern FILE *fp;
 
 #include <Python.h>
 #include "gdbspec.h"
+
+// The following macros wre available in gdbtypes.h for older GDB,
+// but not for GDB10. We copy them from gdb/symtab.c
 
 #define TYPE_CODE(t)	(t->code ())
 #define TYPE_TAG_NAME(t) (TYPE_MAIN_TYPE(t)->name)
@@ -45,7 +48,22 @@ extern FILE *fp;
     (TYPE) = check_typedef (TYPE);              \
   } while (0)
 
-
+// ------------ for reference pusposes, in case these subroutines ------
+//              change again in future releases of GDB
+//
+// ..... A list of GDB internal subroutines we use: ..................
+//
+// lookup_symbol(char const*, block const*, domain_enum_tag,
+//                            field_of_this_result*)
+// check_typedef(type*)
+// get_array_bounds(type*, long*, long*)
+// parse_expression(char const*, innermost_block_tracker*)
+// evaluate_type(expression*)
+// value_type(value const*)
+//
+// ........... Possible exceptions ..................................
+// gdb_exception
+// gdb_exception_error
 
 extern int debug;
 extern PyObject *crashError;
@@ -352,7 +370,7 @@ PyObject * py_gdb_typeinfo(PyObject *self, PyObject *args) {
   struct value *val;
 
   if (!PyArg_ParseTuple(args, "s", &_typename)) {
-    PyErr_SetString(crashError, "invalid parameter type"); 
+    PyErr_SetString(crashError, "invalid parameter type");
     return NULL;
   }
   if (debug > 1)
