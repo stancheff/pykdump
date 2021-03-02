@@ -5,7 +5,7 @@
 # After that we create ZIP by appending code written in pure Python
 
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2021 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -117,9 +117,11 @@ vpath %.C ..
 %.o: %.c pykdump.h  $(PYTHON) $(MK)
 	$(CC) -c $(CFLAGS) $< -o $@
 
-# C++ sources are for GDB10 part only
+# C++ sources are for GDB10 part only. On RHEL7 we need to specify explicitly
+# C++ level, on newer GCC it is not needed but does not hurt
+CXXFLAGS := -std=c++11
 %.o: %.C pykdump.h gdbspec.h $(PYTHON) $(MK)
-	$(CXX) -c $(BASE_CFLAGS) $(GDBINCL) $(EXTRA) $(PYINCLUDE)  $< -o $@
+	$(CXX) -c $(CXXFLAGS) $(BASE_CFLAGS) $(GDBINCL) $(EXTRA) $(PYINCLUDE)  $< -o $@
 
 gdbspec.o: gdbspec.c $(PYTHON) $(MK)
 	$(CC) -c $(BASE_CFLAGS) $(GDBINCL) $(EXTRA) $(PYINCLUDE)  $< -o $@
