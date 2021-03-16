@@ -865,22 +865,12 @@ def display_command_time(cmnd, use_start_time_ns):
 
     print(" is {}, deadline: {} cmnd-alloc: {} rq-alloc: {}".format(state, deadline, start_time, rq_start_time), end='')
 
+def run_host_checks():
+    host_warnings = 0
 
-def run_scsi_checks():
-    warnings = 0
-    errors = 0
-    gendev_q_sdev_q_mismatch = 0
-    retry_delay_bug = 0
-    fc_rport_warnings = 0
-    qla_cmd_abort_bug = 0
-    jiffies = readSymbol("jiffies")
-
-    # host checks
-    hosts = get_scsi_hosts()
-
-    for host in hosts:
+    for host in get_scsi_hosts():
         if (host.host_failed):
-            warnings += 1
+            host_warnings += 1
             if (member_size("struct Scsi_Host", "host_busy") != 1):
                 if (host.host_failed == atomic_t(host.host_busy)):
                     print("WARNING: Scsi_Host {:#x} ({}) is running error recovery!".format(host,
@@ -892,20 +882,72 @@ def run_scsi_checks():
                 print("WARNING: Scsi_Host {:#x} ({}) has timed out commands!".format(host, host.shost_gendev.kobj.name))
 
             if (atomic_t(host.host_blocked)):
-                warnings += 1
+                host_warnings += 1
                 print("WARNING: Scsi_Host {:#x} ({}) is blocked! HBA driver refusing all commands with SCSI_MLQUEUE_HOST_BUSY?".format(host,
                     host.shost_gendev.kobj.name))
+    return host_warnings
 
-    # device checks
+def run_cmd_checks(sdev):
+    cmd_warnings = 0
+    jiffies = readSymbol("jiffies")
+
+    for cmnd in get_scsi_commands(sdev):
+        timeout = 0
+        if (cmnd.request):
+            try:
+                timeout = cmnd.request.timeout
+            except KeyError:
+                timeout = -1
+        else:
+            print("WARNING: cmnd.request is null for scsi_cmnd {:#x}".format(cmnd))
+
+        if (timeout == -1):
+            try:
+                timeout = cmnd.timeout_per_command
+            except KeyError:
+                print("Error: cannot determine timeout!")
+                timeout = 0
+
+        # Check for large timeout values
+        if (timeout > 300000):
+            cmd_warnings += 1
+            print("ERROR:   scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a huge timeout of {}ms!".format(cmnd,
+                   cmnd.device, get_scsi_device_id(cmnd.device), timeout))
+        elif (timeout == 300000):
+            cmd_warnings += 1
+            print("WARNING: 5 minute timeout found for scsi_cmnd {:#x}! on scsi_device {:#x} ({}) "
+                  "Update device-mapper-multipath?".format(cmnd, cmnd.device, get_scsi_device_id(cmnd.device)))
+        elif (timeout > 60000):
+            cmd_warnings += 1
+            print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a large timeout of {}ms.".format(cmnd,
+                   cmnd.device, get_scsi_device_id(cmnd.device), timeout))
+
+        # check for old command
+        if (timeout and jiffies > (timeout + cmnd.jiffies_at_alloc)):
+            cmd_warnings += 1
+            print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) older than its timeout: "
+                  "EH or stalled queue?".format(cmnd, cmnd.device, get_scsi_device_id(cmnd.device)))
+
+    return cmd_warnings
+
+def run_sdev_cmd_checks():
+    dev_warnings = 0
+    cmd_warnings = 0
+    retry_delay_bug = 0
+    qla_cmd_abort_bug = 0
+    gendev_q_sdev_q_mismatch = 0
+    jiffies = readSymbol("jiffies")
+
     gendev_dict = get_gendev()
 
     for sdev in get_scsi_devices():
         if (atomic_t(sdev.device_blocked)):
-            warnings += 1
+            dev_warnings += 1
             print("WARNING: scsi_device {:#x} ({}) is blocked! HBA driver returning "
                     "SCSI_MLQUEUE_DEVICE_BUSY or device returning SAM_STAT_BUSY?".format(sdev,
                     get_scsi_device_id(sdev)))
         if (atomic_t(sdev.device_busy) < 0):
+            dev_warnings += 1
             print("ERROR:   scsi_device {:#x} ({}) device_busy count is: {}".format(sdev,
                 get_scsi_device_id(sdev), atomic_t(sdev.device_busy)))
             if (sdev.host.hostt.name in "qla2xxx"):
@@ -939,71 +981,61 @@ def run_scsi_checks():
             if (retry_delay_timestamp != 0):
                 retry_delay = (retry_delay_timestamp - jiffies)/1000/60
                 if (retry_delay > 2):
-                    errors += 1
+                    dev_warnings += 1
                     print("ERROR:   scsi_device {:#x} ({}) has retry_delay_timestamp: {:d}, "
                           "IOs delayed for {:f} more minutes".format(sdev, get_scsi_device_id(sdev),
                           retry_delay_timestamp, retry_delay))
                     retry_delay_bug += 1
 
         # command checks
-        for cmnd in get_scsi_commands(sdev):
-            timeout = 0
-            if (cmnd.request):
-                try:
-                    timeout = cmnd.request.timeout
-                except KeyError:
-                    timeout = -1
-            else:
-                print("Warning: cmnd.request is null for scsi_cmnd {:#x}".format(cmnd))
+        cmd_warnings += run_cmd_checks(sdev)
 
-            if(timeout == -1):
-                try:
-                    timeout = cmnd.timeout_per_command
-                except KeyError:
-                    print("Error: cannot determine timeout!")
-                    timeout = 0
+    if (retry_delay_bug):
+        print("\nERROR:   HBA driver returning 'SCSI_MLQUEUE_TARGET_BUSY' due to a large retry_delay.\n"
+              "\t See https://patchwork.kernel.org/patch/10450567/")
 
-            # Check for large timeout values
-            if (timeout > 300000):
-                errors += 1
-                print("ERROR:   scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a huge timeout of {}ms!".format(cmnd,
-                       cmnd.device, get_scsi_device_id(cmnd.device), timeout))
-            elif (timeout == 300000):
-                warnings += 1
-                print("WARNING: 5 minute timeout found for scsi_cmnd {:#x}! on scsi_device {:#x} ({}) "
-                      "Update device-mapper-multipath?".format(cmnd, cmnd.device, get_scsi_device_id(cmnd.device)))
-            elif (timeout > 60000):
-                warnings += 1
-                print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a large timeout of {}ms.".format(cmnd,
-                       cmnd.device, get_scsi_device_id(cmnd.device), timeout))
+    if (qla_cmd_abort_bug):
+        print("\nERROR:   scsi_device.device_busy count is negative, this could be caused due to"
+              "\t double completion of scsi_cmnd from qla2xxx_eh_abort.\n"
+              "\t See https://patchwork.kernel.org/patch/10587997/")
 
-            # check for old command
-            if (timeout and jiffies > (timeout + cmnd.jiffies_at_alloc)):
-                print("Warning: scsi_cmnd {:#x} on scsi_device {:#x} ({}) older than its timeout: "
-                      "EH or stalled queue?".format(cmnd, cmnd.device, get_scsi_device_id(cmnd.device)))
-                warnings += 1
+    if (gendev_q_sdev_q_mismatch):
+        print("\nNOTE:    The scsi_device->request_queue is not same as gendisk->request_queue\n"
+              "\t for {} scsi device(s). \n\n"
+              "\t It is likely that custom multipathing solutions have created 'gendisk',\n"
+              "\t 'request_queue' structures which are not registered with kernel.\n"
+              "\t *Although this may or may not be a reason for issue, but it could make\n"
+              "\t the analysis of scsi_device, request_queue and gendisk struct confusing!\n"
+              .format(gendev_q_sdev_q_mismatch))
 
-    # scsi_target checks
+    dev_warnings += cmd_warnings
+
+    return (dev_warnings)
+
+def run_target_checks():
+    target_warnings = 0
+    fc_rport_warnings = 0
     enum_starget_state = EnumInfo("enum scsi_target_state")
+
     for shost in get_scsi_hosts():
         if (shost.__targets.next != shost.__targets.next.next):
             for starget in readSUListFromHead(shost.__targets, "siblings", "struct scsi_target"):
                 if (member_size("struct scsi_target", "target_busy") != -1):
                     try:
                         if (atomic_t(starget.target_busy) > 0):
+                            target_warnings += 1
                             print("WARNING: scsi_target {:10s} {:x} is having non-zero "
                                 "target_busy count: {:d}".format(starget.dev.kobj.name,
                                 int(starget), atomic_t(starget.target_busy)))
-                            warnings += 1
                         if (atomic_t(starget.target_blocked) > 0):
+                            target_warnings += 1
                             print("WARNING: scsi_target {:10s} {:x} is blocked "
                                 "(target_blocked count: {:d})".format(starget.dev.kobj.name,
                                 starget, atomic_t(starget.target_blocked)))
-                            warnings += 1
                         if (enum_starget_state.getnam(starget.state) != 'STARGET_RUNNING'):
+                            target_warnings += 1
                             print("WARNING: scsi_target {:10s} {:x} not in RUNNING "
                                   "state".format(starget.dev.kobj.name, starget))
-                            warnings += 1
                             if (shost.hostt.module.name in "lpfc_qla2xxx_fnic"):
                                 enum_fcrport_state = EnumInfo("enum fc_port_state")
                                 dev_parent = readSU("struct device", starget.dev.parent)
@@ -1011,35 +1043,37 @@ def run_scsi_checks():
                                 if (enum_fcrport_state.getnam(fc_rport.port_state) != 'FC_PORTSTATE_ONLINE'):
                                     print("         FC rport (WWPN: {:x}) on {:10s} is not "
                                           "online".format(fc_rport.port_name, starget.dev.kobj.name))
-                                    errors += 1
                                     fc_rport_warnings += 1
+
                     except KeyError:
                         pylog.warning("Error in processing scsi_target {:x},"
                                       "please check manually".format(int(starget)))
 
     if (fc_rport_warnings):
-        print("\n\t Couple of FC remote port(s) are NOT in ONLINE state, use '-f' to check detailed information.\n")
+        print("\nERROR:   Couple of FC remote port(s) are NOT in ONLINE state, use '-f' to check detailed information.\n")
 
-    if (retry_delay_bug):
-        print("\n\t HBA driver returning 'SCSI_MLQUEUE_TARGET_BUSY' due to a large retry_delay.\n"
-              "\t See https://patchwork.kernel.org/patch/10450567/")
+    return target_warnings
 
-    if (qla_cmd_abort_bug):
-        print("\n\t scsi_device.device_busy count is negative, this could be caused due to"
-              " double completion of scsi_cmnd from qla2xxx_eh_abort.\n"
-              "\t See https://patchwork.kernel.org/patch/10587997/")
+def run_scsi_checks():
+    host_warnings = 0
+    dev_cmd_warnings = 0
+    target_warnings = 0
 
-    if (gendev_q_sdev_q_mismatch != 0):
-        print("\n\tNOTE: The scsi_device->request_queue is not same as gendisk->request_queue\n"
-                "\t      for {} scsi device(s). \n\n"
-                "\t      It is likely that custom multipathing solutions have created 'gendisk',\n"
-                "\t      'request_queue' structures which are not registered with kernel.\n"
-                "\t      *Although this may or may not be a reason for issue, but it could make\n"
-                "\t      the analysis of scsi_device, request_queue and gendisk struct confusing!\n"
-                .format(gendev_q_sdev_q_mismatch))
+    # scsi host checks
+    host_warnings = run_host_checks()
 
-    if (not (warnings or errors or gendev_q_sdev_q_mismatch)):
-        print("Nothing found")
+    # scsi device and scsi command  checks
+    dev_cmd_warnings = run_sdev_cmd_checks()
+
+    # scsi_target checks
+    target_warnings = run_target_checks()
+
+    print ("\n### Summary:\n")
+    print ("    Task                             Errors/Warnings")
+    print ("    ------------------------------------------------")
+    print ("    SCSI host checks:                {}". format(host_warnings))
+    print ("    SCSI device, command checks:     {}". format(dev_cmd_warnings))
+    print ("    SCSI target checks:              {}". format(target_warnings))
 
 verbose = 0
 
