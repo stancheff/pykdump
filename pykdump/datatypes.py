@@ -603,7 +603,8 @@ def e_to_tagname(e):
     if (tag in {'struct', 'union'}):
         parentname = e.get("parentname")
         fname = e["fname"]
-        offset =  e["bitoffset"]//8
+        # anonymous but non-embedded structs do not have bitoffset
+        offset =  e.get("bitoffset", 0)//8
         if (fname):
             extra = "{}:{}/{}".format(parentname, offset, fname)
         else:
