@@ -92,8 +92,42 @@ the following definition in C::
 
 how do we cache information for embedded struct without a name? As all
 StructResult instances for this type share the same data via its
-metaclass, we generate a fake name)tag) for this embedded struct and
+metaclass, we generate a fake name(tag) for this embedded struct and
 cached it.
+
+Earlier versions of PyKdump generated these fake names based on object
+id, so that these names were cryptic and did not help when seen in
+post-mortem traceback.
+
+Recently (Jan 2021) this has been changed in the following way: fake tag
+is constructed using *parent* struct name, offset and field name.
+For example, if C-definition is::
+
+  struct request {
+     struct list_head queuelist;
+     union {
+         struct __call_single_data csd;
+         u64 fifo_time;
+     };
+
+Old representation::
+
+  struct request {
+    struct list_head queuelist;
+    union fake-140050365204096 {
+      struct __call_single_data csd;
+      u64 fifo_time;
+    } ;
+
+but now we will see::
+
+  struct request {
+    struct list_head queuelist;
+    struct request:16->union {
+      struct __call_single_data csd;
+       u64 fifo_time;
+    } ;
+
 
 Another unusual feature of implementation is that we do not
 differentiate between struct and simple struct pointer (one star),
