@@ -159,7 +159,13 @@ def decode_rwsemaphore(semaddr):
         return
 
     try:
-        ownertask = s.owner
-        print("    Write owner of this rw_semaphore: pid={0.pid} cmd={0.comm}".format(ownertask))
+        # remove 'RWSEM_READER_OWNED' and 'RWSEM_ANONYMOUSLY_OWNED'
+        if s.owner & 0x1 == 0x1:
+            own_mode = "Reader"
+        else:
+            own_mode = "Writer"
+
+        ownertask = (s.owner & ~0x3)
+        print("    {0} of this rw_semaphore: pid={1.pid} cmd={1.comm}".format(own_mode, ownertask))
     except:
         pass
