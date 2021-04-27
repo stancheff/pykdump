@@ -683,6 +683,7 @@ def print_request_queue():
     gendev_dict = get_gendev()
 
     for sdev in get_scsi_devices():
+        gendev_present = 1
         elevator_name = get_sdev_elevator(sdev)
         vendor_str = sdev.vendor[:8].strip() + " " + sdev.model[:16].strip()
         sdev_q = readSU("struct request_queue", sdev.request_queue)
@@ -692,6 +693,7 @@ def print_request_queue():
             gendev = readSU("struct gendisk", long (gendev, 16))
             name = gendev.disk_name
         except:
+            gendev_present = 0
             name = scsi_device_type(sdev.type)
             if (not name):
                 name = "null"
@@ -709,8 +711,7 @@ def print_request_queue():
         print("        ----------------------------------------------------"
               "-----------------------------------")
 
-        name = name.strip()
-        if (name in "Disk_Tape_Chngr_CTRL_Enclosure"):
+        if (not (gendev_present)):
             print("\tgendisk        \t:  {} |"
                   "\tscsi_device \t:  {:x}".format("<Can't find gendisk>", int(sdev)))
         else:
