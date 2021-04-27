@@ -909,14 +909,10 @@ def run_cmd_checks(sdev):
                 timeout = 0
 
         # Check for large timeout values
-        if (timeout > 300000):
+        if (timeout >= 300000):
             cmd_warnings += 1
-            print("ERROR:   scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a huge timeout of {}ms!".format(cmnd,
+            print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a huge timeout of {}ms!".format(cmnd,
                    cmnd.device, get_scsi_device_id(cmnd.device), timeout))
-        elif (timeout == 300000):
-            cmd_warnings += 1
-            print("WARNING: 5 minute timeout found for scsi_cmnd {:#x}! on scsi_device {:#x} ({}) "
-                  "Update device-mapper-multipath?".format(cmnd, cmnd.device, get_scsi_device_id(cmnd.device)))
         elif (timeout > 60000):
             cmd_warnings += 1
             print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a large timeout of {}ms.".format(cmnd,
