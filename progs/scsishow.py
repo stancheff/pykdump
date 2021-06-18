@@ -928,6 +928,12 @@ def run_cmd_checks(sdev):
             print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) older than its timeout: "
                   "EH or stalled queue?".format(cmnd, cmnd.device, get_scsi_device_id(cmnd.device)))
 
+        # check for commands that have been retried, indicating potential prior failure
+        if (cmnd.retries > 0):
+            cmd_warnings += 1
+            print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a retries value of {}!".format(cmnd,
+                   cmnd.device, get_scsi_device_id(cmnd.device), cmnd.retries))
+
     return cmd_warnings
 
 def run_sdev_cmd_checks():
