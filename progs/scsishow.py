@@ -728,7 +728,7 @@ def print_request_queue():
 def lookup_field(obj, fieldname):
     segments = fieldname.split("[")
     while (len(segments) > 0):
-        obj = getattr(obj, segments[0])
+        obj = obj.Eval(segments[0])
         if (len(segments) > 1):
             offset = segments[1].split("]")
             if (isinstance(obj, SmartString)):
@@ -752,13 +752,16 @@ def lookup_field(obj, fieldname):
 def display_fields(display, fieldstr, evaldict={}, usehex=0, relative=0):
     evaldict['display'] = display
     for fieldname in fieldstr.split(","):
-        field = lookup_field(display, fieldname)
+        try:
+            field = lookup_field(display, fieldname)
 #        field = eval("display.{}".format(fieldname),{}, evaldict)
-        if (relative):
-            try:
-                field = long(field) - long(relative)
-            except ValueError:
-                field = long(field) - long(readSymbol(relative))
+            if (relative):
+                try:
+                    field = long(field) - long(relative)
+                except ValueError:
+                    field = long(field) - long(readSymbol(relative))
+        except (IndexError, crash.error) as e:
+            field = "\"ERROR {}\"".format(e)
 
         if (usehex or isinstance(field, StructResult) or
                       isinstance(field, tPtr)):
