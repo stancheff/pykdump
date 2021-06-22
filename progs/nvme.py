@@ -285,12 +285,13 @@ def bio_mode_check(rq_list):
         for rq in rq_list[:]:
 
             make_request_fn = rq.make_request_fn
-            if ("nvme_make_request" in addr2sym(make_request_fn)):
-                rq_list.remove(rq)
-                inc_removed()
-                pylog.info("WARNING: unsupported NVMe bio-mode detected. Some devices"
-                    " not reported. Please check make_request_fn, mod,"
-                    " and dev -d for more info.")
+            if (make_request_fn):
+                if ("nvme_make_request" in addr2sym(make_request_fn)):
+                    rq_list.remove(rq)
+                    inc_removed()
+                    pylog.info("WARNING: unsupported NVMe bio-mode detected. Some devices"
+                        " not reported. Please check make_request_fn, mod,"
+                        " and dev -d for more info.")
 
     return rq_list
 
