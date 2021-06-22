@@ -487,6 +487,7 @@ def print_lpfc_shost_info(shost):
     print("   ---------------------------")
     print("   lpfc_vport          : {:x}".format(lpfc_vport))
     print("   lpfc_hba            : {:x}".format(lpfc_hba))
+    print("   sli_rev             : {}".format(lpfc_hba.sli_rev))
     print("   pci_dev             : {:x}".format(lpfc_hba.pcidev))
     print("   pci_dev slot        : {}".format(lpfc_hba.pcidev.dev.kobj.name))
     print("   brd_no              : {}".format(lpfc_hba.brd_no))
