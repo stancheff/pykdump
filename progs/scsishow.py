@@ -54,6 +54,13 @@ def get_sdev_state(enum_state):
 def print_request_header(request, devid):
     print("{:x} {:<13}".format(int(request), "({})".format(devid)), end='')
 
+def get_hostt_module_name(shost):
+    try:
+        name = shost.hostt.module.name
+    except:
+        name = "unknown"
+    return name
+
 SCMD_STATE_COMPLETE = 0
 SCMD_STATE_INFLIGHT = 1
 
@@ -275,8 +282,7 @@ def print_shost_header(shost):
     print("--------------------------------------------------"
           "-------------------------------------------------")
     print("{:9s} {:22s} {:12x} {:24x} {:24x}\n".format(shost.shost_gendev.kobj.name,
-        shost.hostt.module.name, shost, shost.shost_data,
-        shost.hostdata))
+        get_hostt_module_name(shost), shost, shost.shost_data, shost.hostdata))
 
 def get_gendev():
     gendev_dict = {}
@@ -434,7 +440,7 @@ def print_starget_shost():
 def print_fcrports():
     for shost in get_scsi_hosts():
         if (shost.__targets.next != shost.__targets.next.next and
-            shost.hostt.module.name in "lpfc_qla2xxx_fnic"):
+            get_hostt_module_name(shost) in "lpfc_qla2xxx_fnic"):
             print("\n==================================================="
                   "====================================================="
                   "==================================================")
@@ -580,20 +586,20 @@ def print_shost_info():
 
         if (verbose):
             try:
-                if (('lpfc' in shost.hostt.module.name) and struct_exists("struct lpfc_hba")):
+                if (('lpfc' in get_hostt_module_name(shost)) and struct_exists("struct lpfc_hba")):
                     print_lpfc_shost_info(shost)
                     verbose_info_logged += 1
-                elif (('qla2xxx' in shost.hostt.module.name) and struct_exists("struct qla_hw_data")):
+                elif (('qla2xxx' in get_hostt_module_name(shost)) and struct_exists("struct qla_hw_data")):
                     print_qla2xxx_shost_info(shost)
                     verbose_info_logged += 1
-                elif (('hpsa' in shost.hostt.module.name) and struct_exists("struct ctlr_info")):
+                elif (('hpsa' in get_hostt_module_name(shost)) and struct_exists("struct ctlr_info")):
                     print_hpsa_shost_info(shost)
                     verbose_info_logged += 1
             except:
                 pylog.warning("Error in processing verbose details for Scsi_Host: "
                               "{} ({:x})".format(shost.shost_gendev.kobj.name, shost))
 
-        if (shost.hostt.module.name in mod_with_verbose_info):
+        if (get_hostt_module_name(shost) in mod_with_verbose_info):
             verbose_info_available += 1
 
     if (verbose_info_available !=0 and verbose_info_logged == 0):
@@ -1043,7 +1049,7 @@ def run_target_checks():
                             target_warnings += 1
                             print("WARNING: scsi_target {:10s} {:x} not in RUNNING "
                                   "state".format(starget.dev.kobj.name, starget))
-                            if (shost.hostt.module.name in "lpfc_qla2xxx_fnic"):
+                            if (get_hostt_module_name(shost) in "lpfc_qla2xxx_fnic"):
                                 enum_fcrport_state = EnumInfo("enum fc_port_state")
                                 dev_parent = readSU("struct device", starget.dev.parent)
                                 fc_rport = container_of(dev_parent, "struct fc_rport", "dev")
