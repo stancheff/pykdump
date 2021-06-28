@@ -188,7 +188,7 @@ def context_struct_exists(s_name, name, message=1):
             pylog.info("{}: error: {} does not exist".format(name, struct_name))
         return False
 
-def get_dm_target_name(dm_table_map):
+def get_dm_target_name(dm_table_map, name):
 
     if (dm_table_exists(dm_table_map) is False):
         pylog.info("{}: table not found".format(name))
@@ -692,7 +692,7 @@ def show_lvm(dev, devlist, spec):
     md, name = dev
     dm_table_map = readSU("struct dm_table", long(md.map))
 
-    type_name = get_dm_target_name(dm_table_map)
+    type_name = get_dm_target_name(dm_table_map, name)
     if (not type_name):
         return
 
