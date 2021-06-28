@@ -496,6 +496,7 @@ def get_md_mpath_from_gendisk(pv_gendisk, devlist):
     for temp_dev in devlist:
         if (tmp_mapped_device == temp_dev[0]):
             return temp_dev
+    return (0,0)
 
 def get_lvm_function(spec):
 
@@ -587,6 +588,9 @@ def build_pv_list(target, context, devlist, leg_count, pool_string, name):
         size = get_size(pv_gendisk)
         if ('dm-' in pv_gendisk.disk_name[:3]):
             pv_md, pv_md_name = get_md_mpath_from_gendisk(pv_gendisk, devlist)
+            if (not pv_md and not pv_md_name):
+                pylog.warning("No PV found for pv_gendisk".format(pv_gendisk))
+                continue
             pv_names.append((pool_string + pv_md_name + " (" + pv_gendisk.disk_name + ")", format(pv_md, 'x'), size))
         else:
             pv_names.append((bdev_name(pv_blockdev), pv_md, size))
