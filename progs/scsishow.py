@@ -572,17 +572,19 @@ def print_shost_info():
         print("   work_q_name         : {}".format(shost.work_q_name))
 
         if (struct_exists("struct fc_host_attrs") and verbose == 1):
-            fc_host_attrs = readSU("struct fc_host_attrs", shost.shost_data)
-            if (fc_host_attrs and ('fc_wq_' in fc_host_attrs.work_q_name[:8])):
-                try:
+            try:
+                fc_host_attrs = readSU("struct fc_host_attrs", shost.shost_data)
+                if (fc_host_attrs and ('fc_wq_' in fc_host_attrs.work_q_name[:8])):
                     print("\n\n   FC/FCoE HBA attributes")
                     print("   ----------------------")
                     print("   fc_host_attrs       : {:x}".format(fc_host_attrs))
                     print("   node_name (wwnn)    : {:x}".format(fc_host_attrs.node_name))
                     print("   port_name (wwpn)    : {:x}".format(fc_host_attrs.port_name))
                     verbose_info_logged += 1
-                except KeyError:
-                    pylog.warning("Error in processing fc_host_attrs {:x}".format(fc_host_attrs))
+            except:
+                pylog.warning("Error in processing verbose details from shost.shost_data: "
+                              "{:x} for Scsi_Host: {} ({:x})".format(shost.shost_data,
+                              shost.shost_gendev.kobj.name, shost))
 
         if (verbose):
             try:
