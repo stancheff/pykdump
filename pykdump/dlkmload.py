@@ -42,7 +42,7 @@ def possibleModuleNames(topdir, fbase):
     lfb = len(fbase)
     #print ("++ searching for", fbase, " at", topdir)
 
-    for d, dummy, files in os.walk(topdir):
+    for d, dummy, files in os.walk(topdir, followlinks=True):
         for f in files:
             if (f.find(fbase) != 0):
                 continue
