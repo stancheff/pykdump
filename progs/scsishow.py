@@ -904,6 +904,20 @@ def run_cmd_checks(sdev):
     cmd_warnings = 0
     jiffies = readSymbol("jiffies")
 
+    scmd_results = {
+        0x0:  "SAM_STAT_GOOD",
+        0x2:  "SAM_STAT_CHECK_CONDITION",
+        0x4:  "SAM_STAT_CONDITION_MET",
+        0x8:  "SAM_STAT_BUSY",
+        0x10: "SAM_STAT_INTERMEDIATE",
+        0x14: "SAM_STAT_INTERMEDIATE_CONDITION_MET",
+        0x18: "SAM_STAT_RESERVATION_CONFLICT",
+        0x22: "SAM_STAT_COMMAND_TERMINATED",
+        0x28: "SAM_STAT_TASK_SET_FULL",
+        0x30: "SAM_STAT_ACA_ACTIVE",
+        0x40: "SAM_STAT_TASK_ABORTED"
+    }
+
     for cmnd in get_scsi_commands(sdev):
         timeout = 0
         if (cmnd.request):
@@ -942,6 +956,11 @@ def run_cmd_checks(sdev):
             cmd_warnings += 1
             print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a retries value of {}!".format(cmnd,
                    cmnd.device, get_scsi_device_id(cmnd.device), cmnd.retries))
+
+        # check for non-zero result values
+        if (cmnd.result > 0):
+            print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a result value of {}!".format(cmnd,
+                   cmnd.device, get_scsi_device_id(cmnd.device), scmd_results[cmnd.result]))
 
     return cmd_warnings
 
