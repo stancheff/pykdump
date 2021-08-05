@@ -310,8 +310,12 @@ def get_gendev():
                 else:
                     devp = container_of(knode, "struct device_private", "knode_class")
                     dev = devp.device
-                hd_temp = container_of(dev, "struct hd_struct", "__dev")
-                gendev = container_of(hd_temp, "struct gendisk", "part0")
+                if struct_exists("struct hd_struct"):
+                    hd_temp = container_of(dev, "struct hd_struct", "__dev")
+                    gendev = container_of(hd_temp, "struct gendisk", "part0")
+                else:
+                    blockdev = container_of(dev, "struct block_device", "bd_device")
+                    gendev = blockdev.bd_disk
                 gendev_q = format(gendev.queue, 'x')
                 gendev_dict[gendev_q] = format(gendev, 'x')
 
