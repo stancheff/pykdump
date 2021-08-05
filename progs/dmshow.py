@@ -140,12 +140,16 @@ def display_fields(display, fieldstr, usehex=0):
                 print("[Device suspended internally]", end='')
 
 def bdev_name(bdev):
-    if (bdev.bd_part.partno == 0):
-        return bdev.bd_disk.disk_name
-    elif (bdev.bd_disk.disk_name[len(bdev.bd_disk.disk_name)-1].isdigit() is True):
-        return bdev.bd_disk.disk_name + "p" + str(bdev.bd_part.partno)
+    if struct_exists("struct hd_struct"):
+        partno = bdev.bd_part.partno
     else:
-        return bdev.bd_disk.disk_name + str(bdev.bd_part.partno)
+        partno = bdev.bd_partno
+
+    if (partno == 0):
+        return bdev.bd_disk.disk_name
+    if (bdev.bd_disk.disk_name[len(bdev.bd_disk.disk_name)-1].isdigit() is True):
+        return bdev.bd_disk.disk_name + "p" + str(partno)
+    return bdev.bd_disk.disk_name + str(partno)
 
 def get_size(gendisk):
     try:
