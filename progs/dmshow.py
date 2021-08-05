@@ -155,14 +155,17 @@ def get_size(gendisk):
     try:
         if (member_size("struct gendisk", "capacity") != -1):
             return (gendisk.capacity * 512 / 1048576)
-        else:
+        if struct_exists("struct hd_struct"):
             tmp_hd_struct = readSU("struct hd_struct", long(gendisk.part0))
             return (tmp_hd_struct.nr_sects * 512 / 1048576)
+        inode = readSU("struct inode", gendisk.part0.bd_inode)
+        return inode.i_size >> 9
     except:
         pylog.warning("Error in processing 'struct gendisk'", gendisk)
         pylog.warning("To debug this issue, you could manually examine "
                       "the contents of gendisk struct")
         return
+
 def pr_ctrl_state(ctrl):
 
     try:
