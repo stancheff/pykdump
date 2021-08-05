@@ -32,7 +32,7 @@ from __future__ import print_function
 __version__ = "0.0.2"
 
 from pykdump.API import *
-
+from LinuxDump.trees import *
 required_modules = ('dm_mod', 'dm_multipath', 'dm_log', 'dm_mirror',
                     'dm_queue_length', 'dm_round_robin', 'dm_service_time',
                     'dm_region_hash', 'dm_snapshot', 'dm_thin_pool', 'dm_raid')
@@ -61,12 +61,21 @@ lv_list = []
 
 def get_dm_devices():
     sn = "struct hash_cell"
-    nameb = readSymbol("_name_buckets")
     out = []
-    off = member_offset(sn, "name_list")
-    for b in nameb:
-        for a in readListByHead(b):
-            hc = readSU("struct hash_cell", a - off)
+    if (symbol_exists("_name_buckets")):
+        nameb = readSymbol("_name_buckets")
+        off = member_offset(sn, "name_list")
+        for b in nameb:
+            for a in readListByHead(b):
+                hc = readSU(sn, a - off)
+                if (hc.md.disk):
+                    out.append((hc.md, hc.name))
+                else:
+                    print("ERROR: skipping {}. No gendisk "
+                          "present.".format(hc.md))
+    else:
+        name_tree = readSymbol("name_rb_tree")
+        for hc in for_all_rbtree(name_tree, sn, "name_node"):
             if (hc.md.disk):
                 out.append((hc.md, hc.name))
             else:
