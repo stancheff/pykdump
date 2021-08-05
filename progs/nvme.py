@@ -84,8 +84,12 @@ def get_nvme_sysfs_gendisk_queues(rq_list):
 
     for kernfs_node in for_all_rbtree(rbroot, "struct kernfs_node", "rb"):
         kernfs_node = kernfs_node.symlink.target_kn
-        gendisk = container_of(kernfs_node.priv, "struct gendisk", "part0.__dev.kobj")
-        if gendisk.queue:
+        if struct_exists("struct hd_struct"):
+            gendisk = container_of(kernfs_node.priv, "struct gendisk", "part0.__dev.kobj")
+        else:
+            blockdevice = container_of(kernfs_node.priv, "struct block_device", "bd_device.kobj")
+            gendisk = blockdevice.bd_disk
+        if gendisk and gendisk.queue:
             if gendisk.queue not in rq_list:
                 rq_list.append(gendisk.queue)
             rq_names[gendisk.queue] = str(gendisk.disk_name)
