@@ -532,11 +532,28 @@ def print_hpsa_shost_info(shost):
     print("   remove_in_progress  : {}".format(ctlr_info.remove_in_progress))
     print("   reset_in_progress   : {}".format(ctlr_info.reset_in_progress))
 
+def print_vmw_pvscsi_shost_info(shost):
+    pvscsi_adapter = readSU("struct pvscsi_adapter", shost.hostdata)
+    pci_dev = readSU("struct pci_dev", pvscsi_adapter.dev)
+    print("\n\n   PVSCSI HBA specific details")
+    print("   ---------------------------")
+    print("   pvscsi_adapter      : {:x}".format(pvscsi_adapter))
+    print("   pci_dev             : {:x}".format(pci_dev))
+    print("   pci_dev slot        : {}".format(pci_dev.dev.kobj.name))
+    print("   req_pages           : {}".format(pvscsi_adapter.req_pages))
+    print("   req_depth           : {}".format(pvscsi_adapter.req_depth))
+    print("   use_req_threshold   : {}".format(pvscsi_adapter.use_req_threshold))
+    print("   PVSCSIRingReqDesc   : {:x}".format(pvscsi_adapter.req_ring))
+    print("   PVSCSIRingCmpDesc   : {:x}".format(pvscsi_adapter.cmp_ring))
+    print("   PVSCSIRingMsgDesc   : {:x}".format(pvscsi_adapter.msg_ring))
+    print("   PVSCSIRingsState    : {:x}".format(pvscsi_adapter.rings_state))
+    print("   cmd_pool            : {:x}".format(pvscsi_adapter.cmd_pool))
+
 def print_shost_info():
     enum_shost_state = EnumInfo("enum scsi_host_state")
 
     hosts = get_scsi_hosts()
-    mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic", "hpsa"]
+    mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic", "hpsa", "vmw_pvscsi"]
     verbose_info_logged = 0
     verbose_info_available = 0
 
@@ -600,6 +617,10 @@ def print_shost_info():
                     verbose_info_logged += 1
                 elif (('hpsa' in get_hostt_module_name(shost)) and struct_exists("struct ctlr_info")):
                     print_hpsa_shost_info(shost)
+                    verbose_info_logged += 1
+                elif (('vmw_pvscsi' in get_hostt_module_name(shost)) and
+                       struct_exists("struct pvscsi_adapter")):
+                    print_vmw_pvscsi_shost_info(shost)
                     verbose_info_logged += 1
             except:
                 pylog.warning("Error in processing verbose details for Scsi_Host: "
