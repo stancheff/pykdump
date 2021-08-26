@@ -77,6 +77,30 @@ def get_host_busy(shost):
             cmds_in_flight += 1
     return cmds_in_flight
 
+def get_scsi_device_busy(sdev):
+    busy = cleared = 0
+    sb = sdev.budget_map
+
+    for map_nr in range(sb.map_nr):
+        bitmap = sb.map[map_nr].word
+        if (not int(bitmap)):
+            continue
+        for i in range(sb.map[map_nr].depth):
+            if int(bitmap) & 1:
+                busy += 1
+            bitmap = bitmap >> 1
+
+    for map_nr in range(sb.map_nr):
+        bitmap = sb.map[map_nr].cleared
+        if (not int(bitmap)):
+            continue
+        for i in range(sb.map[map_nr].depth):
+            if int(bitmap) & 1:
+                cleared += 1
+            bitmap = bitmap >> 1
+
+    return busy - cleared
+
 def get_queue_requests(rqueue):
     out = []
     for request in readSUListFromHead(rqueue.queue_head, "queuelist",
@@ -1005,10 +1029,14 @@ def run_sdev_cmd_checks():
             print("WARNING: scsi_device {:#x} ({}) is blocked! HBA driver returning "
                     "SCSI_MLQUEUE_DEVICE_BUSY or device returning SAM_STAT_BUSY?".format(sdev,
                     get_scsi_device_id(sdev)))
-        if (atomic_t(sdev.device_busy) < 0):
+        if (member_size("struct scsi_device", "device_busy") != -1):
+            device_busy = atomic_t(sdev.device_busy)
+        else:
+            device_busy = get_scsi_device_busy(sdev)
+        if (device_busy < 0):
             dev_warnings += 1
             print("ERROR:   scsi_device {:#x} ({}) device_busy count is: {}".format(sdev,
-                get_scsi_device_id(sdev), atomic_t(sdev.device_busy)))
+                get_scsi_device_id(sdev), device_busy))
             if (sdev.host.hostt.name in "qla2xxx"):
                 qla_cmd_abort_bug += 1
 
