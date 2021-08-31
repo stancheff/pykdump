@@ -497,11 +497,38 @@ def print_fcrports():
                     pylog.warning("Error in processing FC rports connnected to scsi_target {:x},"
                                   "please check manually".format(int(starget)))
 
+def get_fc_hba_port_attr(shost):
+    port_attr = []
+    if (struct_exists("struct fc_host_attrs")):
+        try:
+            fc_host_attrs = readSU("struct fc_host_attrs", shost.shost_data)
+            if (fc_host_attrs and ('fc_wq_' in fc_host_attrs.work_q_name[:8])):
+                port_attr.append(fc_host_attrs)
+                port_attr.append(fc_host_attrs.node_name)
+                port_attr.append(fc_host_attrs.port_name)
+        except:
+            pass
+
+    return port_attr
+
 def print_qla2xxx_shost_info(shost):
-    scsi_qla_host = readSU("struct scsi_qla_host", shost.hostdata)
-    qla_hw_data = readSU("struct qla_hw_data", scsi_qla_host.hw)
+    print("\n\n   FC/FCoE HBA attributes")
+    print("   ----------------------")
+
+    port_attr = get_fc_hba_port_attr(shost)
+
+    if (len(port_attr)):
+        print("   fc_host_attrs       : {:x}".format(port_attr[0]))
+        print("   node_name (wwnn)    : {:x}".format(port_attr[1]))
+        print("   port_name (wwpn)    : {:x}".format(port_attr[2]))
+    else:
+        print("   Error in fetching port wwnn and wwpn")
+
     print("\n\n   Qlogic HBA specific details")
     print("   ---------------------------")
+
+    scsi_qla_host = readSU("struct scsi_qla_host", shost.hostdata)
+    qla_hw_data = readSU("struct qla_hw_data", scsi_qla_host.hw)
     print("   scsi_qla_host       : {:x}".format(scsi_qla_host))
     print("   qla_hw_data         : {:x}".format(qla_hw_data))
     print("   pci_dev             : {:x}".format(qla_hw_data.pdev))
@@ -516,10 +543,23 @@ def print_qla2xxx_shost_info(shost):
     print("   ql2xmaxqdepth       : {}".format(readSymbol("ql2xmaxqdepth")))
 
 def print_lpfc_shost_info(shost):
-    lpfc_vport = readSU("struct lpfc_vport", shost.hostdata)
-    lpfc_hba = readSU("struct lpfc_hba", lpfc_vport.phba)
+    print("\n\n   FC/FCoE HBA attributes")
+    print("   ----------------------")
+
+    port_attr = get_fc_hba_port_attr(shost)
+
+    if (len(port_attr)):
+        print("   fc_host_attrs       : {:x}".format(port_attr[0]))
+        print("   node_name (wwnn)    : {:x}".format(port_attr[1]))
+        print("   port_name (wwpn)    : {:x}".format(port_attr[2]))
+    else:
+        print("   Error in fetching port wwnn and wwpn")
+
     print("\n\n   Emulex HBA specific details")
     print("   ---------------------------")
+
+    lpfc_vport = readSU("struct lpfc_vport", shost.hostdata)
+    lpfc_hba = readSU("struct lpfc_hba", lpfc_vport.phba)
     print("   lpfc_vport          : {:x}".format(lpfc_vport))
     print("   lpfc_hba            : {:x}".format(lpfc_hba))
     print("   sli_rev             : {}".format(lpfc_hba.sli_rev))
@@ -616,21 +656,6 @@ def print_shost_info():
         print("   max_lun             : {}".format(shost.max_lun))
         print("   cmd_per_lun         : {}".format(shost.cmd_per_lun))
         print("   work_q_name         : {}".format(shost.work_q_name))
-
-        if (struct_exists("struct fc_host_attrs") and verbose == 1):
-            try:
-                fc_host_attrs = readSU("struct fc_host_attrs", shost.shost_data)
-                if (fc_host_attrs and ('fc_wq_' in fc_host_attrs.work_q_name[:8])):
-                    print("\n\n   FC/FCoE HBA attributes")
-                    print("   ----------------------")
-                    print("   fc_host_attrs       : {:x}".format(fc_host_attrs))
-                    print("   node_name (wwnn)    : {:x}".format(fc_host_attrs.node_name))
-                    print("   port_name (wwpn)    : {:x}".format(fc_host_attrs.port_name))
-                    verbose_info_logged += 1
-            except:
-                pylog.warning("Error in processing verbose details from shost.shost_data: "
-                              "{:x} for Scsi_Host: {} ({:x})".format(shost.shost_data,
-                              shost.shost_gendev.kobj.name, shost))
 
         if (verbose):
             try:
