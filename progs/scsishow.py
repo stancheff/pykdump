@@ -1012,6 +1012,13 @@ def run_cmd_checks(sdev):
             print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a result value of {}!".format(cmnd,
                    cmnd.device, get_scsi_device_id(cmnd.device), scmd_results[cmnd.result]))
 
+        # check for incorrect mapped buffer count
+        if (cmnd.sdb.table.nents > cmnd.device.host.sg_tablesize):
+            print("ERROR: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has cmnd.sdb.table.nents count ({}) "
+                  "more than Scsi_Host->sg_tablesize ({})".format(cmnd, cmnd.device, get_scsi_device_id(cmnd.device),
+                  cmnd.sdb.table.nents, cmnd.device.host.sg_tablesize))
+            cmd_warnings += 1
+
     return cmd_warnings
 
 def run_sdev_cmd_checks():
