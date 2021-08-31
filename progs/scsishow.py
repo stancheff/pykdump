@@ -676,6 +676,37 @@ def print_qedf_shost_info(shost):
     else:
         print("   Error in fetching verbose details from struct qedf_ctx")
 
+def print_fnic_shost_info(shost):
+    print("\n\n   FC/FCoE HBA attributes")
+    print("   ----------------------")
+
+    port_attr = get_fc_hba_port_attr(shost)
+
+    if (len(port_attr)):
+        print("   fc_host_attrs       : {:x}".format(port_attr[0]))
+        print("   node_name (wwnn)    : {:x}".format(port_attr[1]))
+        print("   port_name (wwpn)    : {:x}".format(port_attr[2]))
+    else:
+        print("   Error in fetching port wwnn and wwpn")
+
+    print("\n\n   Cisco FCoE HBA specific details")
+    print("   -------------------------------")
+
+    if (struct_exists("struct fnic")):
+        fnic = readSU("struct fnic", shost.hostdata + struct_size("struct fc_lport"))
+        print("   fnic                : {:x}".format(fnic))
+        print("   fc_lport            : {:x}".format(fnic.lport))
+        print("   fcoe_ctlr           : {:x}".format(fnic.ctlr))
+        print("   pci_dev             : {:x}".format(fnic.pdev))
+        print("   pci_dev slot        : {}".format(fnic.pdev.dev.kobj.name))
+        print("   fnic_stats          : {:x}".format(fnic.fnic_stats))
+        print("   in_flight           : {}".format(atomic_t(fnic.in_flight)))
+        print("   reset_inprogress    : {}".format(fnic.internal_reset_inprogress))
+        print("   vlan_id             : {:x}".format(fnic.vlan_id))
+        print("   link_down_cnt       : {}".format(fnic.link_down_cnt))
+    else:
+        print("   Error in fetching verbose details from struct fnic")
+
 def print_shost_info():
     enum_shost_state = EnumInfo("enum scsi_host_state")
 
@@ -735,6 +766,9 @@ def print_shost_info():
 
                 elif (('qedf' in get_hostt_module_name(shost))):
                     print_qedf_shost_info(shost)
+
+                elif (('fnic' in get_hostt_module_name(shost))):
+                    print_fnic_shost_info(shost)
 
                 verbose_info_logged += 1
             except:
