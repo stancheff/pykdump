@@ -1257,21 +1257,23 @@ def run_target_checks():
                             target_warnings += 1
                             print("WARNING: scsi_target {:10s} {:x} not in RUNNING "
                                   "state".format(starget.dev.kobj.name, starget))
-                            if (get_hostt_module_name(shost) in supported_modules):
-                                enum_fcrport_state = EnumInfo("enum fc_port_state")
-                                dev_parent = readSU("struct device", starget.dev.parent)
-                                fc_rport = container_of(dev_parent, "struct fc_rport", "dev")
-                                if (enum_fcrport_state.getnam(fc_rport.port_state) != 'FC_PORTSTATE_ONLINE'):
-                                    print("         FC rport (WWPN: {:x}) on {:10s} is not "
-                                          "online".format(fc_rport.port_name, starget.dev.kobj.name))
-                                    fc_rport_warnings += 1
+                        if (get_hostt_module_name(shost) in supported_modules):
+                            enum_fcrport_state = EnumInfo("enum fc_port_state")
+                            dev_parent = readSU("struct device", starget.dev.parent)
+                            fc_rport = container_of(dev_parent, "struct fc_rport", "dev")
+                            if (enum_fcrport_state.getnam(fc_rport.port_state) != 'FC_PORTSTATE_ONLINE'):
+                                print("WARNING: FC rport (WWPN: {:x}) on {:10s} is in "
+                                      "{} state".format(fc_rport.port_name, starget.dev.kobj.name,
+                                      enum_fcrport_state.getnam(fc_rport.port_state)))
+                                target_warnings += 1
+                                fc_rport_warnings += 1
 
                     except KeyError:
                         pylog.warning("Error in processing scsi_target {:x},"
                                       "please check manually".format(int(starget)))
 
     if (fc_rport_warnings):
-        print("\nERROR:   Couple of FC remote port(s) are NOT in ONLINE state, use '-f' to check detailed information.\n")
+        print("Use '-f' to check detailed information about FC remote ports.\n")
 
     return target_warnings
 
