@@ -1154,6 +1154,8 @@ def run_sdev_cmd_checks():
     gendev_q_sdev_q_mismatch = 0
     jiffies = readSymbol("jiffies")
 
+    enum_sdev_state = EnumInfo("enum scsi_device_state")
+
     gendev_dict = get_gendev()
 
     for sdev in get_scsi_devices():
@@ -1162,10 +1164,25 @@ def run_sdev_cmd_checks():
             print("WARNING: scsi_device {:#x} ({}) is blocked! HBA driver returning "
                     "SCSI_MLQUEUE_DEVICE_BUSY or device returning SAM_STAT_BUSY?".format(sdev,
                     get_scsi_device_id(sdev)))
+
+        try:
+            sdev_state = get_sdev_state(enum_sdev_state.getnam(sdev.sdev_state))
+        except:
+            if (sdev.sdev_state == 9):
+                sdev_state = "SDEV_TRANSPORT_OFFLINE"
+            else:
+                sdev_state = "<Unknown>"
+
+        if (sdev.sdev_state != 2):
+            dev_warnings += 1
+            print("WARNING: scsi_device {:#x} ({}) is in {} state".format(sdev,
+                    get_scsi_device_id(sdev), sdev_state))
+
         if (member_size("struct scsi_device", "device_busy") != -1):
             device_busy = atomic_t(sdev.device_busy)
         else:
             device_busy = get_scsi_device_busy(sdev)
+
         if (device_busy < 0):
             dev_warnings += 1
             print("ERROR:   scsi_device {:#x} ({}) device_busy count is: {}".format(sdev,
