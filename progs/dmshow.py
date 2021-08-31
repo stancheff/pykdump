@@ -335,14 +335,12 @@ def show_multipath_list(dev):
     try:
         if "sd_fops" in path_ops:
             temp_path = readSU("struct scsi_device", temp_pgpath.path.dev.bdev.bd_disk.queue.queuedata)
-            vendor = temp_path.vendor[:8]
-            model = temp_path.model[:16]
+            vendor_str = temp_path.vendor[:8].strip() + " " + temp_path.model[:16].strip()
         elif "nvme" in path_ops:
             temp_path = readSU("struct nvme_ns", temp_pgpath.path.dev.bdev.bd_disk.queue.queuedata)
-            vendor = "NVME"
-            model = temp_path.ctrl.model
+            vendor_str = "NVME " + temp_path.ctrl.model.strip()
         else:
-            vendor = model = "<unknown>"
+            vendor_str = "<unknown>"
             pylog.info("{}: {} ops not recognized".format(temp_pgpath.path.dev.bdev.bd_disk, path_ops))
     except:
         pylog.warning("Error in processing sub paths for multipath device:", name)
@@ -357,8 +355,8 @@ def show_multipath_list(dev):
         print("{}  ({})  dm-{:<4d}  HP Smart Array RAID Device (cciss)".format(name, scsi_id[2],
             md.disk.first_minor), end="")
     else:
-        print("{}  ({})  dm-{:<4d}  {}  {}".format(name, scsi_id[2], md.disk.first_minor,
-            vendor, model), end="")
+        print("{}  ({})  dm-{:<4d}  {}".format(name, scsi_id[2], md.disk.first_minor,
+            vendor_str), end="")
 
     print("\nsize={:.2f}M  ".format(get_size(temp_pgpath.path.dev.bdev.bd_disk)), end="")
 
