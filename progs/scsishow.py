@@ -466,9 +466,10 @@ def print_starget_shost():
                                       "please check manually".format(int(starget)))
 
 def print_fcrports():
+    supported_modules = ["lpfc", "qla2xxx", "fnic", "qedf"]
     for shost in get_scsi_hosts():
         if (shost.__targets.next != shost.__targets.next.next and
-            get_hostt_module_name(shost) in "lpfc_qla2xxx_fnic"):
+            get_hostt_module_name(shost) in supported_modules):
             print("\n==================================================="
                   "====================================================="
                   "==================================================")
