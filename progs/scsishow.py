@@ -524,7 +524,7 @@ def print_qla2xxx_shost_info(shost):
     else:
         print("   Error in fetching port wwnn and wwpn")
 
-    print("\n\n   Qlogic HBA specific details")
+    print("\n\n   QLogic HBA specific details")
     print("   ---------------------------")
 
     if (struct_exists("struct qla_hw_data")):
@@ -778,7 +778,7 @@ def print_shost_info():
         if (get_hostt_module_name(shost) in mod_with_verbose_info):
             verbose_info_available += 1
 
-    if (verbose_info_available !=0 and verbose_info_logged == 0):
+    if (verbose_info_available != 0 and verbose_info_logged == 0):
         print("\n\n   *** NOTE: More detailed HBA information available, use '-v'"
               " or '--verbose' to view.")
 
