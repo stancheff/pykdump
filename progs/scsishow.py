@@ -1009,6 +1009,7 @@ def run_cmd_checks(sdev):
 
         # check for non-zero result values
         if (cmnd.result > 0):
+            cmd_warnings += 1
             print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a result value of {}!".format(cmnd,
                    cmnd.device, get_scsi_device_id(cmnd.device), scmd_results[cmnd.result]))
 
