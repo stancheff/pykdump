@@ -628,11 +628,59 @@ def print_vmw_pvscsi_shost_info(shost):
     else:
         print("   Error in fetching verbose details from struct pvscsi_adapter")
 
+def print_qedf_shost_info(shost):
+    print("\n\n   FC/FCoE HBA attributes")
+    print("   ----------------------")
+
+    port_attr = get_fc_hba_port_attr(shost)
+
+    if (len(port_attr)):
+        print("   fc_host_attrs       : {:x}".format(port_attr[0]))
+        print("   node_name (wwnn)    : {:x}".format(port_attr[1]))
+        print("   port_name (wwpn)    : {:x}".format(port_attr[2]))
+    else:
+        print("   Error in fetching port wwnn and wwpn")
+
+    print("\n\n   QLogic FastLinQ HBA specific details")
+    print("   ------------------------------------")
+
+    if (struct_exists("struct qedf_ctx")):
+        qedf_ctx = readSU("struct qedf_ctx", shost.hostdata + struct_size("struct fc_lport"))
+        print("   qedf_ctx            : {:x}".format(qedf_ctx))
+        print("   fc_lport            : {:x}".format(qedf_ctx.lport))
+        print("   fcoe_ctlr           : {:x}".format(qedf_ctx.ctlr))
+        print("   vlan_id             : {:#x}".format(qedf_ctx.vlan_id))
+        print("   qed_dev             : {:x}".format(qedf_ctx.cdev))
+        print("   firmware major      : {:d}".format(qedf_ctx.cdev.fw_data.fw_ver_info.num.major))
+        print("   firmware minor      : {:d}".format(qedf_ctx.cdev.fw_data.fw_ver_info.num.minor))
+        print("   firmware rev        : {:d}".format(qedf_ctx.cdev.fw_data.fw_ver_info.num.rev))
+        print("   firmware eng        : {:d}".format(qedf_ctx.cdev.fw_data.fw_ver_info.num.eng))
+        print("   pci_dev             : {:x}".format(qedf_ctx.pdev))
+        print("   pci_dev slot        : {}".format(qedf_ctx.pdev.dev.kobj.name))
+        print("   curr_conn_id        : {}".format(qedf_ctx.curr_conn_id))
+        print("   qedf_fastpath       : {:x}".format(qedf_ctx.fp_array))
+        print("   qedf_cmd_mgr        : {:x}".format(qedf_ctx.cmd_mgr))
+        print("   stop_io_on_error    : {}".format(qedf_ctx.stop_io_on_error))
+        print("   flogi_cnt           : {}".format(qedf_ctx.flogi_cnt))
+        print("   flogi_failed        : {}".format(qedf_ctx.flogi_failed))
+        print("   flogi_pending       : {}".format(qedf_ctx.flogi_pending))
+        print("   input_requests      : {}".format(qedf_ctx.input_requests))
+        print("   output_requests     : {}".format(qedf_ctx.output_requests))
+        print("   control_requests    : {}".format(qedf_ctx.control_requests))
+        print("   packet_aborts       : {}".format(qedf_ctx.packet_aborts))
+        print("   alloc_failures      : {}".format(qedf_ctx.alloc_failures))
+        print("   lun_resets          : {}".format(qedf_ctx.lun_resets))
+        print("   target_resets       : {}".format(qedf_ctx.target_resets))
+        print("   task_set_fulls      : {}".format(qedf_ctx.task_set_fulls))
+        print("   busy                : {}".format(qedf_ctx.busy))
+    else:
+        print("   Error in fetching verbose details from struct qedf_ctx")
+
 def print_shost_info():
     enum_shost_state = EnumInfo("enum scsi_host_state")
 
     hosts = get_scsi_hosts()
-    mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic", "hpsa", "vmw_pvscsi"]
+    mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic", "hpsa", "vmw_pvscsi", "qedf"]
     verbose_info_logged = 0
     verbose_info_available = 0
 
@@ -684,6 +732,9 @@ def print_shost_info():
 
                 elif (('vmw_pvscsi' in get_hostt_module_name(shost))):
                     print_vmw_pvscsi_shost_info(shost)
+
+                elif (('qedf' in get_hostt_module_name(shost))):
+                    print_qedf_shost_info(shost)
 
                 verbose_info_logged += 1
             except:
