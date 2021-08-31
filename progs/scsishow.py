@@ -1104,6 +1104,7 @@ def run_target_checks():
     target_warnings = 0
     fc_rport_warnings = 0
     enum_starget_state = EnumInfo("enum scsi_target_state")
+    supported_modules = ["lpfc", "qla2xxx", "fnic", "qedf"]
 
     for shost in get_scsi_hosts():
         if (shost.__targets.next != shost.__targets.next.next):
@@ -1124,7 +1125,7 @@ def run_target_checks():
                             target_warnings += 1
                             print("WARNING: scsi_target {:10s} {:x} not in RUNNING "
                                   "state".format(starget.dev.kobj.name, starget))
-                            if (get_hostt_module_name(shost) in "lpfc_qla2xxx_fnic"):
+                            if (get_hostt_module_name(shost) in supported_modules):
                                 enum_fcrport_state = EnumInfo("enum fc_port_state")
                                 dev_parent = readSU("struct device", starget.dev.parent)
                                 fc_rport = container_of(dev_parent, "struct fc_rport", "dev")
