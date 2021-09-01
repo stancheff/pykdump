@@ -1139,9 +1139,15 @@ def run_cmd_checks(sdev):
 
         # check for incorrect mapped buffer count
         if (cmnd.sdb.table.nents > cmnd.device.host.sg_tablesize):
-            print("ERROR: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has cmnd.sdb.table.nents count ({}) "
-                  "more than Scsi_Host->sg_tablesize ({})".format(cmnd, cmnd.device, get_scsi_device_id(cmnd.device),
-                  cmnd.sdb.table.nents, cmnd.device.host.sg_tablesize))
+            print("ERROR:   scsi_cmnd {:#x} on scsi_device {:#x} ({}) has cmnd.sdb.table.nents count ({}) "
+                  "more than Scsi_Host->sg_tablesize ({})".format(cmnd, cmnd.device,
+                  get_scsi_device_id(cmnd.device), cmnd.sdb.table.nents, cmnd.device.host.sg_tablesize))
+            cmd_warnings += 1
+
+        if (cmnd.sdb.table.nents > cmnd.request.q.limits.max_segments):
+            print("ERROR:   scsi_cmnd {:#x} on scsi_device {:#x} ({}) has cmnd.sdb.table.nents count ({}) "
+                  "more than request_queue.limits.max_segments) ({})".format(cmnd, cmnd.device,
+                  get_scsi_device_id(cmnd.device), cmnd.sdb.table.nents, cmnd.request.q.limits.max_segments))
             cmd_warnings += 1
 
     return cmd_warnings
