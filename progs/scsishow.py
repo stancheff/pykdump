@@ -1149,7 +1149,7 @@ def run_cmd_checks(sdev):
 
         if (cmnd.sdb.table.nents > cmnd.request.q.limits.max_segments):
             print("ERROR:   scsi_cmnd {:#x} on scsi_device {:#x} ({}) has cmnd.sdb.table.nents count ({}) "
-                  "more than request_queue.limits.max_segments) ({})".format(cmnd, cmnd.device,
+                  "more than request_queue.limits.max_segments ({})".format(cmnd, cmnd.device,
                   get_scsi_device_id(cmnd.device), cmnd.sdb.table.nents, cmnd.request.q.limits.max_segments))
             cmd_warnings += 1
 
