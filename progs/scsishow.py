@@ -1058,15 +1058,18 @@ def run_host_checks():
     for host in get_scsi_hosts():
         if (host.host_failed):
             host_warnings += 1
-            if (member_size("struct Scsi_Host", "host_busy") != 1):
-                if (host.host_failed == atomic_t(host.host_busy)):
-                    print("WARNING: Scsi_Host {:#x} ({}) is running error recovery!".format(host,
-                        host.shost_gendev.kobj.name))
-                else:
-                    print("WARNING: Scsi_Host {:#x} ({}) has timed out commands, but has not started error recovery!".format(host,
-                        host.shost_gendev.kobj.name))
+
+            if (member_size("struct Scsi_Host", "host_busy") != -1):
+                host_busy = atomic_t(host.host_busy)
             else:
-                print("WARNING: Scsi_Host {:#x} ({}) has timed out commands!".format(host, host.shost_gendev.kobj.name))
+                host_busy = get_host_busy(host)
+
+            if (host.host_failed == host_busy):
+                print("WARNING: Scsi_Host {:#x} ({}) is running error recovery!".format(host,
+                      host.shost_gendev.kobj.name))
+            else:
+                print("WARNING: Scsi_Host {:#x} ({}) has timed out commands, but has not started "
+                      "error recovery!".format(host, host.shost_gendev.kobj.name))
 
             if (atomic_t(host.host_blocked)):
                 host_warnings += 1
