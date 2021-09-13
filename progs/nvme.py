@@ -136,7 +136,8 @@ def get_nvme_gendisk_queues(rq_list):
 
     global use_linuxdump_idr
 
-    if (symbol_exists("block_depr") and struct_exists("struct kernfs_node")):
+    if (symbol_exists("block_depr") and struct_exists("struct kernfs_node") and not
+        struct_exists("struct sysfs_dirent")):
         return get_nvme_sysfs_gendisk_queues(rq_list)
 
     for i in range(255):
