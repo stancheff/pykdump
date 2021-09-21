@@ -205,11 +205,15 @@ def context_struct_exists(s_name, name, message=1):
         return False
 
 def get_dm_target_name(dm_table_map, name):
-
     if (dm_table_exists(dm_table_map) is False):
         pylog.info("{}: table not found".format(name))
         return 0
-    return dm_table_map.targets.type.name
+    try:
+        target_name = dm_table_map.targets.type.name
+    except:
+        pylog.info("{}: get_dm_target_name() failed".format(name))
+        return 0
+    return target_name
 
 def __set_multipath_scope(symbol):
     command = "set scope " + symbol
@@ -313,12 +317,10 @@ def show_multipath_list(dev):
     md, name = dev
     dm_table_map = readSU("struct dm_table", md.map)
 
-    if (dm_table_exists(dm_table_map) is False):
-        pylog.info("{}: table not found".format(name))
+    target_name = get_dm_target_name(dm_table_map, name)
+    if (not target_name or target_name != "multipath" ):
         return 0
 
-    if (not (dm_table_map.targets.type.name == "multipath")):
-        return 0
     print("------------------------------------------------------------------------------------------")
 
     mpath = readSU("struct multipath", dm_table_map.targets.private)
@@ -451,12 +453,10 @@ def show_basic_mpath_info(dev):
     md, name = dev
     dm_table_map = readSU("struct dm_table", md.map)
 
-    if (dm_table_exists(dm_table_map) is False):
-        pylog.info("{}: table not found".format(name))
+    target_name = get_dm_target_name(dm_table_map, name)
+    if (not target_name or target_name != "multipath"):
         return 0
 
-    if (not (dm_table_map.targets.type.name == "multipath")):
-        return 0
     mpath = readSU("struct multipath", dm_table_map.targets.private)
 
     print("dm-{:<4d}  {:<38} {:#x} ".format(md.disk.first_minor, name, mpath), end="")
@@ -1491,51 +1491,52 @@ def show_dmsetup_table_linear(dev):
 def show_dmsetup_table(dev):
     md, name = dev
     dm_table_map = readSU("struct dm_table", long(md.map))
-    if (dm_table_exists(dm_table_map) is False):
-        pylog.info("{}: table not found".format(name))
+    target_name = get_dm_target_name(dm_table_map, name)
+    if (not target_name):
+        pass
     elif (dm_table_map.num_targets == 0):
         print("{}: ".format(name))
-    elif (dm_table_map.targets.type.name == "linear"):
+    elif (target_name == "linear"):
         show_dmsetup_table_linear(dev)
-    elif (dm_table_map.targets.type.name == "multipath"):
+    elif (target_name == "multipath"):
         show_dmsetup_table_multipath(dev)
-    elif (dm_table_map.targets.type.name == "striped"):
+    elif (target_name == "striped"):
         show_dmsetup_table_striped(dev)
-    elif (dm_table_map.targets.type.name == "thin-pool"):
+    elif (target_name == "thin-pool"):
         show_dmsetup_table_thinpool(dev)
-    elif (dm_table_map.targets.type.name == "thin"):
+    elif (target_name == "thin"):
         show_dmsetup_table_thin(dev)
-    elif (dm_table_map.targets.type.name == "snapshot-origin"):
+    elif (target_name == "snapshot-origin"):
         show_dmsetup_table_snap_origin(dev)
-    elif (dm_table_map.targets.type.name == "snapshot" or
-            dm_table_map.targets.type.name == "snapshot-merge"):
+    elif (target_name == "snapshot" or
+            target_name == "snapshot-merge"):
         show_dmsetup_table_snap(dev)
-    elif (dm_table_map.targets.type.name == "cache"):
+    elif (target_name == "cache"):
         show_dmsetup_table_cache(dev)
-    elif (dm_table_map.targets.type.name == "raid"):
+    elif (target_name == "raid"):
         show_dmsetup_table_raid(dev)
-    elif (dm_table_map.targets.type.name == "raid45"):
+    elif (target_name == "raid45"):
         show_dmsetup_table_raid45(dev)
-    elif (dm_table_map.targets.type.name == "mirror"):
+    elif (target_name == "mirror"):
         show_dmsetup_table_mirror(dev)
-    elif (dm_table_map.targets.type.name == "crypt"):
+    elif (target_name == "crypt"):
         show_dmsetup_table_crypt(dev)
-    elif (dm_table_map.targets.type.name == "delay"):
+    elif (target_name == "delay"):
         show_dmsetup_table_delay(dev)
-    elif (dm_table_map.targets.type.name == "error" or
-            dm_table_map.targets.type.name == "zero"):
+    elif (target_name == "error" or
+            target_name == "zero"):
         show_dmsetup_table_generic(dev)
-    elif (dm_table_map.targets.type.name == "switch"):
+    elif (target_name == "switch"):
         show_dmsetup_table_switch(dev)
-    elif (dm_table_map.targets.type.name == "flakey"):
+    elif (target_name == "flakey"):
         show_dmsetup_table_flakey(dev)
-    elif (dm_table_map.targets.type.name == "era"):
+    elif (target_name == "era"):
         show_dmsetup_table_era(dev)
-    elif (dm_table_map.targets.type.name == "verity"):
+    elif (target_name == "verity"):
         show_dmsetup_table_verity(dev)
     else:
         print("{}: {} not yet supported by this command".format(name,
-              dm_table_map.targets.type.name))
+              target_name))
 
 def run_check_on_multipath(devlist):
     bts = []
@@ -1594,7 +1595,10 @@ def run_check_on_multipath(devlist):
         md, name = dev
         dm_table_map = readSU("struct dm_table", md.map)
         # Check if there is any multipath device present in device-mapper table
-        if (dm_table_map.targets.type.name == "multipath"):
+        target_name = get_dm_target_name(dm_table_map, name)
+        if (not target_name):
+            continue
+        elif (target_name == "multipath"):
             mpath_present += 1
 
     # Check if kworker threads are stuck waiting to flush IO on mdraid devices
