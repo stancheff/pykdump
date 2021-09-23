@@ -1625,6 +1625,23 @@ def run_check_on_multipath(devlist):
               "\n    this could block IO failover on multipath devices")
         errors += 1
 
+    # check underlying devs for different block sizes (dm-linear only)
+    for dev in devlist:
+        sizes=[]
+        md, name = dev
+        dm_table_map = readSU("struct dm_table", md.map)
+        for target_id in range(dm_table_map.num_targets):
+            target = dm_table_map.targets.__getitem__(target_id)
+            target_name = get_dm_target_name(target.table, name)
+            if (target_name == "linear"):
+                linear_c = readSU("struct linear_c", target.private)
+                queue = linear_c.dev.bdev.bd_queue
+                sizes.append(queue.limits.logical_block_size)
+        if (sizes.count(sizes[0]) != len(sizes)):
+            print("\n ** {} underlying device logical_block_size values "
+                "are not the same!".format(name))
+            errors += 1
+
     if (errors > 0 and task_cnt != 0):
         print("\n    Found {} processes in UN state.".format(task_cnt))
         print("\n    Run 'hanginfo' for more information on processes in UN state.")
