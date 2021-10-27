@@ -1635,7 +1635,7 @@ def run_check_on_multipath(devlist):
             target_name = get_dm_target_name(target.table, name)
             if (target_name == "linear"):
                 linear_c = readSU("struct linear_c", target.private)
-                queue = linear_c.dev.bdev.bd_queue
+                queue = linear_c.dev.bdev.bd_disk.queue
                 sizes.append(queue.limits.logical_block_size)
         if (sizes.count(sizes[0]) != len(sizes)):
             print("\n ** {} underlying device logical_block_size values "
