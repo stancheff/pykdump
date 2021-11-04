@@ -331,6 +331,16 @@ def show_multipath_list(dev):
     temp_pgpath_list = readSU("struct list_head", temp_priority_group.pgpaths)
     temp_pgpath = readSU("struct pgpath", temp_pgpath_list.next)
 
+    hash_cell = readSU("struct hash_cell", md.interface_ptr)
+    scsi_id = hash_cell.uuid
+    scsi_id = scsi_id.partition("-")
+
+    if (not temp_pgpath):
+        print("{}  ({})  dm-{:<4d}".format(name, scsi_id[2], md.disk.first_minor))
+        pylog.info("Error in processing sub paths for multipath device: {}. No valid paths?".format(name))
+        pylog.info("Use 'dmshow --table' and 'dmshow --multipath' to manually verify sub paths.")
+        return
+
     scope_set = set_multipath_scope()
     path_ops = addr2sym(temp_pgpath.path.dev.bdev.bd_disk.fops)
 
@@ -348,10 +358,6 @@ def show_multipath_list(dev):
         pylog.warning("Error in processing sub paths for multipath device:", name)
         pylog.warning("Use 'dmshow --table|grep <mpath-device-name>' to manually verify sub paths.")
         return
-
-    hash_cell = readSU("struct hash_cell", md.interface_ptr)
-    scsi_id = hash_cell.uuid
-    scsi_id = scsi_id.partition("-")
 
     if ('cciss' in temp_pgpath.path.dev.bdev.bd_disk.disk_name):
         print("{}  ({})  dm-{:<4d}  HP Smart Array RAID Device (cciss)".format(name, scsi_id[2],
