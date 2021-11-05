@@ -466,7 +466,7 @@ def print_starget_shost():
                                       "please check manually".format(int(starget)))
 
 def print_fcrports():
-    supported_modules = ["lpfc", "qla2xxx", "fnic", "qedf" "bfa"]
+    supported_modules = ["lpfc", "qla2xxx", "fnic", "qedf", "bfa"]
     for shost in get_scsi_hosts():
         if (shost.__targets.next != shost.__targets.next.next and
             get_hostt_module_name(shost) in supported_modules):
@@ -544,6 +544,34 @@ def print_qla2xxx_shost_info(shost):
         print("   ql2xmaxqdepth       : {}".format(readSymbol("ql2xmaxqdepth")))
     else:
         print("   Error in fetching verbose details from struct qla_hw_data")
+
+def print_bfa_shost_info(shost):
+    print("\n\n   FC/FCoE HBA attributes")
+    print("   ----------------------")
+
+    port_attr = get_fc_hba_port_attr(shost)
+
+    if (len(port_attr)):
+        print("   fc_host_attrs       : {:x}".format(port_attr[0]))
+        print("   node_name (wwnn)    : {:x}".format(port_attr[1]))
+        print("   port_name (wwpn)    : {:x}".format(port_attr[2]))
+    else:
+        print("   Error in fetching port wwnn and wwpn")
+
+    print("\n\n   Brocade HBA specific details")
+    print("   ---------------------------")
+
+    if (struct_exists("struct bfad_im_port_s")):
+        im_port = readPtr(shost.hostdata)
+        bfad_im_port_s =  readSU("struct bfad_im_port_s", im_port)
+        bfad_s = readSU("struct bfad_s", bfad_im_port_s.bfad)
+        pcidev = readSU("struct pci_dev", bfad_s.pcidev)
+        print("   bfad_im_port_s      : {:x}".format(bfad_im_port_s))
+        print("   bfad_s              : {:x}".format(bfad_s))
+        print("   pci_dev             : {:x}".format(pcidev))
+        print("   pci_dev slot        : {}".format(pcidev.dev.kobj.name))
+    else:
+        print("Error in fetching verbose details for BFA module")
 
 def print_lpfc_shost_info(shost):
     print("\n\n   FC/FCoE HBA attributes")
@@ -711,7 +739,7 @@ def print_shost_info():
     enum_shost_state = EnumInfo("enum scsi_host_state")
 
     hosts = get_scsi_hosts()
-    mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic", "hpsa", "vmw_pvscsi", "qedf"]
+    mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic", "hpsa", "vmw_pvscsi", "qedf", "bfa"]
     verbose_info_logged = 0
     verbose_info_available = 0
 
@@ -769,6 +797,9 @@ def print_shost_info():
 
                 elif (('fnic' in get_hostt_module_name(shost))):
                     print_fnic_shost_info(shost)
+
+                elif (('bfa' in get_hostt_module_name(shost))):
+                    print_bfa_shost_info(shost)
 
                 verbose_info_logged += 1
             except:
