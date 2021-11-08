@@ -366,7 +366,7 @@ def show_multipath_list(dev):
         print("{}  ({})  dm-{:<4d}  {}".format(name, scsi_id[2], md.disk.first_minor,
             vendor_str), end="")
 
-    print("\nsize={:.2f}M  ".format(get_size(temp_pgpath.path.dev.bdev.bd_disk)), end="")
+    print("\nsize={:.2f}M  ".format(get_size(md.disk)), end="")
 
     unset_multipath_scope(scope_set)
 
