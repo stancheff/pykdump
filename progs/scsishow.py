@@ -1167,9 +1167,13 @@ def run_cmd_checks(sdev):
 
         # check for non-zero result values
         if (cmnd.result > 0):
-            cmd_warnings += 1
-            print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a result value of {}!".format(cmnd,
-                   cmnd.device, get_scsi_device_id(cmnd.device), scmd_results[cmnd.result]))
+            if (cmnd.result in scmd_results):
+                cmd_warnings += 1
+                print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a result value of {}!".format(cmnd,
+                       cmnd.device, get_scsi_device_id(cmnd.device), scmd_results[cmnd.result]))
+            else:
+                pylog.info("WARNING: scsi_cmnd {:#x} result outside of scmd_results array. Corruption or "
+                           "command being torn down?".format(cmnd))
 
         # check for incorrect mapped buffer count
         if (cmnd.sdb.table.nents > cmnd.device.host.sg_tablesize):
