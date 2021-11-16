@@ -1565,10 +1565,17 @@ def run_check_on_multipath(devlist):
         print("ERROR: Could not gather TaskTable.  Aborting multipath check.")
         return
 
+    state_exists = member_size("struct task_struct", "state")
     for t in tt.allThreads():
         if ('multipathd' in t.comm):
             multipathd_daemon = 1
-        if (t.ts.state & TASK_STATE.TASK_UNINTERRUPTIBLE):
+
+        if (state_exists == -1):
+            state = t.ts.__state
+        else:
+            state = t.ts.state
+
+        if (state & TASK_STATE.TASK_UNINTERRUPTIBLE):
             task_cnt += 1
             errors += 1
             # crash can miss some threads when there are pages missing
