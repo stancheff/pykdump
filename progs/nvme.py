@@ -83,12 +83,17 @@ def get_nvme_sysfs_gendisk_queues(rq_list):
     rbroot = block_depr.sd.dir.children
 
     for kernfs_node in for_all_rbtree(rbroot, "struct kernfs_node", "rb"):
-        kernfs_node = kernfs_node.symlink.target_kn
-        if struct_exists("struct hd_struct"):
-            gendisk = container_of(kernfs_node.priv, "struct gendisk", "part0.__dev.kobj")
-        else:
-            blockdevice = container_of(kernfs_node.priv, "struct block_device", "bd_device.kobj")
-            gendisk = blockdevice.bd_disk
+        try:
+            target_kn = kernfs_node.symlink.target_kn
+            if struct_exists("struct hd_struct"):
+                gendisk = container_of(target_kn.priv, "struct gendisk", "part0.__dev.kobj")
+            else:
+                blockdevice = container_of(target_kn.priv, "struct block_device", "bd_device.kobj")
+                gendisk = blockdevice.bd_disk
+        except:
+            pylog.info("WARNING: get_nvme_sysfs_gendisk_queues() failed for {}. Output maybe "
+                "incomplete.".format(kernfs_node))
+            continue
         if gendisk and gendisk.queue:
             if gendisk.queue not in rq_list:
                 rq_list.append(gendisk.queue)
