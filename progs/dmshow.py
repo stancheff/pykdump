@@ -1576,6 +1576,8 @@ def run_check_on_multipath(devlist):
             state = t.ts.state
 
         if (state & TASK_STATE.TASK_UNINTERRUPTIBLE):
+            if (state & TASK_STATE.TASK_NOLOAD):
+                continue
             task_cnt += 1
             errors += 1
             # crash can miss some threads when there are pages missing
@@ -1587,6 +1589,13 @@ def run_check_on_multipath(devlist):
 
     print("Getting a list of processes in UN state...\t\t\t[Done] "
         "(Count: {:d})".format(task_cnt))
+
+    ps_task_cnt = 0
+    for task in exec_crash_command("ps -m").splitlines():
+        if "[UN]" in task:
+            ps_task_cnt += 1
+    if (ps_task_cnt != task_cnt):
+        pylog.info("WARNING: UN task count not equal to ps -m output!")
 
     if (task_cnt):
         print("\nProcessing the back trace of hung tasks...\t\t\t", end='')
