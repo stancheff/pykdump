@@ -1112,7 +1112,7 @@ def run_cmd_checks(sdev):
     cmd_warnings = 0
     jiffies = readSymbol("jiffies")
 
-    scmd_results = {
+    scmd_status_byte = {
         0x0:  "SAM_STAT_GOOD",
         0x2:  "SAM_STAT_CHECK_CONDITION",
         0x4:  "SAM_STAT_CONDITION_MET",
@@ -1124,6 +1124,30 @@ def run_cmd_checks(sdev):
         0x28: "SAM_STAT_TASK_SET_FULL",
         0x30: "SAM_STAT_ACA_ACTIVE",
         0x40: "SAM_STAT_TASK_ABORTED"
+    }
+
+    scmd_host_byte = {
+        0x0:  "DID_OK",
+        0x1:  "DID_NO_CONNECT",
+        0x2:  "DID_BUS_BUSY",
+        0x3:  "DID_TIME_OUT",
+        0x4:  "DID_BAD_TARGET",
+        0x5:  "DID_ABORT",
+        0x6:  "DID_PARITY",
+        0x7:  "DID_ERROR",
+        0x8:  "DID_RESET",
+        0x9:  "DID_BAD_INTR",
+        0x0a: "DID_PASSTHROUGH",
+        0x0b: "DID_SOFT_ERROR",
+        0x0c: "DID_IMM_RETRY",
+        0x0d: "DID_REQUEUE",
+        0x0e: "DID_TRANSPORT_DISRUPTED",
+        0x0f: "DID_TRANSPORT_FAILFAST",
+        0x10: "DID_TARGET_FAILURE",
+        0x11: "DID_NEXUS_FAILURE",
+        0x12: "DID_ALLOC_FAILURE",
+        0x13: "DID_MEDIUM_ERROR",
+        0x14: "DID_TRANSPORT_MARGINAL"
     }
 
     for cmnd in get_scsi_commands(sdev):
@@ -1167,13 +1191,22 @@ def run_cmd_checks(sdev):
 
         # check for non-zero result values
         if (cmnd.result > 0):
-            if (cmnd.result in scmd_results):
-                cmd_warnings += 1
-                print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a result value of {}!".format(cmnd,
-                       cmnd.device, get_scsi_device_id(cmnd.device), scmd_results[cmnd.result]))
+            status_byte = (((cmnd.result) >> 1) & 0x7f)
+            if status_byte in scmd_status_byte:
+                status_byte = scmd_status_byte[status_byte]
             else:
-                pylog.info("WARNING: scsi_cmnd {:#x} result outside of scmd_results array. Corruption or "
-                           "command being torn down?".format(cmnd))
+                status_byte = "invalid value: " + hex(status_byte)
+
+            host_byte = (((cmnd.result) >> 16) & 0xff)
+            if host_byte in scmd_host_byte:
+                host_byte = scmd_host_byte[host_byte]
+            else:
+                host_byte = "invalid value: " + hex(host_byte)
+
+            print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a result value of {}! host_byte: {} "
+                "status_byte: {}".format(cmnd, cmnd.device, get_scsi_device_id(cmnd.device), hex(cmnd.result),
+                host_byte, status_byte))
+            cmd_warnings += 1
 
         # check for incorrect mapped buffer count
         if (cmnd.sdb.table.nents > cmnd.device.host.sg_tablesize):
