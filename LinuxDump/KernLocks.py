@@ -160,12 +160,15 @@ def decode_rwsemaphore(semaddr):
 
     try:
         # remove 'RWSEM_READER_OWNED' and 'RWSEM_ANONYMOUSLY_OWNED'
+        # RWSEM_READER_OWNED  (1UL << 0)
+        # RWSEM_ANONYMOUSLY_OWNED (1UL << 1)  # RHEL7
+        # RWSEM_NONSPINNABLE  (1UL << 1) # RHEL8
         if s.owner & 0x1 == 0x1:
             own_mode = "Reader"
         else:
             own_mode = "Writer"
 
-        ownertask = (s.owner & ~0x3)
+        ownertask = readSU("struct task_struct", (s.owner & ~0x3))
         print("    {0} of this rw_semaphore: pid={1.pid} cmd={1.comm}".format(own_mode, ownertask))
     except:
         pass
