@@ -647,7 +647,8 @@ def print_vmw_pvscsi_shost_info(shost):
         print("   pci_dev slot        : {}".format(pci_dev.dev.kobj.name))
         print("   req_pages           : {}".format(pvscsi_adapter.req_pages))
         print("   req_depth           : {}".format(pvscsi_adapter.req_depth))
-        print("   use_req_threshold   : {}".format(pvscsi_adapter.use_req_threshold))
+        if (member_size("struct pvscsi_adapter", "use_req_threshold") != -1):
+            print("   use_req_threshold   : {}".format(pvscsi_adapter.use_req_threshold))
         print("   PVSCSIRingReqDesc   : {:x}".format(pvscsi_adapter.req_ring))
         print("   PVSCSIRingCmpDesc   : {:x}".format(pvscsi_adapter.cmp_ring))
         print("   PVSCSIRingMsgDesc   : {:x}".format(pvscsi_adapter.msg_ring))
