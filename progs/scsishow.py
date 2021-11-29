@@ -496,6 +496,16 @@ def print_fcrports():
                 except KeyError:
                     pylog.warning("Error in processing FC rports connnected to scsi_target {:x},"
                                   "please check manually".format(int(starget)))
+def scsi_driver_taint_check(driver_name):
+    modlist = []
+    tmods = exec_crash_command_bg('mod -t')
+    for t in tmods.splitlines():
+        if driver_name in t:
+            mod = t.split()[0] + "(" + t.split()[1] + ")"
+            modlist.append(mod)
+    if (modlist):
+        pylog.info("WARNING: potentially out-of-box or tech-preview SCSI module(s) loaded {}. "
+                   "Output from verbose scsishow may be impacted.".format(modlist))
 
 def get_fc_hba_port_attr(shost):
     port_attr = []
@@ -515,6 +525,7 @@ def print_qla2xxx_shost_info(shost):
     print("\n\n   FC/FCoE HBA attributes")
     print("   ----------------------")
 
+    scsi_driver_taint_check("qla2xxx")
     port_attr = get_fc_hba_port_attr(shost)
 
     if (len(port_attr)):
@@ -549,6 +560,7 @@ def print_bfa_shost_info(shost):
     print("\n\n   FC/FCoE HBA attributes")
     print("   ----------------------")
 
+    scsi_driver_taint_check("bfa")
     port_attr = get_fc_hba_port_attr(shost)
 
     if (len(port_attr)):
@@ -577,6 +589,7 @@ def print_lpfc_shost_info(shost):
     print("\n\n   FC/FCoE HBA attributes")
     print("   ----------------------")
 
+    scsi_driver_taint_check("lpfc")
     port_attr = get_fc_hba_port_attr(shost)
 
     if (len(port_attr)):
@@ -613,6 +626,8 @@ def print_hpsa_shost_info(shost):
     print("\n\n   HPSA HBA specific details")
     print("   ---------------------------")
 
+    scsi_driver_taint_check("hpsa")
+
     if (struct_exists("struct ctlr_info")):
         ctlr_info = readSU("struct ctlr_info", shost.hostdata[0])
         print("   ctlr_info           : {:x}".format(ctlr_info))
@@ -639,6 +654,8 @@ def print_vmw_pvscsi_shost_info(shost):
     print("\n\n   PVSCSI HBA specific details")
     print("   ---------------------------")
 
+    scsi_driver_taint_check("vmw_pvscsi")
+
     if (struct_exists("struct pvscsi_adapter")):
         pvscsi_adapter = readSU("struct pvscsi_adapter", shost.hostdata)
         pci_dev = readSU("struct pci_dev", pvscsi_adapter.dev)
@@ -661,6 +678,7 @@ def print_qedf_shost_info(shost):
     print("\n\n   FC/FCoE HBA attributes")
     print("   ----------------------")
 
+    scsi_driver_taint_check("qedf")
     port_attr = get_fc_hba_port_attr(shost)
 
     if (len(port_attr)):
@@ -709,6 +727,7 @@ def print_fnic_shost_info(shost):
     print("\n\n   FC/FCoE HBA attributes")
     print("   ----------------------")
 
+    scsi_driver_taint_check("fnic")
     port_attr = get_fc_hba_port_attr(shost)
 
     if (len(port_attr)):
