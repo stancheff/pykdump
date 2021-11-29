@@ -1576,8 +1576,9 @@ def run_check_on_multipath(devlist):
             state = t.ts.state
 
         if (state & TASK_STATE.TASK_UNINTERRUPTIBLE):
-            if (state & TASK_STATE.TASK_NOLOAD):
-                continue
+            if ("TASK_NOLOAD" in TASK_STATE):
+                if (state & TASK_STATE.TASK_NOLOAD):
+                    continue
             task_cnt += 1
             errors += 1
             # crash can miss some threads when there are pages missing
