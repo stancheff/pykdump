@@ -281,7 +281,7 @@ def show_mpath_info(prio, path_ops):
             kobj_name = "<unknown>"
             pylog.info("{}: {} ops not recognized".format(path.path.dev.bdev.bd_disk, path_ops))
 
-        print("\n  `- {} {} {}:{}    ".format(kobj_name,
+        print("\n  `- {:10s} {:8s} {:>3d}:{:<12d}".format(kobj_name,
             block_device.bd_disk.disk_name,
             block_device.bd_dev >> 20,
             block_device.bd_dev & 0xfffff), end="")
@@ -295,10 +295,10 @@ def show_mpath_info(prio, path_ops):
                     .format(block_device.bd_disk.disk_name))
 
             if (enum_sdev_state is False):
-                print("\t[scsi_device: {:#x} sdev_state: {}]".format(path_dev,
+                print("[scsi_device: {:#x} sdev_state: {}]".format(path_dev,
                     "--------"), end="")
             elif ('cciss' in block_device.bd_disk.disk_name):
-                print("\t[Not a scsi device, skipping scsi_device struct!]", end="")
+                print("[Not a scsi device, skipping scsi_device struct!]", end="")
             else:
                 try:
                     sdev_state = get_sdev_state(enum_sdev_state.getnam(path_dev.sdev_state))
@@ -307,7 +307,7 @@ def show_mpath_info(prio, path_ops):
                         sdev_state = "SDEV_TRANSPORT_OFFLINE"
                     else:
                         sdev_state = "<Error in processing sdev_state>"
-                print("\t[scsi_device: {:#x} sdev_state: {}]".format(path_dev, sdev_state), end="")
+                print("[scsi_device: {:#x} sdev_state: {}]".format(path_dev, sdev_state), end="")
 
         elif "nvme" in path_ops:
             print("\t[{}nvme_ctrl: {:#x} nvme_ns: {:#x} state: {}]".format(path_subsys, path_ctrl,
