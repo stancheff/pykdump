@@ -5,13 +5,13 @@
 #
 
 # --------------------------------------------------------------------
-# (C) Copyright 2017 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2017-2022 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
 # --------------------------------------------------------------------
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 
 import sys
