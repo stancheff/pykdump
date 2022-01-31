@@ -54,6 +54,13 @@ def get_sdev_state(enum_state):
 def print_request_header(request, devid):
     print("{:x} {:<13}".format(int(request), "({})".format(devid)), end='')
 
+def get_hostt_module_name(shost):
+    try:
+        name = shost.hostt.module.name
+    except:
+        name = "unknown"
+    return name
+
 SCMD_STATE_COMPLETE = 0
 SCMD_STATE_INFLIGHT = 1
 
@@ -69,6 +76,30 @@ def get_host_busy(shost):
         if (test_bit(SCMD_STATE_INFLIGHT, cmd.state)):
             cmds_in_flight += 1
     return cmds_in_flight
+
+def get_scsi_device_busy(sdev):
+    busy = cleared = 0
+    sb = sdev.budget_map
+
+    for map_nr in range(sb.map_nr):
+        bitmap = sb.map[map_nr].word
+        if (not int(bitmap)):
+            continue
+        for i in range(sb.map[map_nr].depth):
+            if int(bitmap) & 1:
+                busy += 1
+            bitmap = bitmap >> 1
+
+    for map_nr in range(sb.map_nr):
+        bitmap = sb.map[map_nr].cleared
+        if (not int(bitmap)):
+            continue
+        for i in range(sb.map[map_nr].depth):
+            if int(bitmap) & 1:
+                cleared += 1
+            bitmap = bitmap >> 1
+
+    return busy - cleared
 
 def get_queue_requests(rqueue):
     out = []
@@ -275,8 +306,7 @@ def print_shost_header(shost):
     print("--------------------------------------------------"
           "-------------------------------------------------")
     print("{:9s} {:22s} {:12x} {:24x} {:24x}\n".format(shost.shost_gendev.kobj.name,
-        shost.hostt.module.name, shost, shost.shost_data,
-        shost.hostdata))
+        get_hostt_module_name(shost), shost, shost.shost_data, shost.hostdata))
 
 def get_gendev():
     gendev_dict = {}
@@ -304,8 +334,12 @@ def get_gendev():
                 else:
                     devp = container_of(knode, "struct device_private", "knode_class")
                     dev = devp.device
-                hd_temp = container_of(dev, "struct hd_struct", "__dev")
-                gendev = container_of(hd_temp, "struct gendisk", "part0")
+                if struct_exists("struct hd_struct"):
+                    hd_temp = container_of(dev, "struct hd_struct", "__dev")
+                    gendev = container_of(hd_temp, "struct gendisk", "part0")
+                else:
+                    blockdev = container_of(dev, "struct block_device", "bd_device")
+                    gendev = blockdev.bd_disk
                 gendev_q = format(gendev.queue, 'x')
                 gendev_dict[gendev_q] = format(gendev, 'x')
 
@@ -432,9 +466,10 @@ def print_starget_shost():
                                       "please check manually".format(int(starget)))
 
 def print_fcrports():
+    supported_modules = ["lpfc", "qla2xxx", "fnic", "qedf", "bfa"]
     for shost in get_scsi_hosts():
         if (shost.__targets.next != shost.__targets.next.next and
-            shost.hostt.module.name in "lpfc_qla2xxx_fnic"):
+            get_hostt_module_name(shost) in supported_modules):
             print("\n==================================================="
                   "====================================================="
                   "==================================================")
@@ -462,70 +497,250 @@ def print_fcrports():
                     pylog.warning("Error in processing FC rports connnected to scsi_target {:x},"
                                   "please check manually".format(int(starget)))
 
+def get_fc_hba_port_attr(shost):
+    port_attr = []
+    if (struct_exists("struct fc_host_attrs")):
+        try:
+            fc_host_attrs = readSU("struct fc_host_attrs", shost.shost_data)
+            if (fc_host_attrs and ('fc_wq_' in fc_host_attrs.work_q_name[:8])):
+                port_attr.append(fc_host_attrs)
+                port_attr.append(fc_host_attrs.node_name)
+                port_attr.append(fc_host_attrs.port_name)
+        except:
+            pass
+
+    return port_attr
+
 def print_qla2xxx_shost_info(shost):
-    scsi_qla_host = readSU("struct scsi_qla_host", shost.hostdata)
-    qla_hw_data = readSU("struct qla_hw_data", scsi_qla_host.hw)
-    print("\n\n   Qlogic HBA specific details")
+    print("\n\n   FC/FCoE HBA attributes")
+    print("   ----------------------")
+
+    port_attr = get_fc_hba_port_attr(shost)
+
+    if (len(port_attr)):
+        print("   fc_host_attrs       : {:x}".format(port_attr[0]))
+        print("   node_name (wwnn)    : {:x}".format(port_attr[1]))
+        print("   port_name (wwpn)    : {:x}".format(port_attr[2]))
+    else:
+        print("   Error in fetching port wwnn and wwpn")
+
+    print("\n\n   QLogic HBA specific details")
     print("   ---------------------------")
-    print("   scsi_qla_host       : {:x}".format(scsi_qla_host))
-    print("   qla_hw_data         : {:x}".format(qla_hw_data))
-    print("   pci_dev             : {:x}".format(qla_hw_data.pdev))
-    print("   pci_dev slot        : {}".format(qla_hw_data.pdev.dev.kobj.name))
-    print("   operating_mode      : {}".format(qla_hw_data.operating_mode))
-    print("   model_desc          : {}".format(qla_hw_data.model_desc))
-    print("   optrom_state        : {}".format(qla_hw_data.optrom_state))
-    print("   fw_major_version    : {}".format(qla_hw_data.fw_major_version))
-    print("   fw_minor_version    : {}".format(qla_hw_data.fw_minor_version))
-    print("   fw_subminor_version : {}".format(qla_hw_data.fw_subminor_version))
-    print("   fw_dumped           : {}".format(qla_hw_data.fw_dumped))
-    print("   ql2xmaxqdepth       : {}".format(readSymbol("ql2xmaxqdepth")))
+
+    if (struct_exists("struct qla_hw_data")):
+        scsi_qla_host = readSU("struct scsi_qla_host", shost.hostdata)
+        qla_hw_data = readSU("struct qla_hw_data", scsi_qla_host.hw)
+        print("   scsi_qla_host       : {:x}".format(scsi_qla_host))
+        print("   qla_hw_data         : {:x}".format(qla_hw_data))
+        print("   pci_dev             : {:x}".format(qla_hw_data.pdev))
+        print("   pci_dev slot        : {}".format(qla_hw_data.pdev.dev.kobj.name))
+        print("   operating_mode      : {}".format(qla_hw_data.operating_mode))
+        print("   model_desc          : {}".format(qla_hw_data.model_desc))
+        print("   optrom_state        : {}".format(qla_hw_data.optrom_state))
+        print("   fw_major_version    : {}".format(qla_hw_data.fw_major_version))
+        print("   fw_minor_version    : {}".format(qla_hw_data.fw_minor_version))
+        print("   fw_subminor_version : {}".format(qla_hw_data.fw_subminor_version))
+        print("   fw_dumped           : {}".format(qla_hw_data.fw_dumped))
+        print("   ql2xmaxqdepth       : {}".format(readSymbol("ql2xmaxqdepth")))
+    else:
+        print("   Error in fetching verbose details from struct qla_hw_data")
+
+def print_bfa_shost_info(shost):
+    print("\n\n   FC/FCoE HBA attributes")
+    print("   ----------------------")
+
+    port_attr = get_fc_hba_port_attr(shost)
+
+    if (len(port_attr)):
+        print("   fc_host_attrs       : {:x}".format(port_attr[0]))
+        print("   node_name (wwnn)    : {:x}".format(port_attr[1]))
+        print("   port_name (wwpn)    : {:x}".format(port_attr[2]))
+    else:
+        print("   Error in fetching port wwnn and wwpn")
+
+    print("\n\n   Brocade HBA specific details")
+    print("   ---------------------------")
+
+    if (struct_exists("struct bfad_im_port_s")):
+        im_port = readPtr(shost.hostdata)
+        bfad_im_port_s =  readSU("struct bfad_im_port_s", im_port)
+        bfad_s = readSU("struct bfad_s", bfad_im_port_s.bfad)
+        pcidev = readSU("struct pci_dev", bfad_s.pcidev)
+        print("   bfad_im_port_s      : {:x}".format(bfad_im_port_s))
+        print("   bfad_s              : {:x}".format(bfad_s))
+        print("   pci_dev             : {:x}".format(pcidev))
+        print("   pci_dev slot        : {}".format(pcidev.dev.kobj.name))
+    else:
+        print("Error in fetching verbose details for BFA module")
 
 def print_lpfc_shost_info(shost):
-    lpfc_vport = readSU("struct lpfc_vport", shost.hostdata)
-    lpfc_hba = readSU("struct lpfc_hba", lpfc_vport.phba)
+    print("\n\n   FC/FCoE HBA attributes")
+    print("   ----------------------")
+
+    port_attr = get_fc_hba_port_attr(shost)
+
+    if (len(port_attr)):
+        print("   fc_host_attrs       : {:x}".format(port_attr[0]))
+        print("   node_name (wwnn)    : {:x}".format(port_attr[1]))
+        print("   port_name (wwpn)    : {:x}".format(port_attr[2]))
+    else:
+        print("   Error in fetching port wwnn and wwpn")
+
     print("\n\n   Emulex HBA specific details")
     print("   ---------------------------")
-    print("   lpfc_vport          : {:x}".format(lpfc_vport))
-    print("   lpfc_hba            : {:x}".format(lpfc_hba))
-    print("   pci_dev             : {:x}".format(lpfc_hba.pcidev))
-    print("   pci_dev slot        : {}".format(lpfc_hba.pcidev.dev.kobj.name))
-    print("   brd_no              : {}".format(lpfc_hba.brd_no))
-    print("   SerialNumber        : {}".format(lpfc_hba.SerialNumber))
-    print("   OptionROMVersion    : {}".format(lpfc_hba.OptionROMVersion))
-    print("   ModelDesc           : {}".format(lpfc_hba.ModelDesc))
-    print("   ModelName           : {}".format(lpfc_hba.ModelName))
-    print("   cfg_hba_queue_depth : {}".format(lpfc_hba.cfg_hba_queue_depth))
-    print("   cfg_lun_queue_depth : {}".format(lpfc_vport.cfg_lun_queue_depth))
-    if (member_size("struct lpfc_vport", "cfg_tgt_queue_depth") != -1):
-        print("   cfg_tgt_queue_depth : {}".format(lpfc_vport.cfg_tgt_queue_depth))
+
+    if (struct_exists("struct lpfc_hba")):
+        lpfc_vport = readSU("struct lpfc_vport", shost.hostdata)
+        lpfc_hba = readSU("struct lpfc_hba", lpfc_vport.phba)
+        print("   lpfc_vport          : {:x}".format(lpfc_vport))
+        print("   lpfc_hba            : {:x}".format(lpfc_hba))
+        print("   sli_rev             : {}".format(lpfc_hba.sli_rev))
+        print("   pci_dev             : {:x}".format(lpfc_hba.pcidev))
+        print("   pci_dev slot        : {}".format(lpfc_hba.pcidev.dev.kobj.name))
+        print("   brd_no              : {}".format(lpfc_hba.brd_no))
+        print("   SerialNumber        : {}".format(lpfc_hba.SerialNumber))
+        print("   OptionROMVersion    : {}".format(lpfc_hba.OptionROMVersion))
+        print("   ModelDesc           : {}".format(lpfc_hba.ModelDesc))
+        print("   ModelName           : {}".format(lpfc_hba.ModelName))
+        print("   cfg_hba_queue_depth : {}".format(lpfc_hba.cfg_hba_queue_depth))
+        print("   cfg_lun_queue_depth : {}".format(lpfc_vport.cfg_lun_queue_depth))
+        if (member_size("struct lpfc_vport", "cfg_tgt_queue_depth") != -1):
+            print("   cfg_tgt_queue_depth : {}".format(lpfc_vport.cfg_tgt_queue_depth))
+    else:
+        print("   Error in fetching verbose details from struct lpfc_hba")
 
 def print_hpsa_shost_info(shost):
-    ctlr_info = readSU("struct ctlr_info", shost.hostdata[0])
     print("\n\n   HPSA HBA specific details")
     print("   ---------------------------")
-    print("   ctlr_info           : {:x}".format(ctlr_info))
-    print("   pci_dev             : {:x}".format(ctlr_info.pdev))
-    print("   pci_dev slot        : {}".format(ctlr_info.pdev.dev.kobj.name))
-    print("   devname             : {}".format(ctlr_info.devname))
-    print("   product_name        : {}".format(ctlr_info.product_name))
-    print("   board_id            : {:#x}".format(ctlr_info.board_id))
-    print("   fwrev               : {:c}{:c}{:c}{:c}{:c}".format(ctlr_info.hba_inquiry_data[32],
-        ctlr_info.hba_inquiry_data[33], ctlr_info.hba_inquiry_data[34],
-        ctlr_info.hba_inquiry_data[35], ctlr_info.hba_inquiry_data[36]))
-    print("   CommandList         : {:x}".format(ctlr_info.cmd_pool))
-    print("   nr_cmds             : {}".format(ctlr_info.nr_cmds))
-    print("   max_commands        : {}".format(ctlr_info.max_commands))
-    print("   commands_outstanding: {}".format(ctlr_info.commands_outstanding.counter))
-    print("   interrupts_enabled  : {}".format(ctlr_info.interrupts_enabled))
-    print("   intr_mode           : {}".format(ctlr_info.intr_mode))
-    print("   remove_in_progress  : {}".format(ctlr_info.remove_in_progress))
-    print("   reset_in_progress   : {}".format(ctlr_info.reset_in_progress))
+
+    if (struct_exists("struct ctlr_info")):
+        ctlr_info = readSU("struct ctlr_info", shost.hostdata[0])
+        print("   ctlr_info           : {:x}".format(ctlr_info))
+        print("   pci_dev             : {:x}".format(ctlr_info.pdev))
+        print("   pci_dev slot        : {}".format(ctlr_info.pdev.dev.kobj.name))
+        print("   devname             : {}".format(ctlr_info.devname))
+        print("   product_name        : {}".format(ctlr_info.product_name))
+        print("   board_id            : {:#x}".format(ctlr_info.board_id))
+        print("   fwrev               : {:c}{:c}{:c}{:c}{:c}".format(ctlr_info.hba_inquiry_data[32],
+            ctlr_info.hba_inquiry_data[33], ctlr_info.hba_inquiry_data[34],
+            ctlr_info.hba_inquiry_data[35], ctlr_info.hba_inquiry_data[36]))
+        print("   CommandList         : {:x}".format(ctlr_info.cmd_pool))
+        print("   nr_cmds             : {}".format(ctlr_info.nr_cmds))
+        print("   max_commands        : {}".format(ctlr_info.max_commands))
+        print("   commands_outstanding: {}".format(ctlr_info.commands_outstanding.counter))
+        print("   interrupts_enabled  : {}".format(ctlr_info.interrupts_enabled))
+        print("   intr_mode           : {}".format(ctlr_info.intr_mode))
+        print("   remove_in_progress  : {}".format(ctlr_info.remove_in_progress))
+        print("   reset_in_progress   : {}".format(ctlr_info.reset_in_progress))
+    else:
+        print("   Error in fetching verbose details from struct ctlr_info")
+
+def print_vmw_pvscsi_shost_info(shost):
+    print("\n\n   PVSCSI HBA specific details")
+    print("   ---------------------------")
+
+    if (struct_exists("struct pvscsi_adapter")):
+        pvscsi_adapter = readSU("struct pvscsi_adapter", shost.hostdata)
+        pci_dev = readSU("struct pci_dev", pvscsi_adapter.dev)
+        print("   pvscsi_adapter      : {:x}".format(pvscsi_adapter))
+        print("   pci_dev             : {:x}".format(pci_dev))
+        print("   pci_dev slot        : {}".format(pci_dev.dev.kobj.name))
+        print("   req_pages           : {}".format(pvscsi_adapter.req_pages))
+        print("   req_depth           : {}".format(pvscsi_adapter.req_depth))
+        if (member_size("struct pvscsi_adapter", "use_req_threshold") != -1):
+            print("   use_req_threshold   : {}".format(pvscsi_adapter.use_req_threshold))
+        print("   PVSCSIRingReqDesc   : {:x}".format(pvscsi_adapter.req_ring))
+        print("   PVSCSIRingCmpDesc   : {:x}".format(pvscsi_adapter.cmp_ring))
+        print("   PVSCSIRingMsgDesc   : {:x}".format(pvscsi_adapter.msg_ring))
+        print("   PVSCSIRingsState    : {:x}".format(pvscsi_adapter.rings_state))
+        print("   cmd_pool            : {:x}".format(pvscsi_adapter.cmd_pool))
+    else:
+        print("   Error in fetching verbose details from struct pvscsi_adapter")
+
+def print_qedf_shost_info(shost):
+    print("\n\n   FC/FCoE HBA attributes")
+    print("   ----------------------")
+
+    port_attr = get_fc_hba_port_attr(shost)
+
+    if (len(port_attr)):
+        print("   fc_host_attrs       : {:x}".format(port_attr[0]))
+        print("   node_name (wwnn)    : {:x}".format(port_attr[1]))
+        print("   port_name (wwpn)    : {:x}".format(port_attr[2]))
+    else:
+        print("   Error in fetching port wwnn and wwpn")
+
+    print("\n\n   QLogic FastLinQ HBA specific details")
+    print("   ------------------------------------")
+
+    if (struct_exists("struct qedf_ctx")):
+        qedf_ctx = readSU("struct qedf_ctx", shost.hostdata + struct_size("struct fc_lport"))
+        print("   qedf_ctx            : {:x}".format(qedf_ctx))
+        print("   fc_lport            : {:x}".format(qedf_ctx.lport))
+        print("   fcoe_ctlr           : {:x}".format(qedf_ctx.ctlr))
+        print("   vlan_id             : {:#x}".format(qedf_ctx.vlan_id))
+        print("   qed_dev             : {:x}".format(qedf_ctx.cdev))
+        print("   firmware major      : {:d}".format(qedf_ctx.cdev.fw_data.fw_ver_info.num.major))
+        print("   firmware minor      : {:d}".format(qedf_ctx.cdev.fw_data.fw_ver_info.num.minor))
+        print("   firmware rev        : {:d}".format(qedf_ctx.cdev.fw_data.fw_ver_info.num.rev))
+        print("   firmware eng        : {:d}".format(qedf_ctx.cdev.fw_data.fw_ver_info.num.eng))
+        print("   pci_dev             : {:x}".format(qedf_ctx.pdev))
+        print("   pci_dev slot        : {}".format(qedf_ctx.pdev.dev.kobj.name))
+        print("   curr_conn_id        : {}".format(qedf_ctx.curr_conn_id))
+        print("   qedf_fastpath       : {:x}".format(qedf_ctx.fp_array))
+        print("   qedf_cmd_mgr        : {:x}".format(qedf_ctx.cmd_mgr))
+        print("   stop_io_on_error    : {}".format(qedf_ctx.stop_io_on_error))
+        print("   flogi_cnt           : {}".format(qedf_ctx.flogi_cnt))
+        print("   flogi_failed        : {}".format(qedf_ctx.flogi_failed))
+        print("   flogi_pending       : {}".format(qedf_ctx.flogi_pending))
+        print("   input_requests      : {}".format(qedf_ctx.input_requests))
+        print("   output_requests     : {}".format(qedf_ctx.output_requests))
+        print("   control_requests    : {}".format(qedf_ctx.control_requests))
+        print("   packet_aborts       : {}".format(qedf_ctx.packet_aborts))
+        print("   alloc_failures      : {}".format(qedf_ctx.alloc_failures))
+        print("   lun_resets          : {}".format(qedf_ctx.lun_resets))
+        print("   target_resets       : {}".format(qedf_ctx.target_resets))
+        print("   task_set_fulls      : {}".format(qedf_ctx.task_set_fulls))
+        print("   busy                : {}".format(qedf_ctx.busy))
+    else:
+        print("   Error in fetching verbose details from struct qedf_ctx")
+
+def print_fnic_shost_info(shost):
+    print("\n\n   FC/FCoE HBA attributes")
+    print("   ----------------------")
+
+    port_attr = get_fc_hba_port_attr(shost)
+
+    if (len(port_attr)):
+        print("   fc_host_attrs       : {:x}".format(port_attr[0]))
+        print("   node_name (wwnn)    : {:x}".format(port_attr[1]))
+        print("   port_name (wwpn)    : {:x}".format(port_attr[2]))
+    else:
+        print("   Error in fetching port wwnn and wwpn")
+
+    print("\n\n   Cisco FCoE HBA specific details")
+    print("   -------------------------------")
+
+    if (struct_exists("struct fnic")):
+        fnic = readSU("struct fnic", shost.hostdata + struct_size("struct fc_lport"))
+        print("   fnic                : {:x}".format(fnic))
+        print("   fc_lport            : {:x}".format(fnic.lport))
+        print("   fcoe_ctlr           : {:x}".format(fnic.ctlr))
+        print("   pci_dev             : {:x}".format(fnic.pdev))
+        print("   pci_dev slot        : {}".format(fnic.pdev.dev.kobj.name))
+        print("   fnic_stats          : {:x}".format(fnic.fnic_stats))
+        print("   in_flight           : {}".format(atomic_t(fnic.in_flight)))
+        print("   reset_inprogress    : {}".format(fnic.internal_reset_inprogress))
+        print("   vlan_id             : {:x}".format(fnic.vlan_id))
+        print("   link_down_cnt       : {}".format(fnic.link_down_cnt))
+    else:
+        print("   Error in fetching verbose details from struct fnic")
 
 def print_shost_info():
     enum_shost_state = EnumInfo("enum scsi_host_state")
 
     hosts = get_scsi_hosts()
-    mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic", "hpsa"]
+    mod_with_verbose_info = ["lpfc", "qla2xxx", "fnic", "hpsa", "vmw_pvscsi", "qedf", "bfa"]
     verbose_info_logged = 0
     verbose_info_available = 0
 
@@ -537,9 +752,12 @@ def print_shost_info():
 
         try:
             print("   Driver version      : {}".format(shost.hostt.module.version))
+            print("   Taints bitmask      : {:#x}".format(shost.hostt.module.taints))
+            if (shost.hostt.module.taints):
+                print("   WARNING: Out-of-box or tech-preview SCSI host module ({}) loaded. "
+                      "Output from scsishow may be impacted.".format(get_hostt_module_name(shost)))
         except:
-            print("   Driver version      : {}".format("Error in checking "
-                                                             "'Scsi_Host->hostt->module->version'"))
+            pylog.warning("Error in processing Scsi_Host->hostt->module details")
 
         if (member_size("struct Scsi_Host", "host_busy") != -1):
             print("\n   host_busy           : {}".format(atomic_t(shost.host_busy)), end="")
@@ -564,38 +782,38 @@ def print_shost_info():
         print("   cmd_per_lun         : {}".format(shost.cmd_per_lun))
         print("   work_q_name         : {}".format(shost.work_q_name))
 
-        if (struct_exists("struct fc_host_attrs") and verbose == 1):
-            fc_host_attrs = readSU("struct fc_host_attrs", shost.shost_data)
-            if (fc_host_attrs and ('fc_wq_' in fc_host_attrs.work_q_name[:8])):
-                try:
-                    print("\n\n   FC/FCoE HBA attributes")
-                    print("   ----------------------")
-                    print("   fc_host_attrs       : {:x}".format(fc_host_attrs))
-                    print("   node_name (wwnn)    : {:x}".format(fc_host_attrs.node_name))
-                    print("   port_name (wwpn)    : {:x}".format(fc_host_attrs.port_name))
-                    verbose_info_logged += 1
-                except KeyError:
-                    pylog.warning("Error in processing fc_host_attrs {:x}".format(fc_host_attrs))
-
         if (verbose):
             try:
-                if (('lpfc' in shost.hostt.module.name) and struct_exists("struct lpfc_hba")):
+                if (('lpfc' in get_hostt_module_name(shost))):
                     print_lpfc_shost_info(shost)
-                    verbose_info_logged += 1
-                elif (('qla2xxx' in shost.hostt.module.name) and struct_exists("struct qla_hw_data")):
+
+                elif (('qla2xxx' in get_hostt_module_name(shost))):
                     print_qla2xxx_shost_info(shost)
-                    verbose_info_logged += 1
-                elif (('hpsa' in shost.hostt.module.name) and struct_exists("struct ctlr_info")):
+
+                elif (('hpsa' in get_hostt_module_name(shost))):
                     print_hpsa_shost_info(shost)
-                    verbose_info_logged += 1
+
+                elif (('vmw_pvscsi' in get_hostt_module_name(shost))):
+                    print_vmw_pvscsi_shost_info(shost)
+
+                elif (('qedf' in get_hostt_module_name(shost))):
+                    print_qedf_shost_info(shost)
+
+                elif (('fnic' in get_hostt_module_name(shost))):
+                    print_fnic_shost_info(shost)
+
+                elif (('bfa' in get_hostt_module_name(shost))):
+                    print_bfa_shost_info(shost)
+
+                verbose_info_logged += 1
             except:
                 pylog.warning("Error in processing verbose details for Scsi_Host: "
                               "{} ({:x})".format(shost.shost_gendev.kobj.name, shost))
 
-        if (shost.hostt.module.name in mod_with_verbose_info):
+        if (get_hostt_module_name(shost) in mod_with_verbose_info):
             verbose_info_available += 1
 
-    if (verbose_info_available !=0 and verbose_info_logged == 0):
+    if (verbose_info_available != 0 and verbose_info_logged == 0):
         print("\n\n   *** NOTE: More detailed HBA information available, use '-v'"
               " or '--verbose' to view.")
 
@@ -683,6 +901,7 @@ def print_request_queue():
     gendev_dict = get_gendev()
 
     for sdev in get_scsi_devices():
+        gendev_present = 1
         elevator_name = get_sdev_elevator(sdev)
         vendor_str = sdev.vendor[:8].strip() + " " + sdev.model[:16].strip()
         sdev_q = readSU("struct request_queue", sdev.request_queue)
@@ -692,6 +911,7 @@ def print_request_queue():
             gendev = readSU("struct gendisk", long (gendev, 16))
             name = gendev.disk_name
         except:
+            gendev_present = 0
             name = scsi_device_type(sdev.type)
             if (not name):
                 name = "null"
@@ -709,8 +929,7 @@ def print_request_queue():
         print("        ----------------------------------------------------"
               "-----------------------------------")
 
-        name = name.strip()
-        if (name in "Disk_Tape_Chngr_CTRL_Enclosure"):
+        if (not (gendev_present)):
             print("\tgendisk        \t:  {} |"
                   "\tscsi_device \t:  {:x}".format("<Can't find gendisk>", int(sdev)))
         else:
@@ -727,7 +946,7 @@ def print_request_queue():
 def lookup_field(obj, fieldname):
     segments = fieldname.split("[")
     while (len(segments) > 0):
-        obj = getattr(obj, segments[0])
+        obj = obj.Eval(segments[0])
         if (len(segments) > 1):
             offset = segments[1].split("]")
             if (isinstance(obj, SmartString)):
@@ -751,13 +970,16 @@ def lookup_field(obj, fieldname):
 def display_fields(display, fieldstr, evaldict={}, usehex=0, relative=0):
     evaldict['display'] = display
     for fieldname in fieldstr.split(","):
-        field = lookup_field(display, fieldname)
+        try:
+            field = lookup_field(display, fieldname)
 #        field = eval("display.{}".format(fieldname),{}, evaldict)
-        if (relative):
-            try:
-                field = long(field) - long(relative)
-            except ValueError:
-                field = long(field) - long(readSymbol(relative))
+            if (relative):
+                try:
+                    field = long(field) - long(relative)
+                except ValueError:
+                    field = long(field) - long(readSymbol(relative))
+        except (IndexError, crash.error) as e:
+            field = "\"ERROR {}\"".format(e)
 
         if (usehex or isinstance(field, StructResult) or
                       isinstance(field, tPtr)):
@@ -871,15 +1093,18 @@ def run_host_checks():
     for host in get_scsi_hosts():
         if (host.host_failed):
             host_warnings += 1
-            if (member_size("struct Scsi_Host", "host_busy") != 1):
-                if (host.host_failed == atomic_t(host.host_busy)):
-                    print("WARNING: Scsi_Host {:#x} ({}) is running error recovery!".format(host,
-                        host.shost_gendev.kobj.name))
-                else:
-                    print("WARNING: Scsi_Host {:#x} ({}) has timed out commands, but has not started error recovery!".format(host,
-                        host.shost_gendev.kobj.name))
+
+            if (member_size("struct Scsi_Host", "host_busy") != -1):
+                host_busy = atomic_t(host.host_busy)
             else:
-                print("WARNING: Scsi_Host {:#x} ({}) has timed out commands!".format(host, host.shost_gendev.kobj.name))
+                host_busy = get_host_busy(host)
+
+            if (host.host_failed == host_busy):
+                print("WARNING: Scsi_Host {:#x} ({}) is running error recovery!".format(host,
+                      host.shost_gendev.kobj.name))
+            else:
+                print("WARNING: Scsi_Host {:#x} ({}) has timed out commands, but has not started "
+                      "error recovery!".format(host, host.shost_gendev.kobj.name))
 
             if (atomic_t(host.host_blocked)):
                 host_warnings += 1
@@ -890,6 +1115,44 @@ def run_host_checks():
 def run_cmd_checks(sdev):
     cmd_warnings = 0
     jiffies = readSymbol("jiffies")
+
+    scmd_status_byte = {
+        0x0:  "SAM_STAT_GOOD",
+        0x2:  "SAM_STAT_CHECK_CONDITION",
+        0x4:  "SAM_STAT_CONDITION_MET",
+        0x8:  "SAM_STAT_BUSY",
+        0x10: "SAM_STAT_INTERMEDIATE",
+        0x14: "SAM_STAT_INTERMEDIATE_CONDITION_MET",
+        0x18: "SAM_STAT_RESERVATION_CONFLICT",
+        0x22: "SAM_STAT_COMMAND_TERMINATED",
+        0x28: "SAM_STAT_TASK_SET_FULL",
+        0x30: "SAM_STAT_ACA_ACTIVE",
+        0x40: "SAM_STAT_TASK_ABORTED"
+    }
+
+    scmd_host_byte = {
+        0x0:  "DID_OK",
+        0x1:  "DID_NO_CONNECT",
+        0x2:  "DID_BUS_BUSY",
+        0x3:  "DID_TIME_OUT",
+        0x4:  "DID_BAD_TARGET",
+        0x5:  "DID_ABORT",
+        0x6:  "DID_PARITY",
+        0x7:  "DID_ERROR",
+        0x8:  "DID_RESET",
+        0x9:  "DID_BAD_INTR",
+        0x0a: "DID_PASSTHROUGH",
+        0x0b: "DID_SOFT_ERROR",
+        0x0c: "DID_IMM_RETRY",
+        0x0d: "DID_REQUEUE",
+        0x0e: "DID_TRANSPORT_DISRUPTED",
+        0x0f: "DID_TRANSPORT_FAILFAST",
+        0x10: "DID_TARGET_FAILURE",
+        0x11: "DID_NEXUS_FAILURE",
+        0x12: "DID_ALLOC_FAILURE",
+        0x13: "DID_MEDIUM_ERROR",
+        0x14: "DID_TRANSPORT_MARGINAL"
+    }
 
     for cmnd in get_scsi_commands(sdev):
         timeout = 0
@@ -909,14 +1172,10 @@ def run_cmd_checks(sdev):
                 timeout = 0
 
         # Check for large timeout values
-        if (timeout > 300000):
+        if (timeout >= 300000):
             cmd_warnings += 1
-            print("ERROR:   scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a huge timeout of {}ms!".format(cmnd,
+            print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a huge timeout of {}ms!".format(cmnd,
                    cmnd.device, get_scsi_device_id(cmnd.device), timeout))
-        elif (timeout == 300000):
-            cmd_warnings += 1
-            print("WARNING: 5 minute timeout found for scsi_cmnd {:#x}! on scsi_device {:#x} ({}) "
-                  "Update device-mapper-multipath?".format(cmnd, cmnd.device, get_scsi_device_id(cmnd.device)))
         elif (timeout > 60000):
             cmd_warnings += 1
             print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a large timeout of {}ms.".format(cmnd,
@@ -928,6 +1187,44 @@ def run_cmd_checks(sdev):
             print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) older than its timeout: "
                   "EH or stalled queue?".format(cmnd, cmnd.device, get_scsi_device_id(cmnd.device)))
 
+        # check for commands that have been retried, indicating potential prior failure
+        if (cmnd.retries > 0):
+            cmd_warnings += 1
+            print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a retries value of {}!".format(cmnd,
+                   cmnd.device, get_scsi_device_id(cmnd.device), cmnd.retries))
+
+        # check for non-zero result values
+        if (cmnd.result > 0):
+            status_byte = (((cmnd.result) >> 1) & 0x7f)
+            if status_byte in scmd_status_byte:
+                status_byte = scmd_status_byte[status_byte]
+            else:
+                status_byte = "invalid value: " + hex(status_byte)
+
+            host_byte = (((cmnd.result) >> 16) & 0xff)
+            if host_byte in scmd_host_byte:
+                host_byte = scmd_host_byte[host_byte]
+            else:
+                host_byte = "invalid value: " + hex(host_byte)
+
+            print("WARNING: scsi_cmnd {:#x} on scsi_device {:#x} ({}) has a result value of {}! host_byte: {} "
+                "status_byte: {}".format(cmnd, cmnd.device, get_scsi_device_id(cmnd.device), hex(cmnd.result),
+                host_byte, status_byte))
+            cmd_warnings += 1
+
+        # check for incorrect mapped buffer count
+        if (cmnd.sdb.table.nents > cmnd.device.host.sg_tablesize):
+            print("ERROR:   scsi_cmnd {:#x} on scsi_device {:#x} ({}) has cmnd.sdb.table.nents count ({}) "
+                  "more than Scsi_Host->sg_tablesize ({})".format(cmnd, cmnd.device,
+                  get_scsi_device_id(cmnd.device), cmnd.sdb.table.nents, cmnd.device.host.sg_tablesize))
+            cmd_warnings += 1
+
+        if (cmnd.sdb.table.nents > cmnd.request.q.limits.max_segments):
+            print("ERROR:   scsi_cmnd {:#x} on scsi_device {:#x} ({}) has cmnd.sdb.table.nents count ({}) "
+                  "more than request_queue.limits.max_segments ({})".format(cmnd, cmnd.device,
+                  get_scsi_device_id(cmnd.device), cmnd.sdb.table.nents, cmnd.request.q.limits.max_segments))
+            cmd_warnings += 1
+
     return cmd_warnings
 
 def run_sdev_cmd_checks():
@@ -938,6 +1235,8 @@ def run_sdev_cmd_checks():
     gendev_q_sdev_q_mismatch = 0
     jiffies = readSymbol("jiffies")
 
+    enum_sdev_state = EnumInfo("enum scsi_device_state")
+
     gendev_dict = get_gendev()
 
     for sdev in get_scsi_devices():
@@ -946,10 +1245,29 @@ def run_sdev_cmd_checks():
             print("WARNING: scsi_device {:#x} ({}) is blocked! HBA driver returning "
                     "SCSI_MLQUEUE_DEVICE_BUSY or device returning SAM_STAT_BUSY?".format(sdev,
                     get_scsi_device_id(sdev)))
-        if (atomic_t(sdev.device_busy) < 0):
+
+        try:
+            sdev_state = get_sdev_state(enum_sdev_state.getnam(sdev.sdev_state))
+        except:
+            if (sdev.sdev_state == 9):
+                sdev_state = "SDEV_TRANSPORT_OFFLINE"
+            else:
+                sdev_state = "<Unknown>"
+
+        if (sdev.sdev_state != 2):
+            dev_warnings += 1
+            print("WARNING: scsi_device {:#x} ({}) is in {} state".format(sdev,
+                    get_scsi_device_id(sdev), sdev_state))
+
+        if (member_size("struct scsi_device", "device_busy") != -1):
+            device_busy = atomic_t(sdev.device_busy)
+        else:
+            device_busy = get_scsi_device_busy(sdev)
+
+        if (device_busy < 0):
             dev_warnings += 1
             print("ERROR:   scsi_device {:#x} ({}) device_busy count is: {}".format(sdev,
-                get_scsi_device_id(sdev), atomic_t(sdev.device_busy)))
+                get_scsi_device_id(sdev), device_busy))
             if (sdev.host.hostt.name in "qla2xxx"):
                 qla_cmd_abort_bug += 1
 
@@ -1016,6 +1334,7 @@ def run_target_checks():
     target_warnings = 0
     fc_rport_warnings = 0
     enum_starget_state = EnumInfo("enum scsi_target_state")
+    supported_modules = ["lpfc", "qla2xxx", "fnic", "qedf"]
 
     for shost in get_scsi_hosts():
         if (shost.__targets.next != shost.__targets.next.next):
@@ -1036,21 +1355,23 @@ def run_target_checks():
                             target_warnings += 1
                             print("WARNING: scsi_target {:10s} {:x} not in RUNNING "
                                   "state".format(starget.dev.kobj.name, starget))
-                            if (shost.hostt.module.name in "lpfc_qla2xxx_fnic"):
-                                enum_fcrport_state = EnumInfo("enum fc_port_state")
-                                dev_parent = readSU("struct device", starget.dev.parent)
-                                fc_rport = container_of(dev_parent, "struct fc_rport", "dev")
-                                if (enum_fcrport_state.getnam(fc_rport.port_state) != 'FC_PORTSTATE_ONLINE'):
-                                    print("         FC rport (WWPN: {:x}) on {:10s} is not "
-                                          "online".format(fc_rport.port_name, starget.dev.kobj.name))
-                                    fc_rport_warnings += 1
+                        if (get_hostt_module_name(shost) in supported_modules):
+                            enum_fcrport_state = EnumInfo("enum fc_port_state")
+                            dev_parent = readSU("struct device", starget.dev.parent)
+                            fc_rport = container_of(dev_parent, "struct fc_rport", "dev")
+                            if (enum_fcrport_state.getnam(fc_rport.port_state) != 'FC_PORTSTATE_ONLINE'):
+                                print("WARNING: FC rport (WWPN: {:x}) on {:10s} is in "
+                                      "{} state".format(fc_rport.port_name, starget.dev.kobj.name,
+                                      enum_fcrport_state.getnam(fc_rport.port_state)))
+                                target_warnings += 1
+                                fc_rport_warnings += 1
 
                     except KeyError:
                         pylog.warning("Error in processing scsi_target {:x},"
                                       "please check manually".format(int(starget)))
 
     if (fc_rport_warnings):
-        print("\nERROR:   Couple of FC remote port(s) are NOT in ONLINE state, use '-f' to check detailed information.\n")
+        print("Use '-f' to check detailed information about FC remote ports.\n")
 
     return target_warnings
 

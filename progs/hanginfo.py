@@ -215,7 +215,7 @@ def print_bdi_writeback(wb):
         print(inode, inode.i_state, inode.i_mapping)
 
 # To find possible mmap semaphore owners, we get a list of
-# RU/UN threads that have this mmap_sem and have a credible
+# RU/UN threads that have this mmap_sem/mmap_lock and have a credible
 # subroutine on the stack
 def get_sema_owners():
     tt = T_table
@@ -227,7 +227,10 @@ def get_sema_owners():
         if (not t.pid in goodpids):
             continue
         if (t.ts.state in (TASK_STATE.TASK_RUNNING, TASK_STATE.TASK_UNINTERRUPTIBLE)):
-            out[t.mm.mmap_sem].append(t.pid)
+            if (member_size("struct mm_struct", "mmap_sem") != -1):
+                out[t.mm.mmap_sem].append(t.pid)
+            else:
+                out[t.mm.mmap_lock].append(t.pid)
     return out
 
 # Print statistics for threads having a given subroutine on the stack
@@ -258,11 +261,15 @@ def summarize_subroutines(funcnames, title = None):
                   sortbytime = _SORTBYTIME)
 
 
-# Find all PIDs that match a give mm,mmap_sem address
+# Find all PIDs that match a give mm,mmap_sem/mmap_lock address
 def find_pids_mmap(addr):
     tt = T_table
     for t in tt.allThreads():
-        if (long(t.mm.mmap_sem) == long(addr)):
+        if (member_size("struct mm_struct", "mmap_sem") != -1):
+            sem_lock_addr = t.mm.mmap_sem
+        else:
+            sem_lock_addr = t.mm.mmap_lock
+        if (long(sem_lock_addr) == long(addr)):
             print(t.pid)
 
 #
@@ -272,10 +279,16 @@ def check_mmap_sem(tasksrem):
     waiters = {}
     for addr in stacks_helper.alltaskaddrs:
         task = readSU("struct task_struct", addr)
-        if (not task.mm or not task.mm.mmap_sem):
+        if (member_size("struct mm_struct", "mmap_sem") != -1):
+            sem_lock_addr = task.mm.mmap_sem
+            semstr = "mmap_sem"
+        else:
+            sem_lock_addr = task.mm.mmap_lock
+            semstr = "mmap_lock"
+        if (not task.mm or not sem_lock_addr):
             continue
-        s = task.mm.mmap_sem
-        cmsg = "task={} mmap_sem={}".format(task, s)
+        s = sem_lock_addr
+        cmsg = "task={} {}={}".format(task, semstr, s)
         wtasks = get_rwsemaphore_tasks(s)
 
         pids = [t.pid for t in wtasks]

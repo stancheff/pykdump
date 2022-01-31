@@ -140,9 +140,13 @@ def get_mddev():
             print ("Size : NA")
         else:
             print ("Array Size : {:.2f}MB  ({:.2f}GB)    Total Devices : {}".format(size, sizeG, len(rdevlist)))
+        if (member_size("struct mddev", "sb_flags") != -1):
+            sbflags = mddev.sb_flags
+        else:
+            sbflags = "none"
         print ("mddev    {}         md_personality  {}".format(mddevp, mp))
         print ("gendisk  {}   \n".format(gd))
-        print ("flags :  {}   sb_flags : {}  external : {} \n".format(mddev.flags, mddev.sb_flags, mddev.external))
+        print ("flags :  {}   sb_flags : {}  external : {} \n".format(mddev.flags, sbflags, mddev.external))
         get_rdev_dev(mddev)
         print("\n=================================================================================== \n")
 

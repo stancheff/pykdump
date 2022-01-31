@@ -32,7 +32,7 @@ from __future__ import print_function
 __version__ = "0.0.2"
 
 from pykdump.API import *
-
+from LinuxDump.trees import *
 required_modules = ('dm_mod', 'dm_multipath', 'dm_log', 'dm_mirror',
                     'dm_queue_length', 'dm_round_robin', 'dm_service_time',
                     'dm_region_hash', 'dm_snapshot', 'dm_thin_pool', 'dm_raid')
@@ -61,12 +61,21 @@ lv_list = []
 
 def get_dm_devices():
     sn = "struct hash_cell"
-    nameb = readSymbol("_name_buckets")
     out = []
-    off = member_offset(sn, "name_list")
-    for b in nameb:
-        for a in readListByHead(b):
-            hc = readSU("struct hash_cell", a - off)
+    if (symbol_exists("_name_buckets")):
+        nameb = readSymbol("_name_buckets")
+        off = member_offset(sn, "name_list")
+        for b in nameb:
+            for a in readListByHead(b):
+                hc = readSU(sn, a - off)
+                if (hc.md.disk):
+                    out.append((hc.md, hc.name))
+                else:
+                    print("ERROR: skipping {}. No gendisk "
+                          "present.".format(hc.md))
+    else:
+        name_tree = readSymbol("name_rb_tree")
+        for hc in for_all_rbtree(name_tree, sn, "name_node"):
             if (hc.md.disk):
                 out.append((hc.md, hc.name))
             else:
@@ -131,25 +140,32 @@ def display_fields(display, fieldstr, usehex=0):
                 print("[Device suspended internally]", end='')
 
 def bdev_name(bdev):
-    if (bdev.bd_part.partno == 0):
-        return bdev.bd_disk.disk_name
-    elif (bdev.bd_disk.disk_name[len(bdev.bd_disk.disk_name)-1].isdigit() is True):
-        return bdev.bd_disk.disk_name + "p" + str(bdev.bd_part.partno)
+    if struct_exists("struct hd_struct"):
+        partno = bdev.bd_part.partno
     else:
-        return bdev.bd_disk.disk_name + str(bdev.bd_part.partno)
+        partno = bdev.bd_partno
+
+    if (partno == 0):
+        return bdev.bd_disk.disk_name
+    if (bdev.bd_disk.disk_name[len(bdev.bd_disk.disk_name)-1].isdigit() is True):
+        return bdev.bd_disk.disk_name + "p" + str(partno)
+    return bdev.bd_disk.disk_name + str(partno)
 
 def get_size(gendisk):
     try:
         if (member_size("struct gendisk", "capacity") != -1):
             return (gendisk.capacity * 512 / 1048576)
-        else:
+        if struct_exists("struct hd_struct"):
             tmp_hd_struct = readSU("struct hd_struct", long(gendisk.part0))
             return (tmp_hd_struct.nr_sects * 512 / 1048576)
+        inode = readSU("struct inode", gendisk.part0.bd_inode)
+        return inode.i_size >> 9
     except:
         pylog.warning("Error in processing 'struct gendisk'", gendisk)
         pylog.warning("To debug this issue, you could manually examine "
                       "the contents of gendisk struct")
         return
+
 def pr_ctrl_state(ctrl):
 
     try:
@@ -188,12 +204,16 @@ def context_struct_exists(s_name, name, message=1):
             pylog.info("{}: error: {} does not exist".format(name, struct_name))
         return False
 
-def get_dm_target_name(dm_table_map):
-
+def get_dm_target_name(dm_table_map, name):
     if (dm_table_exists(dm_table_map) is False):
         pylog.info("{}: table not found".format(name))
         return 0
-    return dm_table_map.targets.type.name
+    try:
+        target_name = dm_table_map.targets.type.name
+    except:
+        pylog.info("{}: get_dm_target_name() failed".format(name))
+        return 0
+    return target_name
 
 def __set_multipath_scope(symbol):
     command = "set scope " + symbol
@@ -261,7 +281,7 @@ def show_mpath_info(prio, path_ops):
             kobj_name = "<unknown>"
             pylog.info("{}: {} ops not recognized".format(path.path.dev.bdev.bd_disk, path_ops))
 
-        print("\n  `- {} {} {}:{}    ".format(kobj_name,
+        print("\n  `- {:10s} {:8s} {:>3d}:{:<12d}".format(kobj_name,
             block_device.bd_disk.disk_name,
             block_device.bd_dev >> 20,
             block_device.bd_dev & 0xfffff), end="")
@@ -275,10 +295,10 @@ def show_mpath_info(prio, path_ops):
                     .format(block_device.bd_disk.disk_name))
 
             if (enum_sdev_state is False):
-                print("\t[scsi_device: {:#x} sdev_state: {}]".format(path_dev,
+                print("[scsi_device: {:#x} sdev_state: {}]".format(path_dev,
                     "--------"), end="")
             elif ('cciss' in block_device.bd_disk.disk_name):
-                print("\t[Not a scsi device, skipping scsi_device struct!]", end="")
+                print("[Not a scsi device, skipping scsi_device struct!]", end="")
             else:
                 try:
                     sdev_state = get_sdev_state(enum_sdev_state.getnam(path_dev.sdev_state))
@@ -287,7 +307,7 @@ def show_mpath_info(prio, path_ops):
                         sdev_state = "SDEV_TRANSPORT_OFFLINE"
                     else:
                         sdev_state = "<Error in processing sdev_state>"
-                print("\t[scsi_device: {:#x} sdev_state: {}]".format(path_dev, sdev_state), end="")
+                print("[scsi_device: {:#x} sdev_state: {}]".format(path_dev, sdev_state), end="")
 
         elif "nvme" in path_ops:
             print("\t[{}nvme_ctrl: {:#x} nvme_ns: {:#x} state: {}]".format(path_subsys, path_ctrl,
@@ -297,12 +317,10 @@ def show_multipath_list(dev):
     md, name = dev
     dm_table_map = readSU("struct dm_table", md.map)
 
-    if (dm_table_exists(dm_table_map) is False):
-        pylog.info("{}: table not found".format(name))
+    target_name = get_dm_target_name(dm_table_map, name)
+    if (not target_name or target_name != "multipath" ):
         return 0
 
-    if (not (dm_table_map.targets.type.name == "multipath")):
-        return 0
     print("------------------------------------------------------------------------------------------")
 
     mpath = readSU("struct multipath", dm_table_map.targets.private)
@@ -313,38 +331,42 @@ def show_multipath_list(dev):
     temp_pgpath_list = readSU("struct list_head", temp_priority_group.pgpaths)
     temp_pgpath = readSU("struct pgpath", temp_pgpath_list.next)
 
+    hash_cell = readSU("struct hash_cell", md.interface_ptr)
+    scsi_id = hash_cell.uuid
+    scsi_id = scsi_id.partition("-")
+
+    if (not temp_pgpath):
+        print("{}  ({})  dm-{:<4d}".format(name, scsi_id[2], md.disk.first_minor))
+        pylog.info("Error in processing sub paths for multipath device: {}. No valid paths?".format(name))
+        pylog.info("Use 'dmshow --table' and 'dmshow --multipath' to manually verify sub paths.")
+        return
+
     scope_set = set_multipath_scope()
     path_ops = addr2sym(temp_pgpath.path.dev.bdev.bd_disk.fops)
 
     try:
         if "sd_fops" in path_ops:
             temp_path = readSU("struct scsi_device", temp_pgpath.path.dev.bdev.bd_disk.queue.queuedata)
-            vendor = temp_path.vendor[:8]
-            model = temp_path.model[:16]
+            vendor_str = temp_path.vendor[:8].strip() + " " + temp_path.model[:16].strip()
         elif "nvme" in path_ops:
             temp_path = readSU("struct nvme_ns", temp_pgpath.path.dev.bdev.bd_disk.queue.queuedata)
-            vendor = "NVME"
-            model = temp_path.ctrl.model
+            vendor_str = "NVME " + temp_path.ctrl.model.strip()
         else:
-            vendor = model = "<unknown>"
+            vendor_str = "<unknown>"
             pylog.info("{}: {} ops not recognized".format(temp_pgpath.path.dev.bdev.bd_disk, path_ops))
     except:
         pylog.warning("Error in processing sub paths for multipath device:", name)
         pylog.warning("Use 'dmshow --table|grep <mpath-device-name>' to manually verify sub paths.")
         return
 
-    hash_cell = readSU("struct hash_cell", md.interface_ptr)
-    scsi_id = hash_cell.uuid
-    scsi_id = scsi_id.partition("-")
-
     if ('cciss' in temp_pgpath.path.dev.bdev.bd_disk.disk_name):
         print("{}  ({})  dm-{:<4d}  HP Smart Array RAID Device (cciss)".format(name, scsi_id[2],
             md.disk.first_minor), end="")
     else:
-        print("{}  ({})  dm-{:<4d}  {}  {}".format(name, scsi_id[2], md.disk.first_minor,
-            vendor, model), end="")
+        print("{}  ({})  dm-{:<4d}  {}".format(name, scsi_id[2], md.disk.first_minor,
+            vendor_str), end="")
 
-    print("\nsize={:.2f}M  ".format(get_size(temp_pgpath.path.dev.bdev.bd_disk)), end="")
+    print("\nsize={:.2f}M  ".format(get_size(md.disk)), end="")
 
     unset_multipath_scope(scope_set)
 
@@ -437,12 +459,10 @@ def show_basic_mpath_info(dev):
     md, name = dev
     dm_table_map = readSU("struct dm_table", md.map)
 
-    if (dm_table_exists(dm_table_map) is False):
-        pylog.info("{}: table not found".format(name))
+    target_name = get_dm_target_name(dm_table_map, name)
+    if (not target_name or target_name != "multipath"):
         return 0
 
-    if (not (dm_table_map.targets.type.name == "multipath")):
-        return 0
     mpath = readSU("struct multipath", dm_table_map.targets.private)
 
     print("dm-{:<4d}  {:<38} {:#x} ".format(md.disk.first_minor, name, mpath), end="")
@@ -496,6 +516,7 @@ def get_md_mpath_from_gendisk(pv_gendisk, devlist):
     for temp_dev in devlist:
         if (tmp_mapped_device == temp_dev[0]):
             return temp_dev
+    return (0,0)
 
 def get_lvm_function(spec):
 
@@ -587,6 +608,9 @@ def build_pv_list(target, context, devlist, leg_count, pool_string, name):
         size = get_size(pv_gendisk)
         if ('dm-' in pv_gendisk.disk_name[:3]):
             pv_md, pv_md_name = get_md_mpath_from_gendisk(pv_gendisk, devlist)
+            if (not pv_md and not pv_md_name):
+                pylog.warning("No PV found for pv_gendisk".format(pv_gendisk))
+                continue
             pv_names.append((pool_string + pv_md_name + " (" + pv_gendisk.disk_name + ")", format(pv_md, 'x'), size))
         else:
             pv_names.append((bdev_name(pv_blockdev), pv_md, size))
@@ -692,7 +716,7 @@ def show_lvm(dev, devlist, spec):
     md, name = dev
     dm_table_map = readSU("struct dm_table", long(md.map))
 
-    type_name = get_dm_target_name(dm_table_map)
+    type_name = get_dm_target_name(dm_table_map, name)
     if (not type_name):
         return
 
@@ -1473,51 +1497,52 @@ def show_dmsetup_table_linear(dev):
 def show_dmsetup_table(dev):
     md, name = dev
     dm_table_map = readSU("struct dm_table", long(md.map))
-    if (dm_table_exists(dm_table_map) is False):
-        pylog.info("{}: table not found".format(name))
+    target_name = get_dm_target_name(dm_table_map, name)
+    if (not target_name):
+        pass
     elif (dm_table_map.num_targets == 0):
         print("{}: ".format(name))
-    elif (dm_table_map.targets.type.name == "linear"):
+    elif (target_name == "linear"):
         show_dmsetup_table_linear(dev)
-    elif (dm_table_map.targets.type.name == "multipath"):
+    elif (target_name == "multipath"):
         show_dmsetup_table_multipath(dev)
-    elif (dm_table_map.targets.type.name == "striped"):
+    elif (target_name == "striped"):
         show_dmsetup_table_striped(dev)
-    elif (dm_table_map.targets.type.name == "thin-pool"):
+    elif (target_name == "thin-pool"):
         show_dmsetup_table_thinpool(dev)
-    elif (dm_table_map.targets.type.name == "thin"):
+    elif (target_name == "thin"):
         show_dmsetup_table_thin(dev)
-    elif (dm_table_map.targets.type.name == "snapshot-origin"):
+    elif (target_name == "snapshot-origin"):
         show_dmsetup_table_snap_origin(dev)
-    elif (dm_table_map.targets.type.name == "snapshot" or
-            dm_table_map.targets.type.name == "snapshot-merge"):
+    elif (target_name == "snapshot" or
+            target_name == "snapshot-merge"):
         show_dmsetup_table_snap(dev)
-    elif (dm_table_map.targets.type.name == "cache"):
+    elif (target_name == "cache"):
         show_dmsetup_table_cache(dev)
-    elif (dm_table_map.targets.type.name == "raid"):
+    elif (target_name == "raid"):
         show_dmsetup_table_raid(dev)
-    elif (dm_table_map.targets.type.name == "raid45"):
+    elif (target_name == "raid45"):
         show_dmsetup_table_raid45(dev)
-    elif (dm_table_map.targets.type.name == "mirror"):
+    elif (target_name == "mirror"):
         show_dmsetup_table_mirror(dev)
-    elif (dm_table_map.targets.type.name == "crypt"):
+    elif (target_name == "crypt"):
         show_dmsetup_table_crypt(dev)
-    elif (dm_table_map.targets.type.name == "delay"):
+    elif (target_name == "delay"):
         show_dmsetup_table_delay(dev)
-    elif (dm_table_map.targets.type.name == "error" or
-            dm_table_map.targets.type.name == "zero"):
+    elif (target_name == "error" or
+            target_name == "zero"):
         show_dmsetup_table_generic(dev)
-    elif (dm_table_map.targets.type.name == "switch"):
+    elif (target_name == "switch"):
         show_dmsetup_table_switch(dev)
-    elif (dm_table_map.targets.type.name == "flakey"):
+    elif (target_name == "flakey"):
         show_dmsetup_table_flakey(dev)
-    elif (dm_table_map.targets.type.name == "era"):
+    elif (target_name == "era"):
         show_dmsetup_table_era(dev)
-    elif (dm_table_map.targets.type.name == "verity"):
+    elif (target_name == "verity"):
         show_dmsetup_table_verity(dev)
     else:
         print("{}: {} not yet supported by this command".format(name,
-              dm_table_map.targets.type.name))
+              target_name))
 
 def run_check_on_multipath(devlist):
     bts = []
@@ -1534,17 +1559,26 @@ def run_check_on_multipath(devlist):
     print("\n\nChecking for device-mapper issues...\n")
 
     # No need to continue if we can't pull the TaskTable
-    blah = TaskTable()
     try:
         tt = TaskTable()
     except:
         print("ERROR: Could not gather TaskTable.  Aborting multipath check.")
         return
 
+    state_exists = member_size("struct task_struct", "state")
     for t in tt.allThreads():
         if ('multipathd' in t.comm):
             multipathd_daemon = 1
-        if (t.ts.state & TASK_STATE.TASK_UNINTERRUPTIBLE):
+
+        if (state_exists == -1):
+            state = t.ts.__state
+        else:
+            state = t.ts.state
+
+        if (state & TASK_STATE.TASK_UNINTERRUPTIBLE):
+            if ("TASK_NOLOAD" in TASK_STATE):
+                if (state & TASK_STATE.TASK_NOLOAD):
+                    continue
             task_cnt += 1
             errors += 1
             # crash can miss some threads when there are pages missing
@@ -1556,6 +1590,13 @@ def run_check_on_multipath(devlist):
 
     print("Getting a list of processes in UN state...\t\t\t[Done] "
         "(Count: {:d})".format(task_cnt))
+
+    ps_task_cnt = 0
+    for task in exec_crash_command("ps -m").splitlines():
+        if "[UN]" in task:
+            ps_task_cnt += 1
+    if (ps_task_cnt != task_cnt):
+        pylog.info("WARNING: UN task count not equal to ps -m output!")
 
     if (task_cnt):
         print("\nProcessing the back trace of hung tasks...\t\t\t", end='')
@@ -1576,7 +1617,10 @@ def run_check_on_multipath(devlist):
         md, name = dev
         dm_table_map = readSU("struct dm_table", md.map)
         # Check if there is any multipath device present in device-mapper table
-        if (dm_table_map.targets.type.name == "multipath"):
+        target_name = get_dm_target_name(dm_table_map, name)
+        if (not target_name):
+            continue
+        elif (target_name == "multipath"):
             mpath_present += 1
 
     # Check if kworker threads are stuck waiting to flush IO on mdraid devices
@@ -1603,6 +1647,24 @@ def run_check_on_multipath(devlist):
         print("\n ** multipathd processes stuck in UN state,"
               "\n    this could block IO failover on multipath devices")
         errors += 1
+
+    # check underlying devs for different block sizes (dm-linear only)
+    for dev in devlist:
+        sizes=[]
+        md, name = dev
+        dm_table_map = readSU("struct dm_table", md.map)
+        for target_id in range(dm_table_map.num_targets):
+            target = dm_table_map.targets.__getitem__(target_id)
+            target_name = get_dm_target_name(target.table, name)
+            if (target_name == "linear"):
+                linear_c = readSU("struct linear_c", target.private)
+                queue = linear_c.dev.bdev.bd_disk.queue
+                sizes.append(queue.limits.logical_block_size)
+        if (sizes):
+            if (sizes.count(sizes[0]) != len(sizes)):
+                print("\n ** {} underlying device logical_block_size values "
+                    "are not the same!".format(name))
+                errors += 1
 
     if (errors > 0 and task_cnt != 0):
         print("\n    Found {} processes in UN state.".format(task_cnt))

@@ -44,6 +44,7 @@ import math, traceback
 from collections import defaultdict
 from pykdump.API import *
 from LinuxDump.kobjects import *
+from LinuxDump.trees import *
 import importlib.util
 if importlib.util.find_spec("pykdump.wrapcrash"):
     from pykdump.wrapcrash import readSUListFromHead
@@ -75,6 +76,30 @@ def nvme_rq_to_gendisk(queue):
         return gendisk
 
     return 0
+
+def get_nvme_sysfs_gendisk_queues(rq_list):
+
+    block_depr = readSymbol("block_depr")
+    rbroot = block_depr.sd.dir.children
+
+    for kernfs_node in for_all_rbtree(rbroot, "struct kernfs_node", "rb"):
+        try:
+            target_kn = kernfs_node.symlink.target_kn
+            if struct_exists("struct hd_struct"):
+                gendisk = container_of(target_kn.priv, "struct gendisk", "part0.__dev.kobj")
+            else:
+                blockdevice = container_of(target_kn.priv, "struct block_device", "bd_device.kobj")
+                gendisk = blockdevice.bd_disk
+        except:
+            pylog.info("WARNING: get_nvme_sysfs_gendisk_queues() failed for {}. Output maybe "
+                "incomplete.".format(kernfs_node))
+            continue
+        if gendisk and gendisk.queue:
+            if gendisk.queue not in rq_list:
+                rq_list.append(gendisk.queue)
+            rq_names[gendisk.queue] = str(gendisk.disk_name)
+
+    return rq_list
 
 def get_nvme_blockdev_queues(rq_list):
 
@@ -115,6 +140,10 @@ def get_nvme_inode_blockdev_queues(rq_list):
 def get_nvme_gendisk_queues(rq_list):
 
     global use_linuxdump_idr
+
+    if (symbol_exists("block_depr") and struct_exists("struct kernfs_node") and not
+        struct_exists("struct sysfs_dirent")):
+        return get_nvme_sysfs_gendisk_queues(rq_list)
 
     for i in range(255):
         for bprobe in readSUListFromHead(readSymbol("bdev_map").probes[i],
@@ -285,12 +314,13 @@ def bio_mode_check(rq_list):
         for rq in rq_list[:]:
 
             make_request_fn = rq.make_request_fn
-            if ("nvme_make_request" in addr2sym(make_request_fn)):
-                rq_list.remove(rq)
-                inc_removed()
-                pylog.info("WARNING: unsupported NVMe bio-mode detected. Some devices"
-                    " not reported. Please check make_request_fn, mod,"
-                    " and dev -d for more info.")
+            if (make_request_fn):
+                if ("nvme_make_request" in addr2sym(make_request_fn)):
+                    rq_list.remove(rq)
+                    inc_removed()
+                    pylog.info("WARNING: unsupported NVMe bio-mode detected. Some devices"
+                        " not reported. Please check make_request_fn, mod,"
+                        " and dev -d for more info.")
 
     return rq_list
 
