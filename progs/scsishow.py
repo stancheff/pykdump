@@ -1195,7 +1195,7 @@ def run_cmd_checks(sdev):
 
         # check for non-zero result values
         if (cmnd.result > 0):
-            status_byte = (((cmnd.result) >> 1) & 0x7f)
+            status_byte = cmnd.result & 0xff
             if status_byte in scmd_status_byte:
                 status_byte = scmd_status_byte[status_byte]
             else:
