@@ -66,6 +66,13 @@ def get_gendisk(bdev):
 
     return 0
 
+def get_bdev_inode(inode, i_bdev_exists):
+
+    if i_bdev_exists:
+        return inode.i_bdev
+    bdev_inode = container_of(inode, "struct bdev_inode", "vfs_inode")
+    return bdev_inode.bdev
+
 def nvme_rq_to_gendisk(queue):
 
     nvme_kobject = readSU("struct kobject", queue.kobj.parent)
@@ -124,12 +131,18 @@ def get_nvme_blockdev_queues(rq_list):
 
 def get_nvme_inode_blockdev_queues(rq_list):
 
+    i_bdev_exists = member_size("struct inode", "i_bdev")
     if symbol_exists("blockdev_superblock"):
         blockdev_superblock = readSymbol("blockdev_superblock")
         for inode in readSUListFromHead(blockdev_superblock.s_inodes, "i_sb_list", "struct inode"):
 
-            if inode.i_bdev:
-                gendisk = get_gendisk(inode.i_bdev)
+            if i_bdev_exists != -1:
+                bdev = get_bdev_inode(inode, 1)
+            else:
+                bdev = get_bdev_inode(inode, 0)
+
+            if bdev:
+                gendisk = get_gendisk(bdev)
                 if gendisk and gendisk.queue:
                     if gendisk.queue not in rq_list:
                         rq_list.append(gendisk.queue)
