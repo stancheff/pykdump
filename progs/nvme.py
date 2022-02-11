@@ -84,10 +84,14 @@ def part0_to_name(part0):
 def nvme_rq_to_gendisk(queue):
 
     nvme_kobject = readSU("struct kobject", queue.kobj.parent)
+    if hd_struct_exists:
+        device = "part0.__dev"
+    else:
+        device = "part0.bd_device"
 
     if nvme_kobject:
         device = container_of(nvme_kobject, "struct device", "kobj")
-        gendisk = container_of(device, "struct gendisk", "part0.__dev")
+        gendisk = container_of(device, "struct gendisk", device)
         return gendisk
 
     return 0
