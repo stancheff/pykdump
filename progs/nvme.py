@@ -58,6 +58,7 @@ except:
 rq_removed = 0
 rq_names = {}
 ops_string = {}
+hd_struct_exists = struct_exists("struct hd_struct")
 
 def get_gendisk(bdev):
 
@@ -72,6 +73,13 @@ def get_bdev_inode(inode, i_bdev_exists):
         return inode.i_bdev
     bdev_inode = container_of(inode, "struct bdev_inode", "vfs_inode")
     return bdev_inode.bdev
+
+def part0_to_name(part0):
+
+    if hd_struct_exists:
+        return part0.__dev.kobj.name
+    else:
+        return part0.bd_device.kobj.name
 
 def nvme_rq_to_gendisk(queue):
 
@@ -92,7 +100,7 @@ def get_nvme_sysfs_gendisk_queues(rq_list):
     for kernfs_node in for_all_rbtree(rbroot, "struct kernfs_node", "rb"):
         try:
             target_kn = kernfs_node.symlink.target_kn
-            if struct_exists("struct hd_struct"):
+            if hd_struct_exists:
                 gendisk = container_of(target_kn.priv, "struct gendisk", "part0.__dev.kobj")
             else:
                 blockdevice = container_of(target_kn.priv, "struct block_device", "bd_device.kobj")
@@ -582,7 +590,7 @@ def __arg_prep(args, item_list, match_name):
 
     if (match_name == "ns"):
         for item in item_list:
-            item_names.append(item.disk.part0.__dev.kobj.name)
+            item_names.append(part0_to_name(item.disk.part0))
 
     elif (match_name == "dev" or match_name == "ctrl"):
         for item in item_list:
@@ -691,7 +699,7 @@ def show_nvme_subsystems(sub_list, args):
                 else:
                     ana_state = ""
                 print("{}{}: [{:#x}] {}: [{:#x}] {}".format(spacer, pr_ctrl_name(ns.ctrl, "ctrl"), ns.ctrl,
-                    ns.disk.part0.__dev.kobj.name, ns, ana_state))
+                    part0_to_name(ns.disk.part0), ns, ana_state))
                 spacer = "  +-"
 
     if (subs):
@@ -700,7 +708,7 @@ def show_nvme_subsystems(sub_list, args):
             print("\n{} [{:#x}] - NQN={}".format(sub.dev.kobj.name, sub, sub.subnqn))
             for ns in ns_list:
                 print("{}{}: [{:#x}] {}: [{:#x}]".format(spacer, pr_ctrl_name(ns.ctrl, "ctrl"), ns.ctrl,
-                    ns.disk.part0.__dev.kobj.name, ns))
+                    part0_to_name(ns.disk.part0), ns))
                 spacer = "  +-"
 
 def show_nvme_list(ns_list, args):
@@ -727,7 +735,7 @@ def show_nvme_list(ns_list, args):
         ns_id = member_check("nvme_ns", "head", ns, "origin.head.ns_id", "origin.ns_id")
 
         print("/dev/{:<11} {:<20s} {:40s} {:<9d} {:<18s} {:<16s} {:<8s}".
-            format(ns.disk.part0.__dev.kobj.name, serial, model, ns_id,
+            format(part0_to_name(ns.disk.part0), serial, model, ns_id,
             pr_cap(ns), ns_format(ns), firmware_rev))
 
 def show_nvme_ctrl(nvme_ctrls, args):
@@ -782,7 +790,7 @@ def show_nvme_ns(ns_list, args):
         ns_siblings = member_check("nvme_ns", "siblings", ns, "hex(origin.siblings)[2:]", "unavail")
 
         print("{:<10}  {:<16x}  {:<16}  {:<16x}  {:<16x}  {:<16}  {:<5}".
-            format(ns.disk.part0.__dev.kobj.name, ns, ns_head, ns.queue, ns.disk,
+            format(part0_to_name(ns.disk.part0), ns, ns_head, ns.queue, ns.disk,
                 ns_siblings, hex(ns.flags)))
 
 def show_nvme_rdma_dev(rdma_dev):
