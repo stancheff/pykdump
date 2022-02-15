@@ -536,9 +536,15 @@ def get_nvme_queue_tagset(nvme_queue):
 
 def pr_cap(ns):
 
-   ns_size = ns.disk.part0.nr_sects * (1 << ns.lba_shift)
+    if hd_struct_exists:
+        ns_size = ns.disk.part0.nr_sects * (1 << ns.lba_shift)
+    else:
+        if (member_size("struct block_device", "bd_nr_sectors") != -1):
+            ns_size = ns.disk.part0.bd_nr_sectors * (1 << ns.lba_shift)
+        else:
+            ns_size = ns.disk.part0.bd_inode.i_size
 
-   return suffix(ns_size)
+    return suffix(ns_size)
 
 def pr_ctrl_name(origin, match_name):
 
