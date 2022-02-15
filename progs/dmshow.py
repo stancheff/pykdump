@@ -159,7 +159,7 @@ def get_size(gendisk):
             tmp_hd_struct = readSU("struct hd_struct", long(gendisk.part0))
             return (tmp_hd_struct.nr_sects * 512 / 1048576)
         inode = readSU("struct inode", gendisk.part0.bd_inode)
-        return inode.i_size >> 9
+        return inode.i_size / 1048576
     except:
         pylog.warning("Error in processing 'struct gendisk'", gendisk)
         pylog.warning("To debug this issue, you could manually examine "
@@ -647,7 +647,7 @@ def show_lvm_lvs(dev, devlist, name, md, dm_table_map):
             pv_names_string = ','.join(pv_names_only)
 
             print("dm-{:<10d} {:<40s}  {:<40s} "
-                    "{:>10d} {:>18.2f}     {}\n".format(md.disk.first_minor,
+                    "{:>11d} {:>18.2f}     {}\n".format(md.disk.first_minor,
                     vg_lv_names[1], vg_lv_names[0], md.open_count.counter,
                     lv_capacity, pv_names_string), end="")
 
@@ -678,7 +678,7 @@ def show_lvm_uuid(dev, devlist, name, md, dm_table_map):
 
              lv_capacity = get_size(gendisk)
 
-             print("dm-{:<10d} {:40s}  {:40s} {:18.2f}  {:10s}  {:10s}\n".format(md.disk.first_minor,
+             print("dm-{:<10d} {:40s}  {:40s} {:19.2f}  {:10s}  {:10s}\n".format(md.disk.first_minor,
                  vg_lv_names[1], vg_lv_names[0],
                  lv_capacity,
                  lv_uuid[-32:], lv_uuid[:32]), end="")
@@ -709,7 +709,7 @@ def show_lvm_pvs(dev, devlist, name, md, dm_table_map):
 
             for pv in pv_names:
                 pv_name, pv_md, pv_size = pv
-                print("{:<48s}{:<16}{:>20.2f}  {:<40s}  {}\n".format(pv_name,
+                print("{:<48s}{:<16}{:>21.2f}  {:<40s}  {}\n".format(pv_name,
                     pv_md, pv_size, vg_lv_names[0], vg_lv_names[1]), end="")
 
 def show_lvm(dev, devlist, spec):
@@ -1761,14 +1761,14 @@ def main():
     elif (args.multipathlist):
         pass
     elif (args.lvs):
-        print("{:11s}   {:40s}  {:40s} {:10s} {:18s}     {}\n".format("LV DM-X DEV",
-            "LV NAME", "VG NAME", "OPEN COUNT", "      LV SIZE (MB)", "PV NAME"), end="")
+        print("{:11s}   {:40s}  {:40s} {:11s} {:18s}     {}\n".format("LV DM-X DEV",
+            "LV NAME", "VG NAME", "OPEN COUNT", "      LV SIZE (MiB)", "PV NAME"), end="")
     elif (args.lvuuid):
-        print("{:14s}{:40s}  {:40s} {:>18s}  {:32s}  {}".format("LV DM-X DEV",
-            "LV NAME", "VG NAME", "LV SIZE (MB)", "LV UUID", "VG UUID"))
+        print("{:14s}{:40s}  {:40s} {:>19s}  {:32s}  {}".format("LV DM-X DEV",
+            "LV NAME", "VG NAME", "LV SIZE (MiB)", "LV UUID", "VG UUID"))
     elif (args.pvs):
-        print("{:48s}{:16s}{:20s}{:40s}  {}\n".format("PV NAME",
-            "PV's MAPPED_DEVICE", "  DEVICE SIZE (MB)", "VG NAME", "LV NAME"), end="")
+        print("{:48s}{:16s}{:21s}{:40s}  {}\n".format("PV NAME",
+            "PV's MAPPED_DEVICE", "  DEVICE SIZE (MiB)", "VG NAME", "LV NAME"), end="")
     elif (args.table):
         pass
     else:
