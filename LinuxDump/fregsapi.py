@@ -150,7 +150,11 @@ def extract_registers (frame, stack):
                 rsp -= val
             elif fields[1] == "%rbp":
                 val = int(fields[0].lstrip("$"),16)
-                rbp -= val
+                try:
+                    rbp -= val
+                except:
+                    #print("Debug: {} {}".format(fname,line))
+                    continue
 
         elif opcode == "mov":
             fields = operand.split(",")
