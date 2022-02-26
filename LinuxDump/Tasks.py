@@ -745,7 +745,7 @@ def tasksSummary():
             if (nsproxy and nsproxy != init_nsproxy):
                 n_of_ns_pids += 1
         for t in mt.threads:
-            print(t.pid, t.state)
+            #print(t.pid, t.state)
             state = t.state
             counts[state] = counts.setdefault(state, 0) + 1
             d_counts[(comm, state)] = d_counts.setdefault((comm, state), 0)+1
