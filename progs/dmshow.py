@@ -594,6 +594,17 @@ def get_leg_count(target, context):
 
     return leg_count
 
+def get_pvsize(blockdev):
+    try: 
+        bd_inode = (blockdev.bd_inode)
+        size = (bd_inode.i_size / 1048576)
+        return size 
+    except:
+        pylog.warning("Error in processing {}", blockdev)
+        pylog.warning("To debug this issue, you could manually examine "
+                      "the contents of block_device struct")
+        return
+
 def build_pv_list(target, context, devlist, leg_count, pool_string, name):
 
     pv_names = []
@@ -605,15 +616,15 @@ def build_pv_list(target, context, devlist, leg_count, pool_string, name):
             pv_names.append("<error>", "", "")
             continue
         pv_gendisk = pv_blockdev.bd_disk
-        size = get_size(pv_gendisk)
+        pv_size = get_pvsize(pv_blockdev)
         if ('dm-' in pv_gendisk.disk_name[:3]):
             pv_md, pv_md_name = get_md_mpath_from_gendisk(pv_gendisk, devlist)
             if (not pv_md and not pv_md_name):
                 pylog.warning("No PV found for pv_gendisk".format(pv_gendisk))
                 continue
-            pv_names.append((pool_string + pv_md_name + " (" + pv_gendisk.disk_name + ")", format(pv_md, 'x'), size))
+            pv_names.append((pool_string + pv_md_name + " (" + pv_gendisk.disk_name + ")", format(pv_md, 'x'), pv_size))
         else:
-            pv_names.append((bdev_name(pv_blockdev), pv_md, size))
+            pv_names.append((bdev_name(pv_blockdev), pv_md, pv_size))
 
     return pv_names
 
@@ -1768,7 +1779,7 @@ def main():
             "LV NAME", "VG NAME", "LV SIZE (MiB)", "LV UUID", "VG UUID"))
     elif (args.pvs):
         print("{:48s}{:16s}{:21s}{:40s}  {}\n".format("PV NAME",
-            "PV's MAPPED_DEVICE", "  DEVICE SIZE (MiB)", "VG NAME", "LV NAME"), end="")
+            "PV's MAPPED_DEVICE", "      PV SIZE (MiB)", "VG NAME", "LV NAME"), end="")
     elif (args.table):
         pass
     else:
@@ -1813,11 +1824,6 @@ def main():
 
     if ((args.multipath or args.multipathlist) and (mpathfound == 0)):
         print("\nNo dm-multipath devices found!")
-
-    if (args.pvs):
-        print("\n\n   Note: 'DEVICE SIZE' column shows the size of device used for PV, it is\n"
-                 "         not the actual PV size. Depending upon the number of Physical\n"
-                 "         Extents and Extent size, actual PV size could be slightly less.")
 
     if (args.runcheck):
         run_check_on_multipath(devlist)
