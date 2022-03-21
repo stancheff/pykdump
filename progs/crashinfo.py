@@ -187,7 +187,7 @@ def analyze_kmem(d):
 
     # Is committed > 100?
     if (committedper > 100):
-        pylog.warning("Commited {}%".format(committedper))
+        pylog.warning("Committed {}%".format(committedper))
 
     # Did we reserve many huge pages but not really using them?
     if (tothuge > totmem/2 and hugefreeper > 30):
