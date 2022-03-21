@@ -594,6 +594,24 @@ def get_leg_count(target, context):
 
     return leg_count
 
+def get_pvsize(blockdev):
+    try: 
+        bd_inode = (blockdev.bd_inode)
+        size = (bd_inode.i_size / 1048576)
+        return size 
+    except:
+        pylog.warning("Error in processing {}", blockdev)
+        pylog.warning("To debug this issue, you could manually examine "
+                      "the contents of block_device struct")
+        return
+
+def get_sysfs_state(gendisk):
+    state = gendisk.part0.__dev.kobj.state_in_sysfs
+    if state == 1:
+        return "online"
+    else:
+        return "missing"
+
 def build_pv_list(target, context, devlist, leg_count, pool_string, name):
 
     pv_names = []
@@ -605,15 +623,16 @@ def build_pv_list(target, context, devlist, leg_count, pool_string, name):
             pv_names.append("<error>", "", "")
             continue
         pv_gendisk = pv_blockdev.bd_disk
-        size = get_size(pv_gendisk)
+        pv_size = get_pvsize(pv_blockdev)
+        sysfs_state = get_sysfs_state(pv_gendisk)
         if ('dm-' in pv_gendisk.disk_name[:3]):
             pv_md, pv_md_name = get_md_mpath_from_gendisk(pv_gendisk, devlist)
             if (not pv_md and not pv_md_name):
                 pylog.warning("No PV found for pv_gendisk".format(pv_gendisk))
                 continue
-            pv_names.append((pool_string + pv_md_name + " (" + pv_gendisk.disk_name + ")", format(pv_md, 'x'), size))
+            pv_names.append((pool_string + pv_md_name + " (" + pv_gendisk.disk_name + ")", format(pv_md, 'x'), sysfs_state, pv_size))
         else:
-            pv_names.append((bdev_name(pv_blockdev), pv_md, size))
+            pv_names.append((bdev_name(pv_blockdev), pv_md, sysfs_state, pv_size))
 
     return pv_names
 
@@ -708,9 +727,9 @@ def show_lvm_pvs(dev, devlist, name, md, dm_table_map):
             pv_names = build_pv_list(target, context, devlist, leg_count, "", name)
 
             for pv in pv_names:
-                pv_name, pv_md, pv_size = pv
-                print("{:<48s}{:<16}{:>21.2f}  {:<40s}  {}\n".format(pv_name,
-                    pv_md, pv_size, vg_lv_names[0], vg_lv_names[1]), end="")
+                pv_name, pv_md, sysfs_state, pv_size = pv
+                print("{:<48s}{:<24}{:8s}{:>21.2f}  {:<40s}  {}\n".format(pv_name,
+                    pv_md, sysfs_state, pv_size, vg_lv_names[0], vg_lv_names[1]), end="")
 
 def show_lvm(dev, devlist, spec):
     md, name = dev
@@ -1767,8 +1786,8 @@ def main():
         print("{:14s}{:40s}  {:40s} {:>19s}  {:32s}  {}".format("LV DM-X DEV",
             "LV NAME", "VG NAME", "LV SIZE (MiB)", "LV UUID", "VG UUID"))
     elif (args.pvs):
-        print("{:48s}{:16s}{:21s}{:40s}  {}\n".format("PV NAME",
-            "PV's MAPPED_DEVICE", "  DEVICE SIZE (MiB)", "VG NAME", "LV NAME"), end="")
+        print("{:48s}{:16s}{:28s}{:40s}  {}\n".format("PV NAME",
+            "PV's MAPPED_DEVICE", "     PV STATE" "            PV SIZE(MiB)", "VG NAME", "LV NAME"), end="")
     elif (args.table):
         pass
     else:
@@ -1813,11 +1832,6 @@ def main():
 
     if ((args.multipath or args.multipathlist) and (mpathfound == 0)):
         print("\nNo dm-multipath devices found!")
-
-    if (args.pvs):
-        print("\n\n   Note: 'DEVICE SIZE' column shows the size of device used for PV, it is\n"
-                 "         not the actual PV size. Depending upon the number of Physical\n"
-                 "         Extents and Extent size, actual PV size could be slightly less.")
 
     if (args.runcheck):
         run_check_on_multipath(devlist)
