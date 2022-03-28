@@ -653,8 +653,8 @@ def show_lvm_lvs(dev, devlist, name, md, dm_table_map):
             pv_names_only = [x[0] for x in pv_names]
             pv_names_string = ','.join(pv_names_only)
 
-            print("dm-{:<10d} {:<40s}  {:<40s} "
-                    "{:>11d} {:>18.2f}     {}\n".format(md.disk.first_minor,
+            print("dm-{:<10d} {:<40s}  {:<40s}"
+                    "{:>11d} {:>20.2f}     {}\n".format(md.disk.first_minor,
                     vg_lv_names[1], vg_lv_names[0], md.open_count.counter,
                     lv_capacity, pv_names_string), end="")
 
@@ -1774,8 +1774,8 @@ def main():
         print("{:14s}{:40s}  {:40s} {:>19s}  {:32s}  {}".format("LV DM-X DEV",
             "LV NAME", "VG NAME", "LV SIZE (MiB)", "LV UUID", "VG UUID"))
     elif (args.pvs):
-        print("{:48s}{:16s}{:28s}{:40s}  {}\n".format("PV NAME",
-            "PV's MAPPED_DEVICE", "     PV STATE" "            PV SIZE(MiB)", "VG NAME", "LV NAME"), end="")
+        print("{:48s}{:24s}{:9s} {:>19s}  {:40s}  {}\n".format("PV NAME",
+            "PV's MAPPED_DEVICE", "PV STATE", "PV SIZE (MiB)", "VG NAME", "LV NAME"), end="")
     elif (args.table):
         pass
     else:
