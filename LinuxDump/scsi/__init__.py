@@ -41,6 +41,52 @@ Host: scsi2 Channel: 00 Id: 00 Lun: 00
   Type:   Direct-Access                    ANSI  SCSI revision: 05
 '''
 
+scmd_status_byte = {
+    0x0:  "SAM_STAT_GOOD",
+    0x2:  "SAM_STAT_CHECK_CONDITION",
+    0x4:  "SAM_STAT_CONDITION_MET",
+    0x8:  "SAM_STAT_BUSY",
+    0x10: "SAM_STAT_INTERMEDIATE",
+    0x14: "SAM_STAT_INTERMEDIATE_CONDITION_MET",
+    0x18: "SAM_STAT_RESERVATION_CONFLICT",
+    0x22: "SAM_STAT_COMMAND_TERMINATED",
+    0x28: "SAM_STAT_TASK_SET_FULL",
+    0x30: "SAM_STAT_ACA_ACTIVE",
+    0x40: "SAM_STAT_TASK_ABORTED"
+}
+
+scmd_host_byte = {
+    0x0:  "DID_OK",
+    0x1:  "DID_NO_CONNECT",
+    0x2:  "DID_BUS_BUSY",
+    0x3:  "DID_TIME_OUT",
+    0x4:  "DID_BAD_TARGET",
+    0x5:  "DID_ABORT",
+    0x6:  "DID_PARITY",
+    0x7:  "DID_ERROR",
+    0x8:  "DID_RESET",
+    0x9:  "DID_BAD_INTR",
+    0x0a: "DID_PASSTHROUGH",
+    0x0b: "DID_SOFT_ERROR",
+    0x0c: "DID_IMM_RETRY",
+    0x0d: "DID_REQUEUE",
+    0x0e: "DID_TRANSPORT_DISRUPTED",
+    0x0f: "DID_TRANSPORT_FAILFAST",
+    0x10: "DID_TARGET_FAILURE",
+    0x11: "DID_NEXUS_FAILURE",
+    0x12: "DID_ALLOC_FAILURE",
+    0x13: "DID_MEDIUM_ERROR",
+    0x14: "DID_TRANSPORT_MARGINAL"
+}
+
+opcode_table = {'0x00':'TUR', '0x03':'REQ-SENSE', '0x08':'READ(6)',\
+                '0x0a':'WRITE(6)', '0x12':'INQUIRY', '0x16':'RESERVE(6)',\
+                '0x17':'RELEASE(6)', '0x25':'READ-CAP(10)', '0x28':'READ(10)',\
+                '0x2a':'WRITE(10)', '0x35':'SYNC CACHE', '0x41':'WR SAME',\
+                '0x56':'RESERVE(10)', '0x57':'RELEASE(10)', '0x88':'READ(16)',\
+                '0x8a':'WRITE(16)','0xa0':'REPORT LUNS', '0xa8':'READ(12)',\
+                '0xaa':'WRITE(12)'}
+
 scsi_device_types = None
 enum_shost_state = None
 
