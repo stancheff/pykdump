@@ -150,7 +150,10 @@ def printTaskDetails(t):
         if (c.hasField("group_info")):
             g = c.group_info
             ngroups = g.ngroups
-            small_block = g.small_block
+            if (g.hasField("small_block")):
+                small_block = g.small_block
+            else:
+                small_block = g.gid
         else:
             ngroups = t.ngroups
             small_block = t.groups
