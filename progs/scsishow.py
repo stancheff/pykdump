@@ -487,8 +487,7 @@ def print_fcrports():
 
             for starget in readSUListFromHead(shost.__targets, "siblings", "struct scsi_target"):
                 try:
-                    dev_parent = readSU("struct device", starget.dev.parent)
-                    fc_rport = container_of(dev_parent, "struct fc_rport", "dev")
+                    fc_rport = starget_to_rport(starget)
                     print("{:15s} {:x} {:x} {:x} {:x} {:#x}\t{:24s}{:16d}s {:15d}s".format(starget.dev.kobj.name,
                           starget, fc_rport, fc_rport.node_name, fc_rport.port_name, fc_rport.port_id,
                           enum_fcrport_state.getnam(fc_rport.port_state), fc_rport.fast_io_fail_tmo,
@@ -1357,8 +1356,7 @@ def run_target_checks():
                                   "state".format(starget.dev.kobj.name, starget))
                         if (get_hostt_module_name(shost) in supported_modules):
                             enum_fcrport_state = EnumInfo("enum fc_port_state")
-                            dev_parent = readSU("struct device", starget.dev.parent)
-                            fc_rport = container_of(dev_parent, "struct fc_rport", "dev")
+                            fc_rport = starget_to_rport(starget)
                             if (enum_fcrport_state.getnam(fc_rport.port_state) != 'FC_PORTSTATE_ONLINE'):
                                 print("WARNING: FC rport (WWPN: {:x}) on {:10s} is in "
                                       "{} state".format(fc_rport.port_name, starget.dev.kobj.name,
