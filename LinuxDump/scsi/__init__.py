@@ -172,15 +172,34 @@ def class_for_each_device(_class):
 # get all Scsi_Host from 'shost_class'
 #
 
-def get_Scsi_Hosts_from_class():
+def get_scsi_hosts():
     shost_class = readSymbol("shost_class")
-    _rhel5 = shost_class.hasField("children")
-    for dev in class_for_each_device(shost_class):
-        if (_rhel5):
-            yield container_of(dev, "struct Scsi_Host", "shost_classdev")
-        else:
-            #yield dev
-            yield container_of(dev, "struct Scsi_Host", "shost_dev")
+    klist_devices = 0
+
+    try:
+        klist_devices = shost_class.p.class_devices
+    except KeyError:
+        pass
+    if (not klist_devices):
+        try:
+            klist_devices = shost_class.p.klist_devices
+        except KeyError:
+            pass
+
+    out = []
+    if (klist_devices):
+        for knode in klistAll(klist_devices):
+            if (member_size("struct device", "knode_class") != -1):
+                dev = container_of(knode, "struct device", "knode_class")
+            else:
+                devp = container_of(knode, "struct device_private", "knode_class")
+                dev = devp.device
+            out.append(container_of(dev, "struct Scsi_Host", "shost_dev"))
+        return out
+    else:
+        for hostclass in readSUListFromHead(shost_class.children, "node", "struct class_device"):
+            out.append(container_of(hostclass, "struct Scsi_Host", "shost_classdev"))
+        return out
 
 def scsi_device_lookup(shost):
     for a in ListHead(shost.__devices, "struct scsi_device").siblings:
@@ -230,11 +249,15 @@ def get_all_SCSI():
 # loop on shosts and for each shost get its sdevices
 
 @memoize_cond(CU_LIVE|CU_LOAD)
-def get_SCSI_devices():
+def get_scsi_devices(shost=0):
     out = []
-    for shost in get_Scsi_Hosts_from_class():
-        for sdev in scsi_device_lookup(shost):
-            out.append(sdev)
+
+    if (shost):
+        out = readSUListFromHead(shost.__devices, "siblings", "struct scsi_device")
+    else:
+        for host in get_scsi_hosts():
+            out += readSUListFromHead(host.__devices, "siblings", "struct scsi_device")
+
     return out
 
 # Return an ordered dict with some state info for Scsi_Host
@@ -344,7 +367,7 @@ def print_scsi_dev_cmnds(sdev, v=1):
 # map "struct request" -> ("struct scsi_device", "struct scsi_cmnd")
 def req2scsi_info():
     d = {}
-    for sdev in get_SCSI_devices():
+    for sdev in get_scsi_devices():
         for cmd in ListHead(sdev.cmd_list, "struct scsi_cmnd").list:
             d[cmd.request] = (sdev, cmd)
     return d
@@ -377,7 +400,7 @@ def print_SCSI_devices(v=0):
     n_busy = 0
     tot_devices = 0
     different_types = set()
-    for sdev in get_SCSI_devices():
+    for sdev in get_scsi_devices():
         tot_devices += 1
         shost = sdev.host
         shosts.add(shost)

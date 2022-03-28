@@ -142,46 +142,6 @@ def display_requests(fields, usehex):
 
     print("\nRequests found in SCSI layer: {}".format(num_requests))
 
-def get_scsi_hosts():
-    shost_class = readSymbol("shost_class")
-    klist_devices = 0
-
-    try:
-        klist_devices = shost_class.p.class_devices
-    except KeyError:
-        pass
-    if (not klist_devices):
-        try:
-            klist_devices = shost_class.p.klist_devices
-        except KeyError:
-            pass
-
-    out = []
-    if (klist_devices):
-        for knode in klistAll(klist_devices):
-            if (member_size("struct device", "knode_class") != -1):
-                dev = container_of(knode, "struct device", "knode_class")
-            else:
-                devp = container_of(knode, "struct device_private", "knode_class")
-                dev = devp.device
-            out.append(container_of(dev, "struct Scsi_Host", "shost_dev"))
-        return out
-    else:
-        for hostclass in readSUListFromHead(shost_class.children, "node", "struct class_device"):
-            out.append(container_of(hostclass, "struct Scsi_Host", "shost_classdev"))
-        return out
-
-def get_scsi_devices(shost=0):
-    out = []
-
-    if (shost):
-        out = readSUListFromHead(shost.__devices, "siblings", "struct scsi_device")
-    else:
-        for host in get_scsi_hosts():
-            out += readSUListFromHead(host.__devices, "siblings", "struct scsi_device")
-
-    return out
-
 def is_scsi_queue(queue):
     if (member_size("struct request_queue", "mq_ops") == -1 or not queue.mq_ops):
         if (member_size("struct request_queue", "request_fn") != -1):
