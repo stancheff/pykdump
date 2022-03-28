@@ -554,14 +554,9 @@ def print_queue(sdev):
 
         if (cmnd):
             time = (long(jiffies) - long(cmnd.jiffies_at_alloc))
-            opcode = readSU("struct scsi_cmnd", long(cmnd.cmnd[0]))
-            opcode = hex(opcode)
-            try:
-                opcode = opcode_table[opcode]
-            except:
-                pass
+            cmd_name = get_cmd_name(cmnd)
             print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:14} {:8d} ms ".format(counter, "",
-                  req, req.bio, cmnd, opcode, long(time)), end="")
+                  req, req.bio, cmnd, cmd_name, long(time)), end="")
         else:
             print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:14} {:12}".format(counter, "",
                   req, req.bio, cmnd, "-NA-", "-NA-"), end="")

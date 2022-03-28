@@ -381,6 +381,16 @@ def request_timeinfo(req, jiffies = None):
     except KeyError:
         return("{}started {} ago".format(ran_ago))
 
+# Get SCSI command name from scsi_cmnd pointer
+def get_cmd_name(cmnd):
+    cmd_name = hex(readSU("struct scsi_cmnd", cmnd.cmnd[0]))
+
+    try:
+        cmd_name = opcode_table[cmd_name]
+    except:
+        pass
+
+    return cmd_name
 
 # get scsi_cmnd list from scsi_dev
 def print_scsi_dev_cmnds(sdev, v=1):
