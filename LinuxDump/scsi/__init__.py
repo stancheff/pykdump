@@ -79,7 +79,7 @@ scmd_host_byte = {
     0x14: "DID_TRANSPORT_MARGINAL"
 }
 
-opcode_table = {'0x00':'TUR', '0x03':'REQ-SENSE', '0x08':'READ(6)',\
+opcode_table = {'0x0':'TUR', '0x03':'REQ-SENSE', '0x08':'READ(6)',\
                 '0x0a':'WRITE(6)', '0x12':'INQUIRY', '0x16':'RESERVE(6)',\
                 '0x17':'RELEASE(6)', '0x25':'READ-CAP(10)', '0x28':'READ(10)',\
                 '0x2a':'WRITE(10)', '0x35':'SYNC CACHE', '0x41':'WR SAME',\
