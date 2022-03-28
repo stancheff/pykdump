@@ -33,73 +33,8 @@ from pykdump.API import *
 
 from LinuxDump.scsi import *
 
-def test_bit(nbit, val):
-    return ((val >> nbit) == 1)
-
-def get_sdev_state(enum_state):
-    if not isinstance(enum_state, long):
-        return enum_state
-    return {
-        1: "SDEV_CREATED",
-        2: "SDEV_RUNNING",
-        3: "SDEV_CANCEL",
-        4: "SDEV_DEL",
-        5: "SDEV_QUIESCE",
-        6: "SDEV_OFFLINE",
-        7: "SDEV_TRANSPORT_OFFLINE",
-        8: "SDEV_BLOCK",
-        9: "SDEV_CREATED_BLOCK",
-    }[enum_state]
-
 def print_request_header(request, devid):
     print("{:x} {:<13}".format(int(request), "({})".format(devid)), end='')
-
-def get_hostt_module_name(shost):
-    try:
-        name = shost.hostt.module.name
-    except:
-        name = "unknown"
-    return name
-
-SCMD_STATE_COMPLETE = 0
-SCMD_STATE_INFLIGHT = 1
-
-def get_host_busy(shost):
-    cmds_in_flight = 0
-    cmds = []
-
-    sdevs = get_scsi_devices(shost)
-    for sdev in sdevs:
-        cmds += get_scsi_commands(sdev)
-
-    for cmd in cmds:
-        if (test_bit(SCMD_STATE_INFLIGHT, cmd.state)):
-            cmds_in_flight += 1
-    return cmds_in_flight
-
-def get_scsi_device_busy(sdev):
-    busy = cleared = 0
-    sb = sdev.budget_map
-
-    for map_nr in range(sb.map_nr):
-        bitmap = sb.map[map_nr].word
-        if (not int(bitmap)):
-            continue
-        for i in range(sb.map[map_nr].depth):
-            if int(bitmap) & 1:
-                busy += 1
-            bitmap = bitmap >> 1
-
-    for map_nr in range(sb.map_nr):
-        bitmap = sb.map[map_nr].cleared
-        if (not int(bitmap)):
-            continue
-        for i in range(sb.map[map_nr].depth):
-            if int(bitmap) & 1:
-                cleared += 1
-            bitmap = bitmap >> 1
-
-    return busy - cleared
 
 def get_queue_requests(rqueue):
     out = []
@@ -244,10 +179,6 @@ def get_scsi_commands(sdev):
         out += get_scsi_commands_sq(sdev)
     return out
 
-def get_scsi_device_id(sdev):
-    return "{:d}:{:d}:{:d}:{:d}".format(sdev.host.host_no,
-                                        sdev.channel, sdev.id, sdev.lun)
-
 def print_cmnd_header(cmnd):
     if (cmnd.device):
         print("scsi_cmnd {:x} {:<13}".format(int(cmnd),
@@ -258,69 +189,6 @@ def print_cmnd_header(cmnd):
 def print_sdev_header(sdev):
     print("{:x}  {:<12}".format(int(sdev),
               get_scsi_device_id(sdev)), end='')
-
-def print_shost_header(shost):
-    print("HOST      DRIVER")
-    print("{:10s}{:22s} {:24s} {:24s} {:24s}".format("NAME", "NAME", "Scsi_Host",
-          "shost_data", "hostdata"))
-    print("--------------------------------------------------"
-          "-------------------------------------------------")
-    print("{:9s} {:22s} {:12x} {:24x} {:24x}\n".format(shost.shost_gendev.kobj.name,
-        get_hostt_module_name(shost), shost, shost.shost_data, shost.hostdata))
-
-def get_gendev():
-    gendev_dict = {}
-    klist_devices = 0
-
-    if ((member_size("struct device", "knode_class") != -1) or
-        (member_size("struct device_private", "knode_class") != -1)):
-        block_class = readSymbol("block_class")
-
-        try:
-            klist_devices = block_class.p.class_devices
-        except KeyError:
-            pass
-
-        if (not klist_devices):
-            try:
-                klist_devices = block_class.p.klist_devices
-            except KeyError:
-                pass
-
-        if (klist_devices):
-            for knode in klistAll(klist_devices):
-                if (member_size("struct device", "knode_class") != -1):
-                    dev = container_of(knode, "struct device", "knode_class")
-                else:
-                    devp = container_of(knode, "struct device_private", "knode_class")
-                    dev = devp.device
-                if struct_exists("struct hd_struct"):
-                    hd_temp = container_of(dev, "struct hd_struct", "__dev")
-                    gendev = container_of(hd_temp, "struct gendisk", "part0")
-                else:
-                    blockdev = container_of(dev, "struct block_device", "bd_device")
-                    gendev = blockdev.bd_disk
-                gendev_q = format(gendev.queue, 'x')
-                gendev_dict[gendev_q] = format(gendev, 'x')
-
-    elif (member_size("struct gendisk", "kobj") != -1):
-        block_subsys = readSymbol("block_subsys")
-        try:
-            kset_list = block_subsys.kset.list
-        except KeyError:
-            pass
-
-        if (kset_list):
-            for kobject in readSUListFromHead(kset_list, "entry", "struct kobject"):
-                gendev = container_of(kobject, "struct gendisk", "kobj")
-                gendev_q = format(gendev.queue, 'x')
-                gendev_dict[gendev_q] = format(gendev, 'x')
-
-    else:
-        print("Unable to process the vmcore, cant find 'struct class' or 'struct subsystem'.")
-        return
-
-    return gendev_dict
 
 def print_sdev_shost():
     enum_sdev_state = EnumInfo("enum scsi_device_state")
@@ -455,20 +323,6 @@ def print_fcrports():
                 except KeyError:
                     pylog.warning("Error in processing FC rports connnected to scsi_target {:x},"
                                   "please check manually".format(int(starget)))
-
-def get_fc_hba_port_attr(shost):
-    port_attr = []
-    if (struct_exists("struct fc_host_attrs")):
-        try:
-            fc_host_attrs = readSU("struct fc_host_attrs", shost.shost_data)
-            if (fc_host_attrs and ('fc_wq_' in fc_host_attrs.work_q_name[:8])):
-                port_attr.append(fc_host_attrs)
-                port_attr.append(fc_host_attrs.node_name)
-                port_attr.append(fc_host_attrs.port_name)
-        except:
-            pass
-
-    return port_attr
 
 def print_qla2xxx_shost_info(shost):
     print("\n\n   FC/FCoE HBA attributes")
@@ -775,23 +629,6 @@ def print_shost_info():
     if (verbose_info_available != 0 and verbose_info_logged == 0):
         print("\n\n   *** NOTE: More detailed HBA information available, use '-v'"
               " or '--verbose' to view.")
-
-def get_sdev_elevator(sdev):
-    if (sdev.request_queue.elevator):
-        try:
-            if (member_size("struct elevator_queue", "elevator_type") != -1):
-                elevator_name = sdev.request_queue.elevator.elevator_type.elevator_name
-            elif(member_size("struct elevator_queue", "type") != -1):
-                elevator_name = sdev.request_queue.elevator.type.elevator_name
-            else:
-                elevator_name = "<Unknown>"
-        except Exception as e:
-            elevator_name = "<Unknown>"
-            pylog.info("Error getting elevator name for {} {}".format(sdev, e))
-    else:
-        elevator_name = "<none>"
-
-    return elevator_name
 
 def print_queue(sdev):
     jiffies = readSymbol("jiffies")
