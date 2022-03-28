@@ -34,25 +34,11 @@ __version__ = "0.0.2"
 from pykdump.API import *
 from LinuxDump.trees import *
 from LinuxDump.dm import *
+from LinuxDump.scsi import get_sdev_state
 
 required_modules = ('dm_mod', 'dm_multipath', 'dm_log', 'dm_mirror',
                     'dm_queue_length', 'dm_round_robin', 'dm_service_time',
                     'dm_region_hash', 'dm_snapshot', 'dm_thin_pool', 'dm_raid')
-
-def get_sdev_state(enum_state):
-    if not isinstance(enum_state, long):
-        return enum_state
-    return {
-        1: "SDEV_CREATED",
-        2: "SDEV_RUNNING",
-        3: "SDEV_CANCEL",
-        4: "SDEV_DEL",
-        5: "SDEV_QUIESCE",
-        6: "SDEV_OFFLINE",
-        7: "SDEV_TRANSPORT_OFFLINE",
-        8: "SDEV_BLOCK",
-        9: "SDEV_CREATED_BLOCK",
-    }[enum_state]
 
 from LinuxDump.Tasks import (TaskTable, Task, tasksSummary, ms2uptime,
      decode_tflags, print_namespaces_info, print_memory_stats, TASK_STATE)
