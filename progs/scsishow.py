@@ -522,8 +522,6 @@ def print_shost_info():
               " or '--verbose' to view.")
 
 def print_queue(sdev):
-    jiffies = readSymbol("jiffies")
-
     cmnd_requests = []
     cmnds = get_scsi_commands(sdev)
     for cmnd in cmnds:
@@ -553,10 +551,10 @@ def print_queue(sdev):
             cmnd = 0
 
         if (cmnd):
-            time = (long(jiffies) - long(cmnd.jiffies_at_alloc))
+            cmd_age = get_cmd_age(cmnd)
             cmd_name = get_cmd_name(cmnd)
             print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:14} {:8d} ms ".format(counter, "",
-                  req, req.bio, cmnd, cmd_name, long(time)), end="")
+                  req, req.bio, cmnd, cmd_name, cmd_age), end="")
         else:
             print("     {:3d} {:3s} {:18x} {:20x} {:20x}   {:14} {:12}".format(counter, "",
                   req, req.bio, cmnd, "-NA-", "-NA-"), end="")

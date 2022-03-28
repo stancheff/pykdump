@@ -392,6 +392,15 @@ def get_cmd_name(cmnd):
 
     return cmd_name
 
+# Get SCSI command age
+def get_cmd_age(cmnd, jiffies = None):
+    if (jiffies is None):
+        jiffies = readSymbol("jiffies")
+
+    cmd_age = jiffies - cmnd.jiffies_at_alloc
+
+    return cmd_age
+
 # get scsi_cmnd list from scsi_dev
 def print_scsi_dev_cmnds(sdev, v=1):
     # Tghis subroutine does not work for old kernels (RHEL5)
