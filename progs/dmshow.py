@@ -33,6 +33,8 @@ __version__ = "0.0.2"
 
 from pykdump.API import *
 from LinuxDump.trees import *
+from LinuxDump.dm import *
+
 required_modules = ('dm_mod', 'dm_multipath', 'dm_log', 'dm_mirror',
                     'dm_queue_length', 'dm_round_robin', 'dm_service_time',
                     'dm_region_hash', 'dm_snapshot', 'dm_thin_pool', 'dm_raid')
