@@ -122,7 +122,7 @@ def print_transport_container(tc):
 
 # Print SCSI Hosts only
 def print_Scsi_Hosts(v=0, onlybusy=False):
-    for shost in get_Scsi_Hosts_from_class():
+    for shost in get_scsi_hosts():
         states = get_shost_states(shost)
         unusual = any(states.values())
         if (unusual or not onlybusy): 
@@ -130,7 +130,7 @@ def print_Scsi_Hosts(v=0, onlybusy=False):
 
 # This is a replacement of subroutine with a similar name in scsi/__init__.py
 def print_Scsi_Devices(v=0, onlybusy=False):
-    for shost in get_Scsi_Hosts_from_class():
+    for shost in get_scsi_hosts():
         for sdev in scsi_device_lookup(shost):
             busy, s_descr = _sdev_properties(sdev)
             if (onlybusy and not busy):
@@ -155,7 +155,7 @@ def print_summary(v=0, all = False):
     _sdevs_tot = 0
     _sdevs_models = defaultdict(int)
     _sdevs_busy = 0
-    for shost in get_Scsi_Hosts_from_class():
+    for shost in get_scsi_hosts():
         _shost_tot += 1
         shost_adapters[shost.hostt.name] += 1
         for _a, val in get_shost_states(shost).items():
