@@ -3,7 +3,7 @@
 # module LinuxDump.Tasks
 #
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2022 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -345,6 +345,17 @@ class _TaskTable:
                                 'tasks',
                                 'struct task_struct',
                                 inchead = True, maxel=_MAXTASKS)
+
+        # MJM - The linked list starting from init_task_saddr does not
+        # include the swapper (pid 0) threads on non-primary CPUs.
+        # So we'll use crash to find them and append them to the list.
+        # Slice off the first 2 lines (header and primary CPU swapper).
+
+        psout = exec_crash_command("ps 0").splitlines()[2:]
+        for psline in psout:
+            psfield = psline[1:].split()[3] # Slice off possible leading >
+            t = readSU('struct task_struct',int(psfield,16))
+            tt.append(t)
 
         # On 2.4, we have in this list both thread group leaders
         # and threads. Leave only tg leaders, attach threads to
@@ -731,7 +742,6 @@ def tasksSummary():
 
     n_of_ns_pids = 0
     for mt in tt.allTasks():
-        #print(mt.pid, mt.comm, mt.state)
         state = mt.state
         comm = mt.comm
         counts[state] = counts.setdefault(state, 0) + 1
@@ -745,7 +755,6 @@ def tasksSummary():
             if (nsproxy and nsproxy != init_nsproxy):
                 n_of_ns_pids += 1
         for t in mt.threads:
-            #print(t.pid, t.state)
             state = t.state
             counts[state] = counts.setdefault(state, 0) + 1
             d_counts[(comm, state)] = d_counts.setdefault((comm, state), 0)+1
@@ -766,6 +775,7 @@ def tasksSummary():
         pylog.warning("There are %d threads running in their own namespaces\n"
                       "\tUse 'taskinfo --ns' to get more details" % n_of_ns_pids)
 
+    #print ("threadcount=",threadcount)
     return threadcount
     print ("       === # of Threads Sorted by CMD+State ===")
     print ("CMD               State                                 Threads")
