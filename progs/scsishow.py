@@ -36,13 +36,6 @@ from LinuxDump.scsi import *
 def print_request_header(request, devid):
     print("{:x} {:<13}".format(int(request), "({})".format(devid)), end='')
 
-def get_queue_requests(rqueue):
-    out = []
-    for request in readSUListFromHead(rqueue.queue_head, "queuelist",
-                                      "struct request"):
-        out.append(request)
-    return out
-
 def display_requests(fields, usehex):
     num_requests = 0
     for sdev in get_scsi_devices():
@@ -76,108 +69,6 @@ def display_requests(fields, usehex):
                         print("request member of scsi_cmnd {:#x} is null".format(cmnd))
 
     print("\nRequests found in SCSI layer: {}".format(num_requests))
-
-def is_scsi_queue(queue):
-    if (member_size("struct request_queue", "mq_ops") == -1 or not queue.mq_ops):
-        if (member_size("struct request_queue", "request_fn") != -1):
-            if queue.request_fn == sym2addr("scsi_request_fn"):
-                return 1
-    elif (member_size("struct request_queue", "mq_ops") != -1 and queue.mq_ops == sym2addr("scsi_mq_ops")):
-        return 1
-
-    return 0
-
-check_for_sbitmap_word_cleared = 1
-def find_used_tags(queue, tags, offset, rqs):
-    global check_for_sbitmap_word_cleared
-    out = []
-    if tags.isNamed("struct sbitmap_queue"):
-        tags = tags.sb
-
-    for i in range(tags.map_nr):
-        bitmap = tags.map[i].word
-
-        if check_for_sbitmap_word_cleared:
-            try:
-                mask = ~tags.map[i].cleared
-                bitmap = bitmap & mask
-            except:
-                check_for_sbitmap_word_cleared = 0
-
-        if (not int(bitmap)):
-            next
-
-        for j in range(tags.map[i].depth):
-            if int(bitmap) & 1:
-                rq = rqs[offset]
-                if (member_size("struct request", "ref") != -1):
-                    if (rq and rq.ref.refs.counter != 0 and rq.q == queue):
-                        out.append(rq)
-                    elif (rq == 0):
-                        print("WARNING: no rq? tag {} map {} offset {}".format(tags, i, offset))
-                elif rq:
-                    if rq.q == queue:
-                        out.append(rq)
-                else:
-                    print("WARNING: bit set but no request? {} {} map {} rqs {} offset {}".format(queue, tags, i, rqs, offset))
-            offset += 1
-            bitmap = bitmap >> 1
-
-    return out
-
-def get_scsi_commands_mq(queue):
-    out = []
-    cmds = []
-    if not queue.mq_ops:
-        return out
-
-    #find requests which are tagged and in the various hw queues
-    for i in range(queue.nr_hw_queues):
-        if queue.queue_hw_ctx[i].tags:
-            out += find_used_tags(queue,
-                                  queue.queue_hw_ctx[i].tags.breserved_tags,
-                                  0, queue.queue_hw_ctx[i].tags.rqs)
-            out += find_used_tags(queue, queue.queue_hw_ctx[i].tags.bitmap_tags,
-                                  queue.queue_hw_ctx[i].tags.nr_reserved_tags,
-                                  queue.queue_hw_ctx[i].tags.rqs)
-
-        if ((member_size("struct blk_mq_hw_ctx", "sched_tags") != -1) and
-          queue.queue_hw_ctx[i].sched_tags):
-            out += find_used_tags(queue,
-                             queue.queue_hw_ctx[i].sched_tags.breserved_tags,
-                             0, queue.queue_hw_ctx[i].sched_tags.static_rqs)
-            out += find_used_tags(queue,
-                             queue.queue_hw_ctx[i].sched_tags.bitmap_tags,
-                             queue.queue_hw_ctx[i].sched_tags.nr_reserved_tags,
-                             queue.queue_hw_ctx[i].sched_tags.static_rqs)
-
-    for rq in out:
-        cmd = readSU("struct scsi_cmnd",
-            long(Addr(rq) + struct_size("struct request")))
-        cmds.append(cmd)
-
-    # I/O scheduler requests can show up in both sched_tags and hw ctx tags,
-    # abuse set to remove any duplicates
-    cmds = list(set(cmds))
-
-    return cmds
-
-def get_scsi_commands_sq(sdev):
-    out = []
-    if is_scsi_queue(sdev.request_queue):
-        for cmnd in readSUListFromHead(sdev.cmd_list, "list", "struct scsi_cmnd"):
-            out.append(cmnd)
-    return out
-
-def get_scsi_commands(sdev):
-    out = []
-    if (member_size("struct request_queue", "mq_ops") == -1):
-        out += get_scsi_commands_sq(sdev)
-    elif sdev.request_queue.mq_ops:
-        out += get_scsi_commands_mq(sdev.request_queue)
-    else:
-        out += get_scsi_commands_sq(sdev)
-    return out
 
 def print_cmnd_header(cmnd):
     if (cmnd.device):
