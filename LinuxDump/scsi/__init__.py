@@ -3,8 +3,20 @@
 #
 # --------------------------------------------------------------------
 # (C) Copyright 2013-2020 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2014-2022 Red Hat, Inc.
 #
-# Author: Alex Sidorenko <asid@hpe.com>
+# Authors: Alex Sidorenko <asid@hpe.com>
+#          David Jeffery <djeffery@redhat.com>
+#
+# Contributors:
+# - Milan P. Gandhi <mgandhi@redhat.com>
+# - John Pittman <jpittman@redhat.com>
+# - Nitin U. Yewale <nyewale@redhat.com>
+#
+# Many of the contributions to this package are inspired from the existing
+# code in progs/scsishow.py program. The generic functions from scsishow.py
+# program are moved to this file for better reusability. There will be
+# separate modules added to process the HBA driver specific information.
 #
 # --------------------------------------------------------------------
 #
