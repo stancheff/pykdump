@@ -285,7 +285,7 @@ Struct Lists and Arrays
 Suppressing Internal Crash/GDB Messages
 ---------------------------------------
 
-When you execute crash/GDB commands, they migh display errors. For
+When you execute crash/GDB commands, they might display errors. For
 example, you try to execute an invalid command, or page is missing in
 vmcore. Sometimes you want to suppress displaying this errors. This
 can be dome using the following context manager:

@@ -244,7 +244,13 @@ def IF_Summarize(quiet = False):
         except KeyError:
             last_rx = "n/a"
         if (dev.hasField("_tx")):
+            txq = dev._tx
             trans_start = dev._tx.trans_start
+            tstart2 = txq.trans_start
+            if (dev.hasField("real_num_tx_queues")):
+                for i in range(1,dev.real_num_tx_queues):
+                    txq += 1
+                    trans_start = max(trans_start, txq.trans_start)
         else:
             trans_start = dev.trans_start
         trans_start = __j_delay(trans_start, jiffies)
