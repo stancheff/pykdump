@@ -338,9 +338,17 @@ def printTaskTimes(reverse = False, maxtoprint = -1):
     out = []
 
     for mt in tt.allTasks():
-        out.append((mt.start_time, mt.pid, mt))
+        try:
+            start_time = mt.start_time.tv_sec
+        except:
+            start_time = mt.start_time // 1000000000
+        out.append((start_time, mt.pid, mt))
         for t in mt.threads:
-            out.append((t.start_time, t.pid, t))
+            try:
+                start_time = t.start_time.tv_sec
+            except:
+                start_time = t.start_time // 1000000000
+            out.append((start_time, t.pid, t))
 
     out.sort(key = lambda tup: tup[0], reverse=reverse)
 
@@ -376,7 +384,7 @@ def printTaskTimes(reverse = False, maxtoprint = -1):
         uid = t.Uid
         # Thread pointers might be corrupted
         try:
-            stime = datetime.datetime.fromtimestamp(base+start_time//1000000000)
+            stime = datetime.datetime.fromtimestamp(base+start_time)
             print ("%s %15s  %s %s" \
                         % (pid_s, t.comm, stime, extra))
             # In versbose mode, print stack as well
