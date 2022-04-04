@@ -54,7 +54,7 @@ print(m.group(1))
 base = sec - int(uptime)
 
 # Log buffer timestamps use local_clock() which is not adjusted for NTP, so it drifts over time.  Our old method to
-# calculate wall-clock times was accurate close to boot time but less so going back toward boot time.  Crash's log -T
+# calculate wall-clock times was accurate close to crash time but less so going back toward boot time.  Crash's log -T
 # is the opposite: it's accurate close to boot time and gets less so as time increases.
 #
 # New method: compromise by scaling logbuf timestamps so they are linear across the entire uptime.  This will be accurate

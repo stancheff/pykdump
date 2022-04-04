@@ -3,7 +3,7 @@
 
 
 # --------------------------------------------------------------------
-# (C) Copyright 2006-2020 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2006-2022 Hewlett Packard Enterprise Development LP
 #
 # Author: Alex Sidorenko <asid@hpe.com>
 #
@@ -11,12 +11,12 @@
 
 # Print info about tasks
 
-__version__ = "0.7"
+__version__ = "0.8"
 
 from pykdump.API import *
 
 from LinuxDump import percpu
-from LinuxDump.Tasks import (TaskTable, Task, tasksSummary, ms2uptime,
+from LinuxDump.Tasks import (TaskTable, Task, tasksSummary, ms2uptime, 
      decode_tflags, print_namespaces_info, print_memory_stats)
 
 from LinuxDump.BTstack import exec_bt, bt_summarize
@@ -218,7 +218,7 @@ def find_and_print(pid):
         print ("There is no task with pid=", pid)
 
 
-# Print up to 'maxtoprint' tasks, everything ig maxtoprint=-1
+# Print up to 'maxtoprint' tasks, everything if maxtoprint=-1
 def printTasks(reverse = False, maxtoprint = -1):
     tt = TaskTable()
     if (debug):
@@ -278,8 +278,8 @@ def printTasks(reverse = False, maxtoprint = -1):
         pid_template = " {:6d}"
         if (pid != tgid):
             if (not reverse):
-                pid_template =  "  {:6d}"
-            extra = " (tgid=%d)" % tgid
+                pid_template =  " {:6d}"
+            extra = "(tgid=%d)" % tgid
         else:
             extra = ""
         uid = t.Uid
@@ -313,6 +313,80 @@ def printTasks(reverse = False, maxtoprint = -1):
         except crash.error:
             pylog.error("corrupted", t)
 
+def get_uptime_fromcrash():
+    return crash.get_uptime()/HZ
+
+
+import datetime
+
+def get_xtime():
+    return PY_select(
+        "PYKD.timekeeper.xtime.tv_sec",
+        "PYKD.timekeeper.xtime_sec",
+        "PYKD.shadow_timekeeper.xtime_sec",
+        "PYKD.xtime.tv_sec"
+        )
+
+def printTaskTimes(reverse = False, maxtoprint = -1):
+    tt = TaskTable()
+
+    uptime = get_uptime_fromcrash()
+    #print ("Uptime from crash: {}",uptime)
+    sec = get_xtime()
+    base = sec - int(uptime)
+
+    out = []
+
+    for mt in tt.allTasks():
+        out.append((mt.start_time, mt.pid, mt))
+        for t in mt.threads:
+            out.append((t.start_time, t.pid, t))
+
+    out.sort(key = lambda tup: tup[0], reverse=reverse)
+
+    if (not reverse):
+        hdr = 'Tasks in order of start time'
+    else:
+        hdr ='Tasks in reverse order of start time'
+
+    # Print the header
+    print("=== {} ===\n".format(hdr))
+    _header = " PID          CMD         Start Time\n" +\
+    "-------    ------------  -------------------"
+    print(_header)
+
+    for start_time, pid, t in out:
+        if (pid is None):
+            print("           <snip>")
+            continue
+        sstate = t.state[5:7]
+        tgid = t.tgid
+        pid_template = " {:6d}"
+        if (pid != tgid):
+            pid_template =  " {:6d}"
+            extra = "(tgid=%d)" % tgid
+        else:
+            extra = ""
+        uid = t.Uid
+        pid_s = pid_template.format(pid)
+        extra = "%13s UID=%d" % (extra, uid)
+        if (is_task_active(long(t.ts))):
+            pid_s = ">" + pid_s[1:]
+
+        uid = t.Uid
+        # Thread pointers might be corrupted
+        try:
+            stime = datetime.datetime.fromtimestamp(base+start_time//1000000000)
+            print ("%s %15s  %s %s" \
+                        % (pid_s, t.comm, stime, extra))
+            # In versbose mode, print stack as well
+            if (verbose):
+                bt = exec_bt("bt %d" % pid)
+                print (bt[0])
+                print("\n", "-"*78, "\n", sep='')
+
+        except crash.error:
+            pylog.error("corrupted", t)
 
 
 # Emulate pstree
@@ -430,6 +504,10 @@ if ( __name__ == '__main__'):
                 action="store_true",
                 help="Summary")
 
+    op.add_option("--times", dest="Times", default = 0,
+                action="store_true",
+                help="Task start times")
+
     op.add_option("--hang", dest="Hang", default = 0,
                 action="store_true",
                 help="Equivalent to '-r --task=UN' and prints"
@@ -454,7 +532,7 @@ if ( __name__ == '__main__'):
 
     op.add_option("-r", "--recent", dest="Reverse", default = 0,
                     action="store_true",
-                    help="Reverse order while sorting by ran_ago")
+                    help="Reverse order while sorting by ran_ago or start time")
 
     op.add_option("--cmd", dest="Cmd", default = None,
                 action="store",
@@ -495,6 +573,8 @@ if ( __name__ == '__main__'):
     if (o.Memory):
         print_memory_stats(maxpids)
 
+    elif (o.Times):
+        printTaskTimes(reverse=o.Reverse)
     elif (o.Reverse):
         printTasks(reverse=True)
     elif (o.Hang):
