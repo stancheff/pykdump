@@ -42,7 +42,6 @@ from LinuxDump.sysfs import *
 from LinuxDump.kobjects import *
 from LinuxDump.Time import j_delay
 
-
 '''
 Attached devices:
 Host: scsi2 Channel: 03 Id: 00 Lun: 00
@@ -99,26 +98,82 @@ opcode_table = {'0x0':'TUR', '0x03':'REQ-SENSE', '0x08':'READ(6)',\
                 '0x8a':'WRITE(16)','0xa0':'REPORT LUNS', '0xa8':'READ(12)',\
                 '0xaa':'WRITE(12)'}
 
+# Return the name of module used by specific Scsi_Host (shost)
+def get_hostt_module_name(shost):
+    try:
+        name = shost.hostt.module.name
+    except:
+        name = "unknown"
+    return name
+
+# ...........................................................................
+#
+# There are several ways to get lists of shosts/devices. We can get just
+# Scsi_Host from 'shost_class', or we can get everything (hosts, devices,
+# etc.) from 'scsi_bus_type'
+#
+# ...........................................................................
+#
+# get all Scsi_Host from 'shost_class'
+#
+
+def get_scsi_hosts():
+    shost_class = readSymbol("shost_class")
+    klist_devices = 0
+
+    try:
+        klist_devices = shost_class.p.class_devices
+    except KeyError:
+        pass
+    if (not klist_devices):
+        try:
+            klist_devices = shost_class.p.klist_devices
+        except KeyError:
+            pass
+
+    out = []
+    if (klist_devices):
+        for knode in klistAll(klist_devices):
+            if (member_size("struct device", "knode_class") != -1):
+                dev = container_of(knode, "struct device", "knode_class")
+            else:
+                devp = container_of(knode, "struct device_private", "knode_class")
+                dev = devp.device
+            out.append(container_of(dev, "struct Scsi_Host", "shost_dev"))
+        return out
+    else:
+        for hostclass in readSUListFromHead(shost_class.children, "node", "struct class_device"):
+            out.append(container_of(hostclass, "struct Scsi_Host", "shost_classdev"))
+        return out
+
 scsi_device_types = None
 enum_shost_state = None
 
+# Load the modules required for SCSI HBAs
 try:
+    loadModule("scsi_mod")
     scsi_device_types = readSymbol("scsi_device_types")
     enum_shost_state = EnumInfo("enum scsi_host_state")
-except TypeError:
-    loadModule("scsi_mod")
+
+    for shost in get_scsi_hosts():
+        shost_module = get_hostt_module_name(shost)
+        loadModule(shost_module)
+
+except:
+    pylog.warning("Error in loading the required debuginfo symbols")
+    traceback.print_exc()
+
+# Try loading scsi_transport_fc module
+try:
     loadModule("scsi_transport_fc")
-    try:
-        scsi_device_types = readSymbol("scsi_device_types")
-        enum_shost_state = EnumInfo("enum scsi_host_state")
-    except TypeError:
-        pass
+except:
+    # System is likely not using FiberChannel transport
+    pass
 
 # A pathological case on some SLES kernel - something is built
 # in a way that even after loading debuginfo we cannot find
 # the type of scsi_device_types:
 # <data variable, no debug info> scsi_device_types;
-
 
 def scsi_debuginfo_OK(printwarn=True):
     if (scsi_device_types is None or enum_shost_state is None):
@@ -217,47 +272,6 @@ def class_for_each_device(_class):
     for knode in klistAll(klist_devices):
         dev = container_of(knode, "struct device", "knode_class")
         yield dev
-
-# ...........................................................................
-#
-# There are several ways to get lists of shosts/devices. We can get just
-# Scsi_Host from 'shost_class', or we can get everything (hosts, devices,
-# etc.) from 'scsi_bus_type'
-#
-# ...........................................................................
-
-#
-# get all Scsi_Host from 'shost_class'
-#
-
-def get_scsi_hosts():
-    shost_class = readSymbol("shost_class")
-    klist_devices = 0
-
-    try:
-        klist_devices = shost_class.p.class_devices
-    except KeyError:
-        pass
-    if (not klist_devices):
-        try:
-            klist_devices = shost_class.p.klist_devices
-        except KeyError:
-            pass
-
-    out = []
-    if (klist_devices):
-        for knode in klistAll(klist_devices):
-            if (member_size("struct device", "knode_class") != -1):
-                dev = container_of(knode, "struct device", "knode_class")
-            else:
-                devp = container_of(knode, "struct device_private", "knode_class")
-                dev = devp.device
-            out.append(container_of(dev, "struct Scsi_Host", "shost_dev"))
-        return out
-    else:
-        for hostclass in readSUListFromHead(shost_class.children, "node", "struct class_device"):
-            out.append(container_of(hostclass, "struct Scsi_Host", "shost_classdev"))
-        return out
 
 def scsi_device_lookup(shost):
     for a in ListHead(shost.__devices, "struct scsi_device").siblings:
@@ -465,14 +479,6 @@ def get_sdev_state(enum_state):
         8: "SDEV_BLOCK",
         9: "SDEV_CREATED_BLOCK",
     }[enum_state]
-
-# Return the name of module used by specific Scsi_Host (shost)
-def get_hostt_module_name(shost):
-    try:
-        name = shost.hostt.module.name
-    except:
-        name = "unknown"
-    return name
 
 # Returns the number of SCSI commands pending on specific Scsi_Host
 SCMD_STATE_COMPLETE = 0
