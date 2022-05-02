@@ -371,9 +371,10 @@ class SUInfo(_SUInfo, metaclass = MemoizeSU):
         if (not "body" in e):
             # This is not a struct, bail out
             return
-        for ee in e["body"]:
+        for idx, ee in enumerate(e["body"]):
             fname = ee["fname"]
             f1 = VarInfo(fname)
+            ee['idx'] = idx
             ee['parentname'] = sname
             ti = TypeInfo(ee)
             f1.ti = ti
@@ -605,10 +606,13 @@ def e_to_tagname(e):
         fname = e["fname"]
         # anonymous but non-embedded structs do not have bitoffset
         offset =  e.get("bitoffset", 0)//8
+        # anonymous structs in a union will have the same offset, so use the
+        # index of the element within its parent as well.
+        idx = e.get("idx", 0)
         if (fname):
-            extra = "{}:{}/{}".format(parentname, offset, fname)
+            extra = "{}:{}:{}/{}".format(parentname, offset, idx, fname)
         else:
-            extra = "{}:{}".format(parentname, offset)
+            extra = "{}:{}:{}".format(parentname, offset, idx)
         tag = "{}->{}".format(extra, tag)
         fake = True
 
