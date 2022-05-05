@@ -540,6 +540,8 @@ def get_scsi_device_busy(sdev):
 # Return the scsi device information in Host(H):Channel(C):Target(T):LunID(L)
 # format
 def get_scsi_device_id(sdev):
+    if (not sdev):
+        return "<unknown>"
     return "{:d}:{:d}:{:d}:{:d}".format(sdev.host.host_no,
                                         sdev.channel, sdev.id, sdev.lun)
 
