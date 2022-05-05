@@ -507,18 +507,30 @@ def get_scsi_device_busy(sdev):
 
     for map_nr in range(sb.map_nr):
         bitmap = sb.map[map_nr].word
+
         if (not int(bitmap)):
             continue
-        for i in range(sb.map[map_nr].depth):
+
+        depth = 1 << sb.shift
+        if map_nr == sb.map_nr - 1:
+            depth = sb.depth - depth * map_nr
+
+        for i in range(depth):
             if int(bitmap) & 1:
                 busy += 1
             bitmap = bitmap >> 1
 
     for map_nr in range(sb.map_nr):
         bitmap = sb.map[map_nr].cleared
+
         if (not int(bitmap)):
             continue
-        for i in range(sb.map[map_nr].depth):
+
+        depth = 1 << sb.shift
+        if map_nr == sb.map_nr - 1:
+            depth = sb.depth - depth * map_nr
+
+        for i in range(depth):
             if int(bitmap) & 1:
                 cleared += 1
             bitmap = bitmap >> 1
@@ -671,7 +683,11 @@ def find_used_tags(queue, tags, offset, rqs):
         if (not int(bitmap)):
             next
 
-        for j in range(tags.map[i].depth):
+        depth = 1 << tags.shift
+        if i == tags.map_nr - 1:
+            depth = tags.depth - depth * i
+
+        for j in range(depth):
             if int(bitmap) & 1:
                 rq = rqs[offset]
                 if (member_size("struct request", "ref") != -1):
