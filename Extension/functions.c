@@ -18,6 +18,7 @@
   GNU General Public License for more details.
 */
 
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <stdlib.h>
 
@@ -799,7 +800,7 @@ nu_badsize(const char *p) {
 static PyObject *
 py_mem2long(PyObject *self, PyObject *args, PyObject *kwds) {
   char *str;
-  int size;
+  Py_ssize_t size;
   // unsigned long addr;
 
   static char *kwlist[] = {"bytestr", "signed", "array", NULL};
@@ -1267,7 +1268,8 @@ py_getlistsize(PyObject *self, PyObject *args) {
 static PyObject *
 py_FD_ISSET(PyObject *self, PyObject *args) {
   char *str;
-  int fd, lstr;
+  int fd;
+  Py_ssize_t lstr;
 
   if (!PyArg_ParseTuple(args, "is#", &fd, &str, &lstr)) {
     PyErr_SetString(crashError, "invalid parameter type");
