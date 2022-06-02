@@ -695,13 +695,9 @@ def find_used_tags(queue, tags, offset, rqs):
                 if (member_size("struct request", "ref") != -1):
                     if (rq and rq.ref.refs.counter != 0 and rq.q == queue):
                         out.append(rq)
-                    elif (rq == 0):
-                        print("WARNING: no rq? tag {} map {} offset {}".format(tags, i, offset))
                 elif rq:
                     if rq.q == queue:
                         out.append(rq)
-                else:
-                    print("WARNING: bit set but no request? {} {} map {} rqs {} offset {}".format(queue, tags, i, rqs, offset))
             offset += 1
             bitmap = bitmap >> 1
 
