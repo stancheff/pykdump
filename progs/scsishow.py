@@ -51,7 +51,10 @@ def display_requests(fields, usehex):
 
             if (requests):
                 if (member_size("struct request", "start_time") == -1):
-                    fields = fields.replace("start_time", "deadline")
+                    if (member_size("struct request", "deadline") != -1):
+                        fields = fields.replace("start_time", "deadline")
+                    else:
+                        fields = fields.replace("start_time", "__deadline")
                 if (member_size("struct request", "special") == -1):
                     fields = fields.replace("special", "timeout")
                 for req in requests:
@@ -717,7 +720,10 @@ def display_command_time(cmnd, use_start_time_ns):
         rq_start_time = "Err"
 
     try:
-        deadline = cmnd.request.deadline
+        if (member_size("struct request", "deadline") != -1):
+            deadline = cmnd.request.deadline
+        else:
+            deadline = cmnd.request.__deadline
 
         if (long(cmnd.request.timeout_list.next)
                != long(cmnd.request.timeout_list)):
