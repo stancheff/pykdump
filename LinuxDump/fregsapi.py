@@ -2,7 +2,7 @@
 # determine register contents at entry to each routine in stack frame
 
 # --------------------------------------------------------------------
-# (C) Copyright 2015-2017 Hewlett Packard Enterprise Development LP
+# (C) Copyright 2015-2022 Hewlett Packard Enterprise Development LP
 #
 # Author: Martin Moore (martin.moore@hpe.com)
 #
@@ -611,9 +611,9 @@ def extract_registers (frame, stack):
         elif opcode.startswith('stos'):
              regval['RDI'] = "invalid"
 
-        # DIV invalidates both RAX and RDX
+        # MUL and DIV invalidate both RAX and RDX
 
-        elif opcode.startswith('div'):
+        elif opcode.startswith(('div','mul')):
              regval['RAX'] = "invalid"
              regval['RDX'] = "invalid"
 
