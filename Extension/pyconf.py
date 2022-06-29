@@ -11,8 +11,15 @@ import sys
 import string
 import getopt
 import os.path, glob
+
+# distutils is deprecated in Python 3.10, replace with setuptools & sysconfig
+
 from distutils.core import setup, Extension
-from distutils.sysconfig import *
+#from distutils.sysconfig import *
+#from setuptools import setup, Extension
+from sysconfig import *
+import re
+
 
 # Files to write
 
@@ -51,7 +58,7 @@ for o, a in opts:
 # and crash64, this means that we can use that directory both for 
 
 # Check whether crash sourcetree is installed and compiled at this location
-try:
+###try:
     re_target = re.compile(r'^TARGET=(\w+)$')
     re_gdb = re.compile(r'^GDB=gdb-(\d+)\.(\d+).*$')
     target = None
@@ -65,9 +72,9 @@ try:
             gdb_major = int(m.group(1))
             gdb_minor = int(m.group(2))
 
-except:
-    print("Cannot find Makefile in the specified CRASHDIR", crashdir)
-    sys.exit(0)
+###except:
+###    print("Cannot find Makefile in the specified CRASHDIR", crashdir)
+###    sys.exit(0)
 
 try:
     re_crashvers = re.compile(r'^char \*build_version = "([.\d+]+)";\s*$')
@@ -161,8 +168,9 @@ python_srcdir = os.path.abspath(os.path.join(python_buildir, python_srcdir))
 #print ("python_srcdir=", python_srcdir)
 
 # We need the directory where pyconfig.h is located
-inc1 = get_python_inc()
-#print ("inc1", inc1)
+#inc1 = get_python_inc()
+inc1 = get_path("include")
+print ("inc1", inc1)
 
 # Where pyconfig.h is located (the build directory)
 inc2 = os.path.dirname(get_config_h_filename())

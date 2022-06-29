@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
+# distutils is deprecated in Python 3.10, replace with setuptools
+
 from distutils.core import setup
+#from setuptools import setup
 
 setup(name='Pykdump',
       version='0.2',
