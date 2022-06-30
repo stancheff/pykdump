@@ -1159,6 +1159,13 @@ def decode_ksockaddr(ksockaddr):
     else:
         return ("Unknown family {}".format(family), None)
 
+def get_nfsd_net():
+    if (not symbol_exists("nfsd_net_id")):
+        return 0
+    net_id = readSymbol("nfsd_net_id")
+    net = readSymbol("init_net")
+    return net_generic(net, net_id)
+
 def print_all_svc_xprt(v = 0):
     # Get nfsd_serv. On 2.6.32 it was a global variable, later it was moved
     # to init_net.gen[nfsd_net_id]
@@ -1169,9 +1176,7 @@ def print_all_svc_xprt(v = 0):
         try:
             # On recent kernels, there are many  interesting
             # tables in "init_net", but not on 2.6.32 it is not available
-            nfsd_net_id = readSymbol("nfsd_net_id") - 1
-            net = get_ns_net()
-            nfsd_net_ptr = net.gen.ptr[nfsd_net_id]
+            nfsd_net_ptr = get_nfsd_net()
             nfsd_net = readSU("struct nfsd_net", nfsd_net_ptr)
             nfsd_serv = nfsd_net.nfsd_serv
         except KeyError:
