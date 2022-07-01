@@ -4,6 +4,7 @@ from pykdump.API import *
 from LinuxDump.trees import *
 
 from LinuxDump.fs.fs_h import FILE_MODE_FLAGS
+from LinuxDump.fs.nfs.stateid import nfs4_stateid
 
 import textwrap
 
@@ -99,6 +100,7 @@ NFS_DELEGATION_FLAGS=CEnum(__NFS_DELEGATION_FLAGS)
 class nfs_delegation():
     def __init__(self, delegation):
         self.delegation= readSU("struct nfs_delegation", delegation)
+        self.stateid = nfs4_stateid(self.delegation.stateid)
 
     def print_flags(self):
         flags = { NFS_DELEGATION_FLAGS.NFS_DELEGATION_NEED_RECLAIM: "NFS_DELEGATION_NEED_RECLAIM",
@@ -131,6 +133,7 @@ class nfs_delegation():
         print("- inode = 0x%x" % self.delegation.inode)
         self.print_type()
         self.print_flags()
+        print("- stateid: %s" % str(self.stateid))
 
 __SERVER_CAPABILITIES='''
 #define NFS_CAP_READDIRPLUS     0
@@ -296,6 +299,8 @@ NFS4_STATE_FLAGS=CEnum(__NFS4_STATE_FLAGS)
 class nfs4_state():
     def __init__(self, state):
         self.state = readSU("struct nfs4_state", state)
+        self.stateid = nfs4_stateid(self.state.stateid)
+        self.open_stateid = nfs4_stateid(self.state.open_stateid)
 
     def print_flags(self):
         flags = { NFS4_STATE_FLAGS.LK_STATE_IN_USE: "LK_STATE_IN_USE",
@@ -326,6 +331,8 @@ class nfs4_state():
         print("(struct nfs4_state *)0x%x" % Deref(self.state))
         self.print_flags()
         self.print_openmodes()
+        print("- stateid: %s" % str(self.stateid))
+        print("- open_stateid: %s" % str(self.open_stateid))
 
 
 # thanks stackoverflow
