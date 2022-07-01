@@ -1166,6 +1166,16 @@ def get_nfsd_net():
     net = readSymbol("init_net")
     return net_generic(net, net_id)
 
+def mutex_in_use(mutex):
+    try:
+        counter = mutex.count.counter
+        newstyle = False
+    except:
+        counter = mutex.owner.counter
+        newstyle = True
+    inuse = counter != 0 if newstyle else counter != 1
+    return inuse
+
 def print_all_svc_xprt(v = 0):
     # Get nfsd_serv. On 2.6.32 it was a global variable, later it was moved
     # to init_net.gen[nfsd_net_id]
@@ -1222,13 +1232,13 @@ def print_all_svc_xprt(v = 0):
                 s_struct = '{!s:-^78}'.format(x)
                 s_addr = str(IP_sock(x.sk_sk))
                 flags = ''
-            counter = mutex.count.counter
-            if (v >= 0 or counter != 1):
+            mutex_inuse = mutex_in_use(mutex)
+            if (v >= 0 or mutex_inuse):
                 print(s_struct)
                 print(s_addr)
                 if(flags):
                     print(flags)
-            if (counter != 1):
+            if (mutex_inuse):
                 print("   +++ mutex is in use +++", mutex)
                 decode_mutex(mutex)
 
