@@ -7,7 +7,7 @@ import socket
 import struct
 
 from LinuxDump.fs import *
-from LinuxDump.fs.nfs4_fs_h import *
+from LinuxDump.fs.nfs.nfs4_fs_h import *
 
 def supported_fstype(s_type):
     if s_type != sym2addr("nfs_fs_type") and\

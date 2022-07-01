@@ -48,7 +48,7 @@ from LinuxDump.Analysis import (get_tentative_arg,
                                 get_interesting_arguments)
 
 # NFSv4-specific
-import LinuxDump.fs.nfs4_fs_h as Nfs4
+import LinuxDump.fs.nfs.nfs4_fs_h as Nfs4
 
 import string, struct
 from socket import ntohl, ntohs, htonl, htons
