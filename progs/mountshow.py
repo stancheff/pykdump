@@ -675,25 +675,8 @@ def process_one_arg(args, v):
     if args.procmountstats:
         show_nfss_stats(v)
 
-
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mounts", dest="procmounts",
-                  action="store_true",
-                  help="print equivalent of /proc/mounts for specified"
-                        " mount(s). If there are no other options set,"
-                        " --mounts is optional")
-    parser.add_argument("--stats", dest="procmountstats",
-                  action="store_true",
-                  help="print equivalent of /proc/self/mountstats for "
-                        "specified mount(s)")
-    # TODO: decide how to specify mount points: fstype, vfsmount, "all", etc
-    parser.add_argument('mount', help='- specify  mount/vfsmount addr '
-                        ' or mountpoint name. If there are no positional'
-                        ' arguments, print info for all NFS mounts', nargs='*')
-    o = parser.parse_args()
-
+def main(args):
+    o = args
     # If we do not have any options - just positional arguments - treat it
     # as --mounts
 
@@ -733,3 +716,22 @@ if __name__ == '__main__':
              show_vfsmnt(v)
         if (o.procmountstats):
             show_nfss_stats(v)
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mounts", dest="procmounts",
+                  action="store_true",
+                  help="print equivalent of /proc/mounts for specified"
+                        " mount(s). If there are no other options set,"
+                        " --mounts is optional")
+    parser.add_argument("--stats", dest="procmountstats",
+                  action="store_true",
+                  help="print equivalent of /proc/self/mountstats for "
+                        "specified mount(s)")
+    # TODO: decide how to specify mount points: fstype, vfsmount, "all", etc
+    parser.add_argument('mount', help='- specify  mount/vfsmount addr '
+                        ' or mountpoint name. If there are no positional'
+                        ' arguments, print info for all NFS mounts', nargs='*')
+    o = parser.parse_args()
+    main(o)
