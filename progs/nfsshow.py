@@ -9,7 +9,7 @@
 
 # Print info about NFS/RPC
 
-__version__ = "1.1.4"
+__version__ = "1.1.5"
 
 from collections import (Counter, OrderedDict, defaultdict)
 import itertools
@@ -1515,75 +1515,8 @@ def print_nfs_client(nfs_cl, v):
             nfsv4_client.print_verbose()
 
 
-
-detail = 0
-
-if ( __name__ == '__main__'):
-    import argparse
-
-    class hexact(argparse.Action):
-        def __call__(self,parser, namespace, values, option_string=None):
-            # A special value 'all'
-            if (values == 'all'):
-                val = 'all'
-            else:
-                val =  int(values,16)
-            setattr(namespace, self.dest, val)
-            return
-
-    parser =  argparse.ArgumentParser()
-
-
-    parser.add_argument("-a","--all", dest="All", default = 0,
-                  action="store_true",
-                  help="print all")
-
-    parser.add_argument("--server", dest="Server", default = 0,
-                  action="store_true",
-                  help="print info about this host as an NFS-server")
-
-    parser.add_argument("--client", dest="Client", default = 0,
-                  action="store_true",
-                  help="print info about this host as an NFS-client")
-
-    parser.add_argument("--rpctasks", dest="Rpctasks", default = 0,
-                  action="store_true",
-                  help="print RPC tasks")
-
-    parser.add_argument("--decoderpctask", dest="Decoderpctask", default = -1,
-                  action=hexact,
-                  help="Decode RPC task at address")
-    parser.add_argument("--nfsclient", dest="Nfsclient", default = -1,
-                  action=hexact,
-                  help="Print info about nfs_client at address")
-    parser.add_argument("--maxrpctasks", dest="Maxrpctasks", default = 20,
-                  type=int, action="store",
-                  help="Maximum number of RPC tasks to print")
-
-    parser.add_argument("--locks", dest="Locks", default = 0,
-                    action="store_true",
-                    help="print NLM locks")
-    parser.add_argument("--deferred",  default = 0,
-                  action="store_true",
-                  help="Print Deferred Requests")
-
-    parser.add_argument("--pid", dest="Pid", default=None, const=-1,
-                nargs = '?',
-                type=int, action="store",
-                help="Try to find everything NFS-related for this pid")
-
-    parser.add_argument("--version", dest="Version", default = 0,
-                  action="store_true",
-                  help="Print program version and exit")
-
-
-    parser.add_argument("-v", dest="Verbose", default = 0,
-        action="count",
-        help="verbose output")
-
-
-    o = args = parser.parse_args()
-
+def base_command(args):
+    o = args
     detail = o.Verbose
 
     if (o.Version):
@@ -1637,7 +1570,7 @@ if ( __name__ == '__main__'):
 
     # If no options have been provided, print just a summary
     rargs = len(sys.argv) - 1
-    if (not (rargs == 0 or rargs == 1 and detail)):
+    if (not (rargs == 1 or rargs == 2 and detail)):
         sys.exit(0)
 
     if (get_nfs_mounts()):
@@ -1649,3 +1582,122 @@ if ( __name__ == '__main__'):
     # RPC tasks
     print(" RPC ".center(70, '='))
     print_all_rpc_tasks(-1)
+
+def main():
+    import argparse
+    from mountshow import main as mounts_command
+    from nfs4show import main as clientstate_command
+    from nfsd4show import main as serverstate_command
+
+    class hexact(argparse.Action):
+        def __call__(self,parser, namespace, values, option_string=None):
+            # A special value 'all'
+            if (values == 'all'):
+                val = 'all'
+            else:
+                val =  int(values,16)
+            setattr(namespace, self.dest, val)
+            return
+
+    parser =  argparse.ArgumentParser(epilog='For specific sub-command help, '
+        'run \'nfsshow SUB-COMMAND -h|--help\'')
+
+    subparsers = parser.add_subparsers(help='sub-command help')
+
+    base_parser = subparsers.add_parser('base', help='The original nfsshow command')
+    base_parser.add_argument("-a","--all", dest="All", default = 0,
+                  action="store_true",
+                  help="print all")
+    base_parser.add_argument("--server", dest="Server", default = 0,
+                  action="store_true",
+                  help="print info about this host as an NFS-server")
+    base_parser.add_argument("--client", dest="Client", default = 0,
+                  action="store_true",
+                  help="print info about this host as an NFS-client")
+    base_parser.add_argument("--rpctasks", dest="Rpctasks", default = 0,
+                  action="store_true",
+                  help="print RPC tasks")
+    base_parser.add_argument("--decoderpctask", dest="Decoderpctask", default = -1,
+                  action=hexact,
+                  help="Decode RPC task at address")
+    base_parser.add_argument("--nfsclient", dest="Nfsclient", default = -1,
+                  action=hexact,
+                  help="Print info about nfs_client at address")
+    base_parser.add_argument("--maxrpctasks", dest="Maxrpctasks", default = 20,
+                  type=int, action="store",
+                  help="Maximum number of RPC tasks to print")
+    base_parser.add_argument("--locks", dest="Locks", default = 0,
+                    action="store_true",
+                    help="print NLM locks")
+    base_parser.add_argument("--deferred",  default = 0,
+                  action="store_true",
+                  help="Print Deferred Requests")
+    base_parser.add_argument("--pid", dest="Pid", default=None, const=-1,
+                nargs = '?',
+                type=int, action="store",
+                help="Try to find everything NFS-related for this pid")
+    base_parser.add_argument("--version", dest="Version", default = 0,
+                  action="store_true",
+                  help="Print program version and exit")
+    base_parser.add_argument("-v", dest="Verbose", default = 0,
+        action="count",
+        help="verbose output")
+    base_parser.set_defaults(func=base_command)
+
+    mounts_parser = subparsers.add_parser('mounts', help='Show mountstats information')
+    mounts_parser.add_argument("--mounts", dest="procmounts",
+                  action="store_true",
+                  help="print equivalent of /proc/mounts for specified"
+                        " mount(s). If there are no other options set,"
+                        " --mounts is optional")
+    mounts_parser.add_argument("--stats", dest="procmountstats",
+                  action="store_true",
+                  help="print equivalent of /proc/self/mountstats for "
+                        "specified mount(s)")
+    # TODO: decide how to specify mount points: fstype, vfsmount, "all", etc
+    mounts_parser.add_argument('mount', help='- specify  mount/vfsmount addr '
+                        ' or mountpoint name. If there are no positional'
+                        ' arguments, print info for all NFS mounts', nargs='*')
+    mounts_parser.set_defaults(func=mounts_command)
+
+    clientstate_parser = subparsers.add_parser('clientstate', help='Show NFSv4 client state')
+    clientstate_parser.add_argument('mount', help='- specify  mount/vfsmount addr '
+                        ' or mountpoint name. If there are no positional'
+                        ' arguments, print info for all NFS mounts', nargs='*')
+    clientstate_parser.add_argument("-a","--all", dest="all", default = 0,
+                  action="store_true",
+                  help="print all")
+    clientstate_parser.add_argument("--client", dest="client", default = 0,
+                  action="store_true",
+                  help="print info about this host as an NFS4-client")
+    clientstate_parser.add_argument("--server", dest="server", default = 0,
+                  action="store_true",
+                  help="print info about this host as an NFS4-server")
+    clientstate_parser.add_argument("-o","--owner", dest="owner", default = 0,
+                  action="store_true",
+                  help="print NFS4 open_owner information ")
+    clientstate_parser.add_argument("-l","--lock", dest="lock", default = 0,
+                  action="store_true",
+                  help="print NFS4 lock_owner information")
+    clientstate_parser.add_argument("-d","--delegation", dest="delegation", default = 0,
+                  action="store_true",
+                  help="print NFS4 delegation information")
+    clientstate_parser.set_defaults(func=clientstate_command)
+
+    serverstate_parser = subparsers.add_parser('serverstate', help='Show NFSv4 server state')
+    serverstate_parser.add_argument("-n", "--nfsd-net", metavar="NFSD_NET", dest="nn", type=auto_int,
+                        help="address of struct nfsd_net")
+    serverstate_parser.add_argument("-v", "--verbosity", default=0, action="count",
+                        help="increase verbosity")
+    serverstate_parser.set_defaults(func=serverstate_command)
+
+    o = args = parser.parse_args()
+    args.func(args)
+
+if __name__ == '__main__':
+    # Run the base sub-command if no sub-command (or the help flag) is given
+    if len(sys.argv) == 1:
+        sys.argv.insert(1, 'base')
+    elif sys.argv[1] not in ['-h', '--help', 'base', 'mounts', 'clientstate', 'serverstate']:
+        sys.argv.insert(1, 'base')
+    main()
