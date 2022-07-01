@@ -91,14 +91,22 @@ def decode_mutex(addr):
     for pid, comm in out:
         print ("\t%8d  %s" % (pid, comm))
     
-    # Check whether we can find an owner
-    if (not s.hasField("owner") or not s.owner):
-        return
-    
-    try:
-        ownertask = s.owner.task
-    except:
-        ownertask = s.owner
+    if (s.hasField("count")):
+        if (not s.hasField("owner") or not s.owner):
+            return
+        try:
+            # owner field is a thread_info
+            ownertask = s.owner.task
+        except:
+            # owner field is a task_struct
+            ownertask = s.owner
+    else:
+        # owner field is an atomic_long_t
+        owner_addr = unsigned64(s.owner.counter) & ~0x7
+        if not owner_addr:
+            return
+        ownertask = readSU("struct task_struct", owner_addr)
+
     print("    Owner of this mutex: pid={0.pid} cmd={0.comm}".format(ownertask))
 
 
