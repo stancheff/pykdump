@@ -45,40 +45,8 @@ def nfs_client_show_state(o, v):
 def nfs_server_show_state(o, v):
     print("Not supported")
 
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('mount', help='- specify  mount/vfsmount addr '
-                        ' or mountpoint name. If there are no positional'
-                        ' arguments, print info for all NFS mounts', nargs='*')
-
-    parser.add_argument("-a","--all", dest="all", default = 0,
-                  action="store_true",
-                  help="print all")
-
-    parser.add_argument("--client", dest="client", default = 0,
-                  action="store_true",
-                  help="print info about this host as an NFS4-client")
-
-    parser.add_argument("--server", dest="server", default = 0,
-                  action="store_true",
-                  help="print info about this host as an NFS4-server")
-
-    parser.add_argument("-o","--owner", dest="owner", default = 0,
-                  action="store_true",
-                  help="print NFS4 open_owner information ")
-
-    parser.add_argument("-l","--lock", dest="lock", default = 0,
-                  action="store_true",
-                  help="print NFS4 lock_owner information")
-
-    parser.add_argument("-d","--delegation", dest="delegation", default = 0,
-                  action="store_true",
-                  help="print NFS4 delegation information")
-
-    o = parser.parse_args()
-
+def main(args):
+    o = args
     if (o.all):
         o.client = o.server = o.owner = o.lock = o.delegation = True
 
@@ -119,3 +87,37 @@ if __name__ == '__main__':
         if o.server:
             nfs_server_show_state(o, v)
 
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('mount', help='- specify  mount/vfsmount addr '
+                        ' or mountpoint name. If there are no positional'
+                        ' arguments, print info for all NFS mounts', nargs='*')
+
+    parser.add_argument("-a","--all", dest="all", default = 0,
+                  action="store_true",
+                  help="print all")
+
+    parser.add_argument("--client", dest="client", default = 0,
+                  action="store_true",
+                  help="print info about this host as an NFS4-client")
+
+    parser.add_argument("--server", dest="server", default = 0,
+                  action="store_true",
+                  help="print info about this host as an NFS4-server")
+
+    parser.add_argument("-o","--owner", dest="owner", default = 0,
+                  action="store_true",
+                  help="print NFS4 open_owner information ")
+
+    parser.add_argument("-l","--lock", dest="lock", default = 0,
+                  action="store_true",
+                  help="print NFS4 lock_owner information")
+
+    parser.add_argument("-d","--delegation", dest="delegation", default = 0,
+                  action="store_true",
+                  help="print NFS4 delegation information")
+
+    o = parser.parse_args()
+    main(o)
