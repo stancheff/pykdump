@@ -681,11 +681,14 @@ def show_nvme_subsystems(sub_list, args):
 
     sub_list = arg_prep(args, sub_list, "subs")
     sub_dict = {}
+    sub_trans  = {}
 
     for sub in sub_list:
         sub_dict[sub] = {}
         ctrls = readSUListFromHead(sub.ctrls, "subsys_entry", "struct nvme_ctrl")
         for ctrl in ctrls:
+            trans = ctrl.ops.name
+            sub_trans[ctrl] = trans
             for ns in readSUListFromHead(ctrl.namespaces, "list", "struct nvme_ns"):
                 if (member_size("struct nvme_ns", "head") != -1):
                     if (ns.head):
@@ -715,8 +718,8 @@ def show_nvme_subsystems(sub_list, args):
                     ana_state = ns.ana_state
                 else:
                     ana_state = ""
-                print("{}{}: [{:#x}] {}: [{:#x}] {}".format(spacer, pr_ctrl_name(ns.ctrl, "ctrl"), ns.ctrl,
-                    part0_to_name(ns.disk.part0), ns, ana_state))
+                print("{}{}:{} [{:#x}] {}: [{:#x}] {}".format(spacer, pr_ctrl_name(ns.ctrl, "ctrl"),sub_trans[ns.ctrl],
+                ns.ctrl, part0_to_name(ns.disk.part0), ns, ana_state))
                 spacer = "  +-"
 
     if (subs):
