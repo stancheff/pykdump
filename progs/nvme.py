@@ -373,7 +373,7 @@ def verify_ctrl_ops(ctrl_list):
 
         elif ("nvme_pci_ctrl_ops" not in ops_name and "nvme_loop_ctrl_ops" not
             in ops_name and "nvme_rdma_ctrl_ops" not in ops_name and
-            "nvme_fc_ctrl_ops" not in ops_name):
+            "nvme_fc_ctrl_ops" not in ops_name and "nvme_tcp_ctrl_ops" not in ops_name):
             pylog.info("WARNING: nvme_ctrl {:16x} detected with no accepted ops string."
                 "Out-of-box driver present?".format(ctrl))
             return 0
@@ -422,8 +422,9 @@ def get_nvme_ctrls():
     for rq in rq_list:
 
         ns = readSU("struct nvme_ns", rq.queuedata)
-        if ns.ctrl != 0 and ns.ctrl not in ctrl_list:
-            ctrl_list.append(ns.ctrl)
+        if ns != 0:
+            if ns.ctrl != 0 and ns.ctrl not in ctrl_list:
+                ctrl_list.append(ns.ctrl)
 
     if (ctrl_list):
         verify_ctrl_ops(ctrl_list)
@@ -466,6 +467,12 @@ def build_list(list_base, spec):
                     ops_string[item_list[-1]] = "rdma"
                 else:
                     pylog.info("ERROR: struct nvme_rdma_ctrl does not exist.")
+            elif ("nvme_tcp_ctrl_ops" in ops_name):
+                if (struct_exists("struct nvme_tcp_ctrl")):
+                    item_list.append(container_of(ctrl, "struct nvme_tcp_ctrl", "ctrl"))
+                    ops_string[item_list[-1]] = "tcp"
+                else:
+                    pylog.info("ERROR: struct nvme_tcp_ctrl does not exist.")
             elif ("nvme_fc_ctrl_ops" in ops_name):
                 if (struct_exists("struct nvme_fc_ctrl")):
                     item_list.append(container_of(ctrl, "struct nvme_fc_ctrl", "ctrl"))
@@ -984,6 +991,58 @@ def show_nvme_fc_queues(fc_dev, qid):
             "{:<14}\nCSN:\t\t{:<14}\tFlags:\t\t{:<14}".format(q.qnum, q.rqcnt, q.seqno,
             q.connection_id, atomic_t(q.csn), hex(q.flags)))
 
+def show_nvme_tcp_dev(tcp_dev):
+
+    print("\n{:<7}  {:<16}  {:<16}  {:<16}  {:<16}".
+        format("tcp:Name", "TCP CtrlAddr", "Queues", "Tagset", "AdminTagset"))
+    print("{:<7}  {:<16}  {:<16}  {:<16}  {:<16}".
+        format("-------", "----------------", "----------------", "----------------",
+        "----------------", "----------------", "----------------", "----------------"))
+
+    name = pr_ctrl_name(tcp_dev.ctrl, "ctrl")
+    ts = tcp_dev.tag_set
+    ats = tcp_dev.admin_tag_set
+    io_queues = member_check("nvme_dev", "io_queues", tcp_dev, "pr_io_queues(origin)", "unavail")
+
+    print("{:<7}  {:<16x}  {:<16x}  {:<16x}  {:<16}".
+        format(name, tcp_dev, tcp_dev.queues, ts, ats))
+
+    print("\nIOQueues:\t{}".format(io_queues))
+
+
+    map = member_check("blk_mq_tag_set", "map", tcp_dev, 'hex(Addr(origin.tag_set, "map"))[2:]',
+        "unavail")
+    admin_map = member_check("blk_mq_tag_set", "map", tcp_dev, 'hex(Addr(origin.admin_tag_set,'
+        '"map"))[2:]', "unavail")
+
+    nr_maps = member_check("blk_mq_tag_set", "nr_maps", tcp_dev, 'str(origin.tag_set.nr_maps)',
+        "unavail")
+    admin_nr_maps = member_check("blk_mq_tag_set", "nr_maps", tcp_dev, 'str(origin.admin_tag_set'
+        '.nr_maps)', "unavail")
+
+    pr_tagset_info(map, admin_map, nr_maps, admin_nr_maps, ts, ats)
+
+def show_nvme_tcp_queues(tcp_dev, qid):
+
+    queue_count = member_check("nvme_ctrl", "queue_count", tcp_dev, "origin.ctrl.queue_count",
+        "origin.queue_count")
+
+    qid_list = arg_prep(qid, queue_count, "qid")
+
+    for queue in qid_list:
+
+        print("\n{:<12}  {:<16}  {:<16}  {:<16}  {:<16}".format("tcp:Ctrl[qid]",
+            "Queue Addr", "TCPCtrl", "SOCK", "REQUEST"))
+        print("{:<12}  {:<16}  {:<16}  {:<16}  {:<16}".format("------------",
+            "----------------", "----------------", "----------------", "----------------"))
+
+        q = tcp_dev.queues[queue]
+        name = pr_ctrl_name(tcp_dev.ctrl, "ctrl")
+        ctrl_queue_id = name + "[" + str(queue) + "]"
+
+        print("{:<12}  {:<16x}  {:<16x}  {:<16x}  {:<16x}".format(ctrl_queue_id, q, q.ctrl,
+            q.sock, q.request))
+
 def show_nvme_pci_dev(pci_dev):
 
     print("\n{:<8}  {:<16}  {:<16}  {:<16}  {:<16}  {:<16}  {:<16}  {:<16}".
@@ -1072,6 +1131,8 @@ def show_nvme_devs(dev_list, args):
             show_nvme_rdma_dev(dev)
         elif "fc" in ops_string[dev]:
             show_nvme_fc_dev(dev)
+        elif "tcp" in ops_string[dev]:
+            show_nvme_tcp_dev(dev)
 
 def show_nvme_queues(dev_list, args, qid):
 
@@ -1086,6 +1147,8 @@ def show_nvme_queues(dev_list, args, qid):
             show_nvme_rdma_queues(dev, qid)
         elif "fc" in ops_string[dev]:
             show_nvme_fc_queues(dev, qid)
+        elif "tcp" in ops_string[dev]:
+            show_nvme_tcp_queues(dev, qid)
 
 def nvme_check_ctrl_states(nvme_ctrls):
 
@@ -1122,7 +1185,7 @@ def main():
 
     parser.add_argument("-d", "--dev", dest="dev", default=0, metavar="CTRL",
         const="None", nargs="?", help="show nvme device information (nvme_dev, "
-        "nvme_loop_ctrl, nvme_rdma_ctrl, nvme_fc_ctrl)")
+        "nvme_loop_ctrl, nvme_rdma_ctrl, nvme_fc_ctrl, nvme_tcp_ctrl)")
 
     parser.add_argument("-q", "--queue", dest="queue", default=0, metavar="CTRL",
         const="None", nargs="?", help="show nvme queue information (nvme_queue, "
