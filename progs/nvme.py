@@ -1008,7 +1008,7 @@ def show_nvme_tcp_dev(tcp_dev):
     io_queues = member_check("nvme_dev", "io_queues", tcp_dev, "pr_io_queues(origin)", "unavail")
 
     print("{:<7}  {:<16x}  {:<16x}  {:<16x}  {:<16}".
-        format(name, tcp_dev, tcp_dev.queues, ts, ats))
+        format(name, tcp_dev, tcp_dev.queues, ts, hex(ats)))
 
     print("\nIOQueues:\t{}".format(io_queues))
 
