@@ -1585,9 +1585,9 @@ def base_command(args):
 
 def main():
     import argparse
-    from mountshow import main as mounts_command
-    from nfs4show import main as clientstate_command
-    from nfsd4show import main as serverstate_command
+    from LinuxDump.mountshow import main as mounts_command
+    from LinuxDump.nfs4show import main as clientstate_command
+    from LinuxDump.nfsd4show import main as serverstate_command
 
     class hexact(argparse.Action):
         def __call__(self,parser, namespace, values, option_string=None):
