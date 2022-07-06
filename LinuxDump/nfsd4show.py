@@ -6,9 +6,14 @@ __version__ = "0.1"
 
 from pykdump.API import *
 from LinuxDump.fs.nfsd.nfsd_net import nfsd_net
+import sys
 
 def print_all_containers(verbosity):
-    nfsd_net_id = readSymbol("nfsd_net_id")
+    try:
+        nfsd_net_id = readSymbol("nfsd_net_id")
+    except TypeError:
+        print("This kernel does not have nfsd net namespaces.")
+        sys.exit(1)
     if sys_info.kernel < "4.10.0":
         nfsd_net_id = nfsd_net_id - 1
     ns_list = sym2addr("net_namespace_list")
