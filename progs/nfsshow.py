@@ -1685,7 +1685,8 @@ def main():
     clientstate_parser.set_defaults(func=clientstate_command)
 
     serverstate_parser = subparsers.add_parser('serverstate', help='Show NFSv4 server state')
-    serverstate_parser.add_argument("-n", "--nfsd-net", metavar="NFSD_NET", dest="nn", type=auto_int,
+    serverstate_parser.add_argument("-n", "--nfsd-net", metavar="NFSD_NET", dest="nn",
+                        type=lambda x: int(x,0),
                         help="address of struct nfsd_net")
     serverstate_parser.add_argument("-v", "--verbosity", default=0, action="count",
                         help="increase verbosity")
