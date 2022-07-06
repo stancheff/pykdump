@@ -1115,7 +1115,7 @@ def print_nfsmount(v = 0):
             print('        ...', rpc_clnt)
         # Print/decode the transport
         xprt = rpc_clnt.cl_xprt
-        print_xprt(xprt, detail)
+        print_xprt(xprt, v)
         #print rpc_clnt, rpc_clnt.cl_metrics
 
         # NFSv4 specific
@@ -1506,7 +1506,7 @@ def print_nfs_client(nfs_cl, v):
             print('        ...', rpc_clnt)
         # Print/decode the transport
         xprt = rpc_clnt.cl_xprt
-        print_xprt(xprt, detail)
+        print_xprt(xprt, v)
         #print rpc_clnt, rpc_clnt.cl_metrics
 
         # NFSv4 specific
