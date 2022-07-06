@@ -23,17 +23,24 @@ enum {
 '''
 NFS_DELEGATION_TYPE=CEnum(__NFS_DELEGATION_TYPE)
 
-# pykdump doesn't like the anonymous union in nfs4_stateid
-# so we have to retrieve the struct member fields manually
-_info = getStructInfo("nfs4_stateid")
-_data_off = _info["data"].offset
-_data_size = _info["data"].size
-_type_off = _info["type"].offset
-
 class nfs4_stateid():
     def __init__(self, s):
+        # pykdump doesn't like the anonymous union in nfs4_stateid
+        # so we have to retrieve the struct member fields manually
+        _info = getStructInfo("nfs4_stateid")
+        _data_off = _info["data"].offset
+        _data_size = _info["data"].size
+        # the 'type' field was added in commit 93b717fd81bf ("NFSv4: Label stateids with the type")
+        try:
+            _type_off = _info["type"].offset
+            _has_type = True
+        except KeyError:
+            _has_type = False
         self._stateid = readSU("nfs4_stateid", s)
-        self._type = readU32(Addr(self._stateid) + _type_off)
+        if _has_type:
+            self._type = readU32(Addr(self._stateid) + _type_off)
+        else:
+            self._type = sys.maxsize
         self._data = readmem(Addr(self._stateid) + _data_off, _data_size)
         self.addr = Deref(self._stateid)
         self.type = self._get_type(self._type)
