@@ -594,7 +594,11 @@ def get_pvsize(blockdev):
         return
 
 def get_sysfs_state(gendisk):
-    state = gendisk.part0.__dev.kobj.state_in_sysfs
+    if (struct_exists("struct hd_struct")):
+        state = gendisk.part0.__dev.kobj.state_in_sysfs
+    else:
+        state = gendisk.part0.bd_device.kobj.state_in_sysfs
+
     if state == 1:
         return "online"
     else:
