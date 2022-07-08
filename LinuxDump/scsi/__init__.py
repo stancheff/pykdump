@@ -98,6 +98,10 @@ opcode_table = {'0x0':'TUR', '0x03':'REQ-SENSE', '0x08':'READ(6)',\
                 '0x8a':'WRITE(16)','0xa0':'REPORT LUNS', '0xa8':'READ(12)',\
                 '0xaa':'WRITE(12)'}
 
+def dprint(*args, **kwargs):
+    if debug:
+        print(*args, **kwargs)
+
 # Return the name of module used by specific Scsi_Host (shost)
 def get_hostt_module_name(shost):
     try:
@@ -666,12 +670,14 @@ def is_scsi_queue(queue):
     return 0
 
 check_for_sbitmap_word_cleared = 1
+all_rq = 0
 def find_used_tags(queue, tags, offset, rqs):
     global check_for_sbitmap_word_cleared
     out = []
     if tags.isNamed("struct sbitmap_queue"):
         tags = tags.sb
 
+    dprint("  tag sbitmap {}".format(tags))
     for i in range(tags.map_nr):
         bitmap = tags.map[i].word
 
@@ -682,27 +688,40 @@ def find_used_tags(queue, tags, offset, rqs):
             except:
                 check_for_sbitmap_word_cleared = 0
 
-        if (not int(bitmap)):
+        if (not int(bitmap) and not all_rq):
             next
 
         depth = 1 << tags.shift
         if i == tags.map_nr - 1:
             depth = tags.depth - depth * i
+        dprint("    tag depth {}".format(depth))
 
         for j in range(depth):
-            if int(bitmap) & 1:
-                rq = rqs[offset]
-                if (member_size("struct request", "ref") != -1):
-                    if (rq and rq.ref.refs.counter != 0 and rq.q == queue):
+            try:
+                if int(bitmap) & 1:
+                    rq = rqs[offset]
+                    if rq and rq.q == queue:
+                        if (member_size("struct request", "ref") != -1):
+                            if rq.ref.refs.counter != 0:
+                                out.append(rq)
+                            elif all_rq:
+                                rq._free_ = 1
+                                out.append(rq)
+                        else:
+                            out.append(rq)
+                    elif rq == 0:
+                        dprint("  bit set but no request? {} {} map {} rqs {} offset {}".format(queue, tags, i, rqs, offset))
+                elif all_rq:
+                    rq = rqs[offset]
+                    if rq and rq.q == queue:
+                        rq._free_ = 1
                         out.append(rq)
-                elif rq:
-                    if rq.q == queue:
-                        out.append(rq)
+            except crash.error:
+                print("WARNING: stale address for request {:x} on queue {:x}?".format(rq, queue))
+
             offset += 1
             bitmap = bitmap >> 1
-
     return out
-
 
 # Get the list of SCSI commands
 def get_scsi_commands_mq(queue):
