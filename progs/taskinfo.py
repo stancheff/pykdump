@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# vim: tabstop=4 shiftwidth=4 softtabstop=4 noexpandtab:
 
 
 # --------------------------------------------------------------------
@@ -17,11 +18,11 @@ from pykdump.API import *
 
 from LinuxDump import percpu
 from LinuxDump.Tasks import (TaskTable, Task, tasksSummary, ms2uptime,
-     decode_tflags, print_namespaces_info, print_memory_stats)
+     decode_tflags, print_namespaces_info, print_memory_stats, getTaskState,
+     task_state_str)
 
 from LinuxDump.BTstack import exec_bt, bt_summarize
 from LinuxDump.fs import get_dentry_name
-
 
 debug = API_options.debug
 
@@ -72,7 +73,7 @@ def gid_t(v):
 
 
 def printTaskDetails(t):
-    sstate = t.state[5:7]
+    sstate = task_state_str(getTaskState(t))
     print ("---- %6d(%s) %s %s" % (t.pid, sstate, str(t.ts), t.comm))
     print("   cpu", t.cpu)
     parent = t.parent
@@ -144,13 +145,14 @@ def printTaskDetails(t):
         if u.hasField("files"):
             print ("\t  processes={} files={}{}".format(
                 atomic_t(u.processes), atomic_t(u.files), extra))
-        else:
-            print ("\t  processes={}{}".format(
-                atomic_t(u.processes), extra))
+        elif u.hasField("processes"):
+            print ("\t  processes={}{}".format(atomic_t(u.processes), extra))
         if (c.hasField("group_info")):
             g = c.group_info
             ngroups = g.ngroups
-            small_block = g.small_block
+            small_block = ""
+            if g.hasField("small_block"):
+                small_block = g.small_block
         else:
             ngroups = t.ngroups
             small_block = t.groups
@@ -243,7 +245,7 @@ def printTasks(reverse = False, maxtoprint = -1):
     if (taskstates_filter):
         out1 = []
         for *group, t in out:
-            sstate = t.state[5:7]
+            sstate = task_state_str(getTaskState(t))
             if (sstate in taskstates_filter):
                 out1.append((*group, t))
         out = out1
@@ -270,7 +272,7 @@ def printTasks(reverse = False, maxtoprint = -1):
         if (pid is None):
             print("           <snip>")
             continue
-        sstate = t.state[5:7]
+        sstate = task_state_str(getTaskState(t))
         tgid = t.tgid
         pid_template = " {:6d}"
         if (pid != tgid):
