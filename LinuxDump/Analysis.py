@@ -1,6 +1,7 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
 # module LinuxDump.Analysis
+# vim: tabstop=4 shiftwidth=4 softtabstop=4 noexpandtab:
 #
 # --------------------------------------------------------------------
 # (C) Copyright 2006-2019 Hewlett Packard Enterprise Development LP
@@ -29,8 +30,8 @@ from pykdump.API import *
 
 from LinuxDump.inet import proto
 from LinuxDump.Tasks import (TaskTable, Task, tasksSummary, ms2uptime,
-                             decode_tflags, decode_waitq, TASK_STATE)
-
+                             decode_tflags, decode_waitq, TASK_STATE,
+                             getTaskState)
 from LinuxDump.fregsapi import (search_for_registers, DisasmFlavor)
 from LinuxDump.BTstack import (exec_bt, verifyFastSet)
 
@@ -244,7 +245,7 @@ __OLD_AGO = 120000      # in ms, we consider such threads old
 def check_possible_hang():
     T_table = TaskTable()
     pids_UN = {t.pid for t in T_table.allThreads() \
-        if t.ts.state & TASK_STATE.TASK_UNINTERRUPTIBLE}
+        if getTaskState(t.ts) & TASK_STATE.TASK_UNINTERRUPTIBLE}
     tot_UN = len(pids_UN)
     # Now check how many pids are older than 120s
     mlist = []
@@ -278,7 +279,7 @@ def check_memory_pressure(_funcpids):
     T_table = TaskTable()
     for pid in subpids:
         t = T_table.getByTid(pid)
-        d[t.state] += 1
+        d[getTaskState(t)] += 1
         total += 1
     if ("TASK_UNINTERRUPTIBLE" in d or total > 20):
         pylog.warning("Memory pressure detected")
@@ -295,7 +296,7 @@ def check_hanging_nfsd(_funcpids):
     T_table = TaskTable()
     for pid in subpids:
         t = T_table.getByTid(pid)
-        d[t.state] += 1
+        d[getTaskState(t)] += 1
         total += 1
     if ("TASK_UNINTERRUPTIBLE" in d):
         pylog.warning("Hanging nfsd threads")
