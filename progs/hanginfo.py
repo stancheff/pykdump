@@ -18,7 +18,8 @@ import re
 from pykdump.API import *
 from LinuxDump.fs import *
 from LinuxDump.Tasks import (TaskTable, Task, tasksSummary, ms2uptime,
-                             decode_tflags, decode_waitq, TASK_STATE)
+                             decode_tflags, decode_waitq, TASK_STATE,
+                             getTaskState)
 from LinuxDump.BTstack import (exec_bt, bt_mergestacks, fastSubroutineStacks,
                                verifyFastSet)
 
@@ -99,7 +100,7 @@ def print_header(msg, n = None):
 #@memoize_cond(CU_LIVE)
 def getUNTasks():
     return {t.pid for t in T_table.allThreads() \
-        if t.ts.state & TASK_STATE.TASK_UNINTERRUPTIBLE}
+        if getTaskState(t.ts) & TASK_STATE.TASK_UNINTERRUPTIBLE}
 
 # Remove a list of pids from the provided dictionary
 def remove_pidlist(pset, pids):
@@ -226,7 +227,7 @@ def get_sema_owners():
     for t in tt.allThreads():
         if (not t.pid in goodpids):
             continue
-        if (t.ts.state in (TASK_STATE.TASK_RUNNING, TASK_STATE.TASK_UNINTERRUPTIBLE)):
+        if (getTaskState(t.ts) in (TASK_STATE.TASK_RUNNING, TASK_STATE.TASK_UNINTERRUPTIBLE)):
             if (member_size("struct mm_struct", "mmap_sem") != -1):
                 out[t.mm.mmap_sem].append(t.pid)
             else:
@@ -247,7 +248,7 @@ def summarize_subroutines(funcnames, title = None):
     total = 0
     for pid in subpids:
         t = T_table.getByTid(pid)
-        d[t.state] += 1
+        d[getTaskState(t)] += 1
         total += 1
     # Print
     if (title):

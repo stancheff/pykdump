@@ -22,7 +22,7 @@ from LinuxDump.BTstack import (exec_bt, bt_summarize, bt_mergestacks,
                                fastSubroutineStacks, verifyFastSet)
 from LinuxDump.kmem import parse_kmemf, print_Zone
 from LinuxDump.Tasks import (TaskTable, Task, tasksSummary, getRunQueues,
-            TASK_STATE, sched_clock2ms, decode_waitq)
+            TASK_STATE, sched_clock2ms, decode_waitq, getTaskState)
 from LinuxDump.Analysis import (check_possible_hang, check_saphana,
                                 check_memory_pressure, check_hanging_nfsd,
                                 print_wait_for_AF_UNIX)
@@ -992,7 +992,7 @@ def check_UNINTERRUPTIBLE():
     bts = []
     count = 0
     for t in tt.allThreads():
-        if (t.ts.state & TASK_STATE.TASK_UNINTERRUPTIBLE):
+        if (getTaskState(t.ts) & TASK_STATE.TASK_UNINTERRUPTIBLE):
             pid = t.pid
             count += 1
             # crash can miss some threads when there are pages missing

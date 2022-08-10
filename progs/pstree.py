@@ -1,4 +1,5 @@
 #!/usr/bin/env/python
+# vim: tabstop=4 shiftwidth=4 softtabstop=4 noexpandtab:
 # --------------------------------------------------------------------
 # (C) Copyright 2018-2019 Red Hat, Inc.
 #
@@ -21,7 +22,8 @@
 # GNU General Public License for more details.
 from pykdump.API import *
 
-from LinuxDump.Tasks import Task, TaskTable
+from LinuxDump.Tasks import (Task, TaskTable, getTaskState,
+     task_state_color, task_state_str)
 from LinuxDump import crashcolor
 
 import sys
@@ -65,59 +67,6 @@ def print_pstree(options):
     print_children(init_task, 0, options)
 
     print ("\n\nTotal %s tasks printed" % (pid_cnt))
-
-TASK_RUNNING = 0
-TASK_INTERRUPTIBLE = 1
-TASK_UNINTERRUPTIBLE = 2
-__TASK_STOPPED = 4
-__TASK_TRACED = 8
-EXIT_ZOMBIE = 16
-EXIT_DEAD = 32
-TASK_DEAD = 64
-
-def task_state_color(state):
-    if isinstance(state, int):
-        state = state & 0x7f
-
-    return {
-        TASK_RUNNING : crashcolor.BLUE,
-        TASK_INTERRUPTIBLE : crashcolor.RESET,
-        TASK_UNINTERRUPTIBLE : crashcolor.RED,
-        __TASK_STOPPED : crashcolor.CYAN,
-        __TASK_TRACED : crashcolor.MAGENTA,
-        EXIT_ZOMBIE : crashcolor.YELLOW,
-        EXIT_DEAD : crashcolor.LIGHTRED,
-        TASK_DEAD : crashcolor.LIGHTRED,
-        "TASK_RUNNING" : crashcolor.BLUE,
-        "TASK_INTERRUPTIBLE" : crashcolor.RESET,
-        "TASK_UNINTERRUPTIBLE" : crashcolor.RED,
-        "TASK_STOPPED" : crashcolor.CYAN,
-        "TASK_ZOMBIE" : crashcolor.YELLOW,
-        "TASK_DEAD" : crashcolor.LIGHTRED,
-    }[state]
-
-
-def task_state_str(state):
-    if isinstance(state, int):
-        state = state & 0x7f
-
-    return {
-        TASK_RUNNING: "RU",
-        TASK_INTERRUPTIBLE: "IN",
-        TASK_UNINTERRUPTIBLE: "UN",
-        __TASK_STOPPED: "ST",
-        __TASK_TRACED: "TR",
-        EXIT_ZOMBIE: "ZO",
-        EXIT_DEAD: "DE",
-        TASK_DEAD: "DE",
-        "TASK_RUNNING" : "RU",
-        "TASK_INTERRUPTIBLE" : "IN",
-        "TASK_UNINTERRUPTIBLE" : "UN",
-        "TASK_STOPPED" : "ST",
-        "TASK_ZOMBIE" : "ZO",
-        "TASK_DEAD" : "DE",
-    }[state]
-
 
 def print_branch(depth, first):
     global branch_locations
@@ -167,7 +116,8 @@ def print_task(task, depth, first, options):
     if (task.comm != 0):
         comm_str = task.comm
 
-    task_color = task_state_color(task.state)
+    state = getTaskState(task)
+    task_color = task_state_color(state)
     if task_color != crashcolor.RESET:
         crashcolor.set_color(task_color)
 
@@ -175,7 +125,7 @@ def print_task(task, depth, first, options):
            (comm_str,
             "(" + str(task.pid) + ")"
                 if options.print_pid else "",
-            "[" + task_state_str(task.state) +"]"
+            "[" + task_state_str(state) +"]"
                 if options.print_state else "",
             thread_str))
     print ("%s" % (print_str), end='')

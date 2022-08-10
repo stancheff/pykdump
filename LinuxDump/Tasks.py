@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # module LinuxDump.Tasks
+# vim: tabstop=4 shiftwidth=4 softtabstop=4 noexpandtab:
 #
 # --------------------------------------------------------------------
 # (C) Copyright 2006-2022 Hewlett Packard Enterprise Development LP
@@ -28,7 +29,7 @@ and scheduler.
 from pykdump.API import *
 from pykdump.ASCII_Art import EmbeddedFrames
 
-from LinuxDump import percpu
+from LinuxDump import percpu, crashcolor
 
 from .inet import proto
 from .BTstack import exec_bt
@@ -127,6 +128,67 @@ if (tsarray is not None and len(tsarray) > 7):
 else:
     TASK_STATE = TASK_STATE_26
 
+# task_struct.__state was task_struct.state
+# try the new name and fallback to the old.
+def getTaskState(task):
+    state = None
+    try:
+        state = task.__state
+    except KeyError as kerr: # older kernel, pre 5.14?
+        state = task.state
+    return state
+
+## From pstree.py, shared with taskinfo.py
+TASK_RUNNING = 0
+TASK_INTERRUPTIBLE = 1
+TASK_UNINTERRUPTIBLE = 2
+__TASK_STOPPED = 4
+__TASK_TRACED = 8
+EXIT_ZOMBIE = 16
+EXIT_DEAD = 32
+TASK_DEAD = 64
+
+def task_state_color(state):
+    if isinstance(state, int):
+        state = state & 0x7f
+    return {
+        TASK_RUNNING : crashcolor.BLUE,
+        TASK_INTERRUPTIBLE : crashcolor.RESET,
+        TASK_UNINTERRUPTIBLE : crashcolor.RED,
+        __TASK_STOPPED : crashcolor.CYAN,
+        __TASK_TRACED : crashcolor.MAGENTA,
+        EXIT_ZOMBIE : crashcolor.YELLOW,
+        EXIT_DEAD : crashcolor.LIGHTRED,
+        TASK_DEAD : crashcolor.LIGHTRED,
+        "TASK_RUNNING" : crashcolor.BLUE,
+        "TASK_INTERRUPTIBLE" : crashcolor.RESET,
+        "TASK_UNINTERRUPTIBLE" : crashcolor.RED,
+        "TASK_STOPPED" : crashcolor.CYAN,
+        "TASK_ZOMBIE" : crashcolor.YELLOW,
+        "TASK_DEAD" : crashcolor.LIGHTRED,
+    }[state]
+
+
+def task_state_str(state):
+    if isinstance(state, int):
+        state = state & 0x7f
+    return {
+        TASK_RUNNING: "RU",
+        TASK_INTERRUPTIBLE: "IN",
+        TASK_UNINTERRUPTIBLE: "UN",
+        __TASK_STOPPED: "ST",
+        __TASK_TRACED: "TR",
+        EXIT_ZOMBIE: "ZO",
+        EXIT_DEAD: "DE",
+        TASK_DEAD: "DE",
+        "TASK_RUNNING" : "RU",
+        "TASK_INTERRUPTIBLE" : "IN",
+        "TASK_UNINTERRUPTIBLE" : "UN",
+        "TASK_STOPPED" : "ST",
+        "TASK_ZOMBIE" : "ZO",
+        "TASK_DEAD" : "DE",
+    }[state]
+
 # -------------------------------------------------------------------
 
 # We have a global variable 'struct task_struct init_task;',
@@ -185,7 +247,7 @@ class Task:
     # -- Get Task State in a symbolic format --
     def __get_state(self):
         try:
-            st = task_state2str(self.ts.state)
+            st = getTaskState(self.ts)
         except:
             st = '??'
             pylog.error('corrupted task ', self.ts)
